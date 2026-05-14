@@ -84,9 +84,9 @@ Verify agents appear:
 ls <path>/.kiro/agents/
 ```
 
-## Step 6: Recommend committing
+## After deployment
 
-Surface: "Commit `.kiro/` to your project so contributors get working agents without needing agent-crews."
+Surface: "Commit `.kiro/` so contributors get working agents without cloning agent-crews."
 
 ## Common mistakes to prevent
 

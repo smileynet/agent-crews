@@ -55,22 +55,4 @@ projects:
 
 The generator uses this to assemble the right agents with the right behavioral rules.
 
-## Deploying
-
-```bash
-just build              # generate all projects
-just link my-project    # symlink to target project
-```
-
-Or use `@deploy-crew` to have an agent handle it.
-
-## Updating
-
-When you change crew definitions or components:
-
-```bash
-just build
-just link my-project
-```
-
-Then commit the updated `.kiro/` in your project repo.
+See [Fleet Configuration](fleet-configuration.md) for build and deploy commands.

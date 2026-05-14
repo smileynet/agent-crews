@@ -10,8 +10,6 @@ Agents don't always behave the way you designed them to. Session analysis reveal
 - **Protocol gaps** — agents skipping verification, not committing, ignoring rules
 - **Efficiency issues** — over-researching, excessive tool calls, repeated failures
 
-You can't improve what you don't measure.
-
 ## When to analyze
 
 - After a session that felt off (agent was slow, wrong, or unhelpful)

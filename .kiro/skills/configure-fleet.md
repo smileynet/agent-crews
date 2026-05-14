@@ -30,7 +30,7 @@ Don't suggest all crews. More isn't better.
 
 Ask: "What commands do you use to build, test, and lint?"
 
-Important considerations:
+Key considerations to surface:
 - These should be FAST commands (agents run them frequently)
 - `cargo check` over `cargo build` (faster)
 - `npm run build` not `npm start` (build, don't serve)

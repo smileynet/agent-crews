@@ -51,7 +51,7 @@ Ask: "Does this match what you experienced? Should I apply this fix?"
 
 ## Key considerations to surface
 
-- One fix at a time — don't change multiple things, you won't know what helped
+- One fix at a time — changing multiple things obscures what helped
 - After fixing, test with the same task that failed
 - Consider writing an eval to catch regressions
 - If the same issue recurs across sessions, it's a structural problem (component or crew design), not a one-off

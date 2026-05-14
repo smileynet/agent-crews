@@ -4,7 +4,7 @@ fleet.yaml is where you register projects and configure how agents behave. It's 
 
 ## Why fleet.yaml exists
 
-Without it, you'd configure each project's agents individually. Fleet lets you set sensible defaults once and override per-project only where needed. Add a project, pick crews, set your build commands — the generator handles the rest.
+Without it, you'd configure each project's agents individually. Set defaults once, override per-project where needed.
 
 ## Structure
 
