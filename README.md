@@ -1,4 +1,4 @@
-# agent-crews
+# Agent Crews
 
 You don't need a bigger context window, you need a crew.
 
