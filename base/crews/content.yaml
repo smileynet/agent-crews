@@ -3,7 +3,7 @@ workflow: content
 scope:
   description: "Presentations, tutorials, and educational content"
   handles: [presentations, tutorials, workshops, demos, content-creation]
-  refuses: [code-implementation, bugs, infrastructure, research]
+  refuses: [implementation, bugs, infrastructure, research]
 
 tools:
   - read

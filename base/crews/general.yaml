@@ -8,10 +8,10 @@ scope:
   - implementation
   - refactoring
   refuses:
-  - bug-fixing
+  - bugs
   - infrastructure
-  - research-only
-  - documentation-only
+  - research
+  - documentation
 
 tools:
   - read

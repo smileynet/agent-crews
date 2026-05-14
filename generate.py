@@ -221,12 +221,23 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                         agent_json["prompt"] = agent_json.get("prompt", "") + \
                             "\n\n## Handoff Awareness\nWhen work shifts outside your scope, suggest switching. Include a 2-3 sentence context summary the user can share with the target agent:\n" + "\n".join(lines)
 
-                # Auto-inject Scope Boundary from refuses
+                # Auto-inject Scope Boundary from refuses (only for intents a sibling handles)
                 refuses_list = crew.get("scope", {}).get("refuses", [])
                 if refuses_list and "## Scope Boundary" not in agent_json.get("prompt", ""):
-                    boundary_lines = "\n".join(f"- {r}" for r in refuses_list)
-                    agent_json["prompt"] = agent_json.get("prompt", "") + \
-                        f"\n\n## Scope Boundary\nDo NOT attempt work in these areas — suggest a handoff instead:\n{boundary_lines}"
+                    # Filter: only refuse intents that a present sibling actually handles
+                    if sibling_crews:
+                        sibling_handles = set()
+                        workflow_name = crew.get("workflow", "")
+                        for s in sibling_crews:
+                            if s["workflow"] != workflow_name:
+                                sibling_handles.update(s.get("handles", []))
+                        active_refuses = [r for r in refuses_list if r in sibling_handles]
+                    else:
+                        active_refuses = refuses_list
+                    if active_refuses:
+                        boundary_lines = "\n".join(f"- {r}" for r in active_refuses)
+                        agent_json["prompt"] = agent_json.get("prompt", "") + \
+                            f"\n\n## Scope Boundary\nDo NOT attempt work in these areas — suggest a handoff instead:\n{boundary_lines}"
 
                 # Auto-inject available prompts into welcomeMessage
                 prompts_dir = output_dir.parent / "prompts"
@@ -414,7 +425,12 @@ def build_sibling_map(crew_files: list[Path]) -> list[dict]:
 
 
 def validate_coverage(fleet: dict):
-    """Warn if any refused scope keyword appears in no sibling crew's handles."""
+    """Warn about refused keywords that no assigned sibling crew handles.
+    
+    Only warns when at least one sibling crew's handles list contains a keyword
+    in the same domain, suggesting a vocabulary mismatch. Deliberately missing
+    crews (no sibling assigned for that domain) are not flagged.
+    """
     root = Path(__file__).parent
     base_crews_dir = root / "base" / "crews"
     for proj_name, proj_cfg in fleet.get("projects", {}).items():
@@ -423,32 +439,40 @@ def validate_coverage(fleet: dict):
         crew_names = proj_cfg.get("crews") or fleet.get("defaults", {}).get("crews", [])
         if not crew_names:
             continue
-        # Resolve crew YAML paths
         crew_files = []
         for cn in crew_names:
-            # Check project-local crews first
             local = root / "projects" / proj_name / ".kiro" / "crews" / f"{cn}.yaml"
             base = base_crews_dir / f"{cn}.yaml"
             if local.exists():
                 crew_files.append(local)
             elif base.exists():
                 crew_files.append(base)
-        # Collect all handles and refuses
-        all_handles = set()
-        all_refuses = []
+        # Build per-crew scope data
+        crews = []
         for cf in crew_files:
             with open(cf, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
             if not data:
                 continue
             scope = data.get("scope", {}) or {}
-            all_handles.update(scope.get("handles", []))
-            for r in scope.get("refuses", []):
-                all_refuses.append((r, data.get("workflow", cf.stem)))
-        # Warn about gaps
-        for refused, workflow in all_refuses:
-            if refused not in all_handles:
-                print(f"  ⚠️  {proj_name}: '{refused}' refused by {workflow} but no sibling handles it", file=sys.stderr)
+            crews.append({
+                "workflow": data.get("workflow", cf.stem),
+                "handles": set(scope.get("handles", [])),
+                "refuses": scope.get("refuses", []),
+            })
+        # For each refused keyword, check if a sibling handles it
+        for crew in crews:
+            sibling_handles = set()
+            for other in crews:
+                if other["workflow"] != crew["workflow"]:
+                    sibling_handles.update(other["handles"])
+            if not sibling_handles:
+                continue
+            for refused in crew["refuses"]:
+                if refused not in sibling_handles:
+                    similar = [h for h in sibling_handles if refused in h or h in refused]
+                    if similar:
+                        print(f"  ⚠️  {proj_name}: '{refused}' refused by {crew['workflow']} — possible vocab mismatch with: {', '.join(similar)}", file=sys.stderr)
 
 
 def generate_all(dry_run: bool = False):
