@@ -9,7 +9,7 @@ scope:
   - style-guides
   - prose
   refuses:
-  - code-implementation
+  - implementation
   - bugs
   - infrastructure
   - deployment
