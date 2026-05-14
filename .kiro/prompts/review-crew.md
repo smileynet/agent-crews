@@ -1,3 +1,6 @@
+---
+description: "Cross-session crew performance review — analyze patterns, identify improvements"
+---
 # Review Crew
 
 Review agent team performance across sessions to identify improvements for both the project-local crew and the agent-crews repo.

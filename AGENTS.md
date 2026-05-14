@@ -107,6 +107,7 @@ Every project deployment MUST include a `@crew-sheet` prompt:
 | crew-augmenter | `/agent crew-augmenter` | Research + add new agents/features to existing crews |
 | kiro-helper | (subagent) | Kiro CLI schema lookups — delegated to by other agents |
 | crew-analyst | `/agent crew-analyst` | Analyze sessions, find protocol gaps, recommend crew improvements |
+| project-hygiene | `/agent project-hygiene` | Data separation, doc accuracy, sanitization auditing |
 
 The `dispatcher` is the default entry point. It delegates to the specialist agents. Start with `/agent dispatcher` if unsure which agent to use.
 
@@ -122,6 +123,7 @@ The `dispatcher` is the default entry point. It delegates to the specialist agen
 | `@tune-crew` | Full tuning loop: analyze sessions → diagnose → fix → validate |
 | `@crew-sheet` | Show all agents, prompts, and common tasks |
 | `@grill-me` | Design interrogation — relentless questioning until shared understanding |
+| `@thunderdome` | Ruthless editing — every feature fights to earn its place |
 
 ## Doc index
 

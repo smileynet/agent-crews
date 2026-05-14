@@ -1,3 +1,6 @@
+---
+description: "Analyze a single session for antipatterns and crew improvements"
+---
 # Review Session
 
 Analyze a kiro-cli session to identify improvements for an agent team.
