@@ -1,93 +1,51 @@
 # agent-crews
 
-Your AI coding assistant is one agent doing everything. Give it a team instead.
+You don't need a bigger context window, you need a crew.
 
-agent-crews deploys specialized AI agent teams to [kiro-cli](https://github.com/kiro-cli) projects. Each crew has a lead that delegates to specialists — a builder, a tester, a researcher, a reviewer — so you talk to one agent and get the output of many.
+Agent Crews for [kiro-cli](https://github.com/kiro-cli) projects. Each crew is specialized — unique agents built for a specific purpose. A lead plans the work and delegates to the right specialist. Use the general crew as your everyday default, or deploy a specialized crew when you're deep in bugs, infrastructure, research, or writing.
 
-## What you can do
+## Out of the box
 
-- **Build features** — a lead plans the work, delegates implementation, testing, and review
-- **Fix bugs** — a specialist reproduces, diagnoses root cause, applies minimal fix, verifies
-- **Research & document** — agents investigate code, draft docs, fact-check claims
-- **Deploy infrastructure** — plan, provision, verify health, report status
-- **Onboard to a codebase** — scan architecture, trace dependencies, produce a guide
-- **Write & present** — outline, draft, edit, format
+The **general** crew handles everyday work — features, small fixes, quick questions. It's your default. Specialized crews exist for work that benefits from dedicated agents with domain-specific protocols:
 
-Pick the crew that matches your work:
+| Crew | When to use | Why specialized |
+|------|-------------|-----------------|
+| General | Features, mixed work, anything routine | Default — covers most tasks |
+| Bug Fix | Reproducing and fixing bugs | Systematic root-cause analysis, regression testing, minimal-fix discipline |
+| Infrastructure | Provisioning, deploying, IaC | Health checks, rollback planning, blast-radius awareness |
+| Research | Investigation, documentation | Source triangulation, fact-checking, citation tracking |
+| Onboarding | Understanding a new codebase | Architecture scanning, dependency tracing, guide generation |
+| Hygiene | Keeping the project accurate and organized | Docs reflect reality, instructions stay current, dead code gets removed |
+| Content | Presentations, tutorials, demos | Structured for visual/slide formats, audience targeting, narrative arc |
+| Writing | Prose, editing, long-form docs | Style enforcement, editor review loops, structural coherence |
 
-| I'm doing... | Start with |
-|--------------|-----------|
-| Features, mixed work | `/agent general-lead` |
-| Fixing bugs | `/agent bugfix-lead` |
-| Infrastructure / deploy | `/agent infrastructure-lead` |
-| Research / docs | `/agent research-lead` |
-| Onboarding to new codebase | `/agent onboarding-lead` |
-| Project maintenance | `/agent hygiene-lead` |
-| Presentations / tutorials | `/agent content-lead` |
-| Writing / editing | `/agent writing-lead` |
+Content is for things with slides, visuals, or a live audience. Writing is for documents people read — READMEs, ADRs, blog posts, technical guides.
+
+Start with general. Switch to a specialist when the work is complex enough to benefit from agents that think differently about the problem.
 
 ## Getting started
 
 ```bash
-# 1. Clone and configure
-git clone <this-repo>
-cp fleet.example.yaml fleet.yaml
-# Edit fleet.yaml — add your project, pick crews, set build/test/lint commands
-
-# 2. Generate agents
-just build
-
-# 3. Deploy to your project
-just link my-project
+git clone https://github.com/smileynet/agent-crews.git
+cd agent-crews
+kiro-cli chat -A --agent dispatcher
 ```
 
-Then in your project:
-```bash
-kiro-cli chat
-/agent general-lead
-```
+The dispatcher will walk you through setup — configuring your project, picking crews, and deploying agents.
 
-The lead delegates to specialists automatically. See the [Use Case Guide](docs/use-case-guide.md) for workflows.
+Once deployed, use `@crew-sheet` in your project for a quick reference of available agents and commands. See the [Use Case Guide](docs/use-case-guide.md) for workflows.
 
-### Minimal fleet.yaml
+## What to commit in your project
 
-```yaml
-projects:
-  my-project:
-    crews: [general, research]
-    components:
-      verification:
-        checks:
-          build: "npm run build"
-          test: "npm test"
-          lint: "npx eslint ."
-```
-
-`general` is always required. Add specialized crews alongside it.
-
-### What to commit in your project
-
-After deploying, commit the generated `.kiro/` directory to your project repo:
-
-```bash
-cd ~/code/my-project
-git add .kiro/
-git commit -m "chore: add agent crew"
-```
-
-This gives every contributor working agents out of the box. The generated files are the final artifact — you don't need agent-crews installed to use them.
-
-To update later: re-run `just build` + `just link my-project` in this repo, then commit the updated `.kiro/` in your project.
+Commit the deployed `.kiro/` directory to your project repo. The generated files are self-contained — no dependency on agent-crews at runtime. Skip this if you prefer to regenerate on demand.
 
 ## How it works
 
-Crew YAMLs define agent rosters and delegation rules. A generator assembles them with behavioral components (verification, git workflow, troubleshooting, etc.) into deployable `.kiro/agents/*.json` + steering files.
+You define crews and configure behavior. The generator assembles everything into agents you can deploy anywhere — update once here, refresh crews across all your projects.
 
-- [Component system](docs/component-architecture/spec.md) — behavioral rules that apply across all agents
-- [Themed crews](docs/themed-crews-guide.md) — optional cosmetic overlays (game-themed agent names)
-- [Generation workflow](CONTRIBUTING.md#workflow) — how to modify and regenerate crews
-- [Architecture decisions](docs/decisions/) — why things are the way they are
-- [Examples](examples/) — complete generated output for reference projects
+- [Components](docs/component-architecture/spec.md) — reusable instructions that make it easy to deploy and maintain consistent behavioral preferences across projects
+- [Themes](docs/themed-crews-guide.md) — give your crews some character without losing performance
+- [Examples](examples/) — check out samples before deploying to your project
 
 ## Commands
 
@@ -98,12 +56,8 @@ Crew YAMLs define agent rosters and delegation rules. A generator assembles them
 | Fleet status | `just status` |
 | Validate | `just check` |
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and conventions.
+---
 
 [Report a bug](../../issues/new?template=bug_report.yml) · [Request a feature](../../issues/new?template=feature_request.yml)
 
-## License
-
-[MIT](LICENSE)
+Your agents can file these too — [bug template](.github/ISSUE_TEMPLATE/bug_report.md), [feature template](.github/ISSUE_TEMPLATE/feature_request.md).
