@@ -1,4 +1,8 @@
-# CONTEXT.md — Project Language Guide
+---
+inclusion: always
+---
+
+# Vocabulary
 
 Canonical vocabulary for agent-crews. Use these exact keywords in scope definitions, routing, and documentation.
 

@@ -44,6 +44,7 @@
   },
   "resources": [
     "file://AGENTS.md",
+    "file://.kiro/steering/vocabulary.md",
     "file://base/crews/general.yaml",
     "skill://.kiro/skills/create-crew.md"
   ],

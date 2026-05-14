@@ -45,6 +45,7 @@
   },
   "resources": [
     "file://AGENTS.md",
+    "file://.kiro/steering/vocabulary.md",
     "skill://.kiro/skills/session-review-patterns/SKILL.md"
   ],
   "hooks": {

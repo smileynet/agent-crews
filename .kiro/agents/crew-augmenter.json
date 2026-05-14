@@ -47,7 +47,8 @@
     }
   },
   "resources": [
-    "file://AGENTS.md"
+    "file://AGENTS.md",
+    "file://.kiro/steering/vocabulary.md"
   ],
   "hooks": {
     "agentSpawn": [
