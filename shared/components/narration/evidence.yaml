@@ -1,0 +1,33 @@
+name: narration-evidence
+description: "Narration with deterministic evidence — build/test/lint pass is sufficient"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Narration Protocol (Evidence)
+
+  ## When to Narrate
+  - **Before delegating:** announce plan (what, who, why)
+  - **Between steps:** one-line status update
+  - **After completion:** summary with evidence
+
+  ## Grounding: EVIDENCE
+  Claims are confirmed by deterministic checks only:
+  - Build passes
+  - Tests pass
+  - Lint passes
+  - Scope check (git diff limited to task)
+
+  No independent verifier needed. If the checks pass, the work is confirmed.
+  Include check output in the DONE signal's Evidence field.
+
+subagents: []

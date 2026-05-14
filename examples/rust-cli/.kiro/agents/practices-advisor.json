@@ -1,0 +1,36 @@
+{
+  "name": "practices-advisor",
+  "description": "[Bug Fix] Practices advisor \u2014 how others solved this class of bug",
+  "prompt": "You are a worker agent on a bug fix. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are practices-advisor \u2014 research how others solved this class of problem.\nFor the bug being fixed, search for:\n1. **Best Practices** \u2014 canonical way to solve this class of problem\n2. **Anti-Patterns** \u2014 common wrong fixes that cause regressions\n3. **Prior Art** \u2014 how other repos/projects fixed the same issue\nAlways cite sources.",
+  "tools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/task-lifecycle.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"practices-advisor\" && echo \"\ud83e\udd16 practices-advisor ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  }
+}

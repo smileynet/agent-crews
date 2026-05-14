@@ -1,0 +1,56 @@
+name: notifications-channels
+description: "Additive notification channels with configurable policy"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Notifications Protocol
+
+  ## Channels
+  Active channels: {{notifications.channels}}
+  Slack channel: {{notifications.slack_channel_name}} (ID: {{notifications.slack_channel}})
+
+  ## Policy: {{notifications.policy}}
+
+  | Policy | When to fire |
+  |--------|-------------|
+  | completions | Only on task completion (DONE/FAILED) |
+  | verbose | Completion + significant milestones + blockers |
+  | silent | Never (notifications disabled) |
+
+  ## Channel Implementations
+  | Channel | Mechanism |
+  |---------|-----------|
+  | toast | OS-native notification (terminal bell / osascript / notify-send) |
+  | discord | Webhook POST to configured URL |
+  | slack | Webhook POST to configured URL |
+  | email | SMTP or SES to configured address |
+
+  ## Rules
+  - Channels are additive (toast + discord, not one-of)
+  - Fire notifications AFTER signaling (completion sequence step 6)
+  - Include: task summary, status, duration
+  - Keep notifications brief — link to full output if needed
+  - Never include secrets or sensitive data in notifications
+
+subagents: []
+
+scripts:
+  - file: notify-toast.sh
+    description: "OS-native toast notification"
+    args: "TITLE MESSAGE"
+  - file: notify-discord.sh
+    description: "Discord webhook notification (requires DISCORD_WEBHOOK env var)"
+    args: "TITLE MESSAGE"
+  - file: notify-slack.sh
+    description: "Slack webhook notification (requires SLACK_WEBHOOK env var)"
+    args: "TITLE MESSAGE"

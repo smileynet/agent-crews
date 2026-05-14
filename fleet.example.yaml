@@ -1,0 +1,109 @@
+# fleet.example.yaml — Reference configuration
+# Copy to fleet.yaml and customize for your projects.
+#
+# fleet.yaml is gitignored (your projects are private).
+# fleet.example.yaml is committed (shows the format + generates agent-crews itself).
+
+defaults:
+  persona: personal
+  crews: [general]
+  theme: null
+  components:
+    sanity_gate: assumption-register
+    search:
+      variant: layered
+      sources: [local, web]
+      priority: "local → web"
+      conflict: first-authoritative
+    memory:
+      variant: four-tier
+      tiers: [working, session]
+      discovery: false
+    notifications:
+      variant: channels
+      channels: [toast]
+      policy: completions
+    task_tracking:
+      variant: soft-hard
+      backend: todo-tool
+    decisions: progressive
+    handoff: scope-based
+    narration: verified
+    troubleshooting:
+      variant: systematic
+      escalation:
+        same_approach: 2
+        strategies: 3
+        action: ask-user
+    writing:
+      variant: standard
+      editor:
+        triggers: [new-document, significant-revision, user-facing]
+      theme: null
+    verification:
+      variant: gate
+      checks:
+        build: null
+        test: null
+        lint: null
+    git:
+      variant: checkpoint
+      worktrees: false
+    completion:
+      variant: standard
+      followups: file-issues
+
+projects:
+  # agent-crews itself (self-hosted — generates its own .kiro/)
+  agent-crews:
+    crews: [meta]
+    theme: null
+    self_hosted: true
+    components:
+      verification:
+        checks:
+          build: "uv run generate.py --dry-run"
+          test: null
+          lint: null
+      git:
+        variant: checkpoint
+
+  # Example: Rust CLI project
+  ferris-tracker:
+    crews: [general, bug-fix]
+    theme: null
+    components:
+      verification:
+        checks:
+          build: "cargo check"
+          test: "cargo test"
+          lint: "cargo clippy"
+      git:
+        variant: pr-based
+
+  # Example: Node/TypeScript web app (with solutions-architect persona)
+  taskflow-ui:
+    persona: solutions-architect
+    crews: [general, infrastructure]
+    theme: wow
+    components:
+      verification:
+        checks:
+          build: "npm run build"
+          test: "npm test"
+          lint: "npx eslint ."
+      notifications:
+        channels: [toast, slack]
+        slack_channel: "C0EXAMPLE"
+        slack_channel_name: "#project-dev"
+
+  # Example: Godot game project
+  pixel-dungeon:
+    crews: [general, content]
+    theme: null
+    components:
+      verification:
+        checks:
+          build: "godot --headless --check-only"
+          test: "godot --headless --run-tests"
+          lint: null

@@ -1,0 +1,45 @@
+name: decisions-progressive
+description: "Progressive formalization — capture → log → ADR, nudge not enforce"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Decision Protocol (Progressive Formalization)
+
+  ## Capture → Log → ADR Pipeline
+
+  ### Level 1: Capture (always)
+  Every decision goes in the assumption register. No ceremony needed.
+  - "We chose X because Y"
+  - "Assumed Z — not confirmed"
+
+  ### Level 2: Log (significant decisions)
+  When a decision is significant, persist to decision log:
+  - What was decided
+  - What alternatives were considered
+  - Why this option won
+  - What context informed it
+
+  ### Level 3: ADR (when signals present)
+  Promote to Architecture Decision Record when:
+  - Constrains future work (can't easily reverse)
+  - Required research to decide
+  - Affects multiple components or teams
+  - Has been explained twice (sign it needs documentation)
+
+  ## Nudge, Don't Enforce
+  - Never block work for missing formality
+  - Suggest promotion when signals appear: "This decision might warrant an ADR because..."
+  - User can decline — that's fine
+  - Better to capture informally than not at all
+
+subagents: []

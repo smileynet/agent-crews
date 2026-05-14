@@ -1,0 +1,42 @@
+---
+inclusion: always
+---
+# Task Tracking Protocol
+
+## Soft Planning (thinking modes — use in any order)
+
+### Available Modes
+- **Explore** — divergent thinking, generate options, no commitment
+- **Evaluate** — compare options against criteria, narrow down
+- **Execute** — converge on chosen approach, produce output
+- **Review** — step back, check work against original intent
+
+### Facilitation Patterns
+- **Scope anchoring** — restate the original ask before diving in
+- **Coverage gate** — "Have we considered all angles?" before committing
+- **Decision capture** — log choices as they happen (feeds into decisions component)
+
+## Hard Tracking (persistence backend: todo-tool)
+
+Track work items using the configured backend. Each item has:
+- **ID** — unique identifier
+- **Description** — what needs to be done
+- **Status** — pending / in-progress / done / blocked
+- **Owner** — which agent is responsible
+- **Criteria** — how to know it's done
+
+### Backends
+- `todo-tool` (default) — use the todo_list tool
+- `beads` — .scratch/beads/ files
+- `github-issues` — GitHub Issues API
+- `flat-file` — .scratch/tasks.md
+
+## Plan Validation
+Before executing a multi-step plan, check each step:
+- What's the input? What's the output?
+- What could fail? What's the fallback?
+- If any step has no clear answer → back to Explore mode
+
+## Soft → Hard Flow
+Soft planning produces decisions and task breakdowns.
+Hard tracking persists them for execution and progress reporting.

@@ -1,0 +1,13 @@
+min_version = "2024.1.0"
+
+[tools]
+python = "3.12"
+uv = "latest"
+
+[tasks.lint]
+run = "ruff check *.py"
+description = "Lint Python files"
+
+[tasks."lint:fix"]
+run = "ruff check --fix *.py"
+description = "Auto-fix lint issues"

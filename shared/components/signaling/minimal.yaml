@@ -1,0 +1,22 @@
+name: signaling-minimal
+description: "Minimal completion signals — DONE or BLOCKED only"
+
+targets: [all]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Signaling Protocol
+
+  When reporting task status:
+  - `## DONE` — task completed
+  - `## BLOCKED` — cannot proceed (state reason)
+
+subagents: []

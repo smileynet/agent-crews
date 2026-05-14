@@ -1,0 +1,74 @@
+name: writing-standard
+description: "Writing style with independent editor agent and optional theme"
+
+targets: [worker]
+
+prompt: ""
+
+allowed_commands: []
+
+resources:
+  - "skill://.kiro/skills/writing-style.md"
+
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Writing Protocol
+
+  ## Style
+  Follow the writing-style skill. Key principles:
+  - Direct and concise — cut hedging, filler, and obvious statements
+  - One idea per paragraph
+  - Active voice preferred
+  - Technical precision over vague generality
+
+  ## Placement
+  Before creating a new document, determine its location:
+  1. Check existing project conventions (folder structure, docs README)
+  2. Apply docs-organization skill for type → path mapping
+  Never create documents without verifying placement first.
+
+  ## Editor Triggers
+  The editor agent fires on:
+  - **New document** — any new .md, README, or user-facing doc
+  - **Significant revision** — changes >5 lines to existing docs
+  - **User-facing artifacts** — PR descriptions, commit messages for shared repos, ADRs
+
+  The editor sees: document + style rules only (NOT your reasoning).
+  The editor returns: specific edits or "clean" (no changes needed).
+
+  ## Theme
+  If a theme is configured (theme.yaml), apply themed voice to:
+  - Narration and status updates
+  - Welcome messages and handoff redirects
+  - Notifications
+
+  Theme does NOT apply to:
+  - Committed artifacts (docs, PRs, commits, ADRs)
+  - Code comments
+  - Technical specifications
+
+subagents:
+  - name: editor
+    description: "Independent prose review — cuts fluff, enforces style"
+    tools: ["read"]
+    resources: ["skill://.kiro/skills/writing-style.md"]
+    prompt: |
+      You are editor. You run in a FRESH CONTEXT.
+      You receive: the document + the writing-style rules.
+      You do NOT see the drafting agent's reasoning.
+
+      Your job: review prose quality against the style guide.
+      - Cut fluff, compress, rephrase
+      - Check for slop words, hedging stacks, passive voice
+      - Enforce one idea per paragraph
+      - Return: specific edits or "clean" (no changes needed)
+      - Max 1 pass
+
+scripts:
+  - file: validate-mermaid.sh
+    description: "Validate mermaid diagram syntax in markdown files"
+    args: "[FILE_OR_DIR]"

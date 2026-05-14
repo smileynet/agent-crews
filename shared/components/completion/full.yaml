@@ -1,0 +1,57 @@
+name: completion-full
+description: "Full completion sequence with all 10 handoff elements"
+
+targets: [all]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Completion Protocol (Full)
+
+  ## Sequence (execute in order)
+  1. **Verification** — confirm all checks pass
+  2. **Git** — commit and push verified work:
+     - If `git remote get-url origin` succeeds → `git pull --rebase && git push`
+     - If NO remote → commit locally, report "No git remote. Committed at [SHA]."
+  3. **Signaling** — emit DONE/PARTIAL/BLOCKED/FAILED signal
+  4. **Followups** — file issues for out-of-scope findings
+  5. **Handoff** — deliver handoff summary (all elements below)
+  6. **Notifications** — fire configured channels
+  7. **Memory** — persist lessons/decisions
+
+  ## Handoff Elements (Full = 10)
+  1. **Asked → Delivered** — what was requested vs what was produced
+  2. **State change** — what's different now (before/after)
+  3. **Files** — what was created/modified/deleted
+  4. **Problems** — issues encountered during work
+  5. **Wrong turns** — what was tried and rejected, and WHY
+  6. **Decisions** — choices made with rationale
+  7. **Issues filed** — follow-up work logged
+  8. **Next steps** — what to do next (actionable, specific)
+  9. **Context** — anything next session needs that isn't in the code
+  10. **Verification** — what was verified and how
+
+  ## Why Full Handoff Matters
+  - `wrong-turns` prevents next session re-deriving rejected approaches
+  - `decisions` prevents reversals without understanding rationale
+  - `context` captures "landmines" — things that work differently than they look
+
+  ## Secret Handling
+  If a user pastes a secret (API key, token, PAT):
+  - Do NOT echo it back. Reference by name only.
+  - Store in Secrets Manager or `.env` (not in code/commits)
+  - Warn: "⚠️ I see a secret. I'll reference it by name only."
+
+  ## Anti-Patterns
+  - ❌ "Ready to push when you are" — push NOW
+  - ❌ Marking done without verification evidence
+  - ❌ Closing without documenting current state
+
+subagents: []

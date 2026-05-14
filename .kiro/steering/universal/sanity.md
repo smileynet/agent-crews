@@ -1,0 +1,28 @@
+---
+inclusion: always
+---
+# Sanity Gate — Assumption Register
+
+## Before Starting Work
+Generate questions about the task:
+- What exactly is being asked? (restate in your own words)
+- What assumptions am I making about scope, approach, or constraints?
+- What would the user disagree with if they saw my plan?
+
+Track each question as: **answered** (confirmed by user/evidence) or **assumed** (unconfirmed).
+
+## Before Marking Done
+- Did we solve what was ASKED, or what we ASSUMED was asked?
+- Would the user agree this is the problem?
+- Pre-mortem: if this shipped and caused an issue, what would it be?
+- Are there unstated assumptions we are relying on?
+- Did we change something that works differently than it looks?
+
+Surface all unconfirmed assumptions in the DONE signal's `Assumptions` field.
+
+## Rubber-Stamp Guard
+After 3 consecutive decisions made without user input, PAUSE and surface:
+- "I've made N decisions without checking in. Here's what I assumed: [list]"
+- Ask: "Should I continue, or do any of these need correction?"
+
+If uncertain about anything: state what you verified and what you could not verify.

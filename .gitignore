@@ -1,0 +1,26 @@
+# Project-specific
+base/agents/
+references/agents-assemble-source/
+results/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Env / secrets
+.env
+.mise.local.toml
+fleet.local.yaml
+
+# OS
+.DS_Store
+.scratch/
+
+# Personal / generated
+fleet.yaml
+projects/
+feedback/
+scratch/
+.kiro/crews/
+.kiro/memory/

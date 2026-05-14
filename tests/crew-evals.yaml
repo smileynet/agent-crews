@@ -1,0 +1,215 @@
+# tests/crew-evals.yaml — Model-based behavioral evaluations for agent-crews meta crew
+#
+# Run: uv run scripts/eval-crew.py
+# Filter: uv run scripts/eval-crew.py --tag routing
+
+evals:
+  # ============================================================
+  # ROUTING — dispatcher delegates to correct agent
+  # ============================================================
+
+  - name: dispatcher-routes-augment
+    agent: dispatcher
+    input: "add a new agent to the general crew"
+    criteria: |
+      The response should delegate to crew-augmenter.
+      It should narrate the routing decision (explain why this agent).
+      It should NOT attempt to write YAML or create files itself.
+    ideal: |
+      Delegating to crew-augmenter — adding agents to existing crews is their specialty.
+      [proceeds to invoke crew-augmenter subagent]
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-researcher
+    agent: dispatcher
+    input: "research testing patterns for Godot projects"
+    criteria: |
+      The response should delegate to crew-researcher.
+      It should identify this as a research task.
+      It should NOT attempt to do the research itself.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-doctor
+    agent: dispatcher
+    input: "my agents aren't validating, the JSON seems broken"
+    criteria: |
+      The response should delegate to crew-doctor.
+      It should identify this as a diagnosis/fix task.
+      It should NOT attempt to read or fix JSON files itself.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-analyst
+    agent: dispatcher
+    input: "review my last session and tell me what went wrong"
+    criteria: |
+      The response should delegate to crew-analyst.
+      It should identify this as a session analysis task.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-hygiene
+    agent: dispatcher
+    input: "check if any personal data leaked into committed files"
+    criteria: |
+      The response should delegate to project-hygiene.
+      It should identify this as a data separation/sanitization task.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-creator
+    agent: dispatcher
+    input: "build a crew for ~/code/my-new-rust-project"
+    criteria: |
+      The response should delegate to crew-creator.
+      It should identify this as a new crew creation task.
+      It should NOT ask which agent to use — the routing should be clear.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-kiro-helper
+    agent: dispatcher
+    input: "my MCP server won't connect, getting 401 errors"
+    criteria: |
+      The response should delegate to kiro-helper.
+      It should identify this as a Kiro CLI/MCP troubleshooting issue.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # SCOPE — agents refuse out-of-scope work
+  # ============================================================
+
+  - name: dispatcher-refuses-app-code
+    agent: dispatcher
+    input: "fix the login bug in my React app"
+    criteria: |
+      The response should refuse this request.
+      It should explain that it manages crew configurations, not application code.
+      It should NOT attempt to fix bugs, write code, or delegate to a crew agent for this.
+    ideal: |
+      I manage crew configurations, not application code. Which project's crew should I work on?
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-asks-clarification
+    agent: dispatcher
+    input: "help me with my project"
+    criteria: |
+      The response should ask a clarifying question to understand what crew work is needed.
+      It should NOT immediately delegate without understanding the request.
+      It should NOT refuse — the request is vague, not out of scope.
+    tags: [scope, meta-crew]
+    threshold: 3
+
+  - name: dispatcher-refuses-infrastructure
+    agent: dispatcher
+    input: "deploy my app to production"
+    criteria: |
+      The response should refuse this request.
+      It should explain that deployments are outside its scope.
+      It should NOT attempt to deploy anything or delegate deployment work.
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  - name: crew-creator-includes-general
+    agent: crew-creator
+    input: "create a crew for a research-only documentation project, it only needs the research crew"
+    criteria: |
+      The response should insist on including the general crew.
+      It should explain that general is always mandatory regardless of project type.
+      It should NOT create a crew with only specialized crews and no general.
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # IDENTITY — agents know their role and capabilities
+  # ============================================================
+
+  - name: project-hygiene-knows-checks
+    agent: project-hygiene
+    input: "what checks do you perform on this repo?"
+    criteria: |
+      The response should mention at least 3 of these 5 categories:
+      1. Data separation (fleet.yaml/projects/ gitignored)
+      2. Doc accuracy (README, AGENTS.md match actual state)
+      3. Doc separation (user vs maintainer docs)
+      4. Examples (examples/ directory)
+      5. Generation integrity (idempotent, no drift)
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-researcher-knows-procedure
+    agent: crew-researcher
+    input: "how do you approach a research task?"
+    criteria: |
+      The response should describe a structured research procedure.
+      It should mention at least 3 of: scoping, fetching sources, processing, framing into pillars, storing artifacts.
+      It should NOT just say "I search the web" without structure.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: kiro-helper-knows-domain
+    agent: kiro-helper
+    input: "what kind of issues can you help debug?"
+    criteria: |
+      The response should mention at least 3 of: MCP config, agent JSON validation, tool naming, hook setup, environment patterns.
+      It should be specific to Kiro CLI, not generic debugging advice.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-analyst-knows-metrics
+    agent: crew-analyst
+    input: "what do you look for when analyzing a session?"
+    criteria: |
+      The response should mention at least 3 of: protocol compliance, tool efficiency, role boundaries, token waste, delegation patterns.
+      It should describe concrete metrics or heuristics, not vague generalities.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-doctor-knows-antipatterns
+    agent: crew-doctor
+    input: "what are common crew issues you diagnose?"
+    criteria: |
+      The response should mention at least 3 concrete antipatterns such as: scope overlap, missing routing, tool permission issues, prompt drift, token waste.
+      It should be specific to crew configurations, not generic software issues.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  # ============================================================
+  # COMPONENTS — behavioral concerns fire correctly
+  # ============================================================
+
+  - name: troubleshooting-escalation
+    agent: crew-augmenter
+    input: "I've tried the same approach 3 times and it keeps failing with the exact same error. Should I try again?"
+    criteria: |
+      The response should suggest trying a fundamentally different approach.
+      It should NOT encourage retrying the same thing.
+      It should acknowledge the repeated failure pattern.
+    tags: [components, meta-crew]
+    threshold: 3
+
+  - name: verification-awareness
+    agent: crew-creator
+    input: "I've made changes to base/crews/general.yaml. Am I done?"
+    criteria: |
+      The response should mention running just build or generate.py after changes.
+      It should indicate that generation is required after crew YAML modifications.
+      It should NOT say the task is complete without mentioning generation.
+    ideal: |
+      Not yet — after modifying crew YAML, you must run `just build` to regenerate.
+    tags: [components, meta-crew]
+    threshold: 4
+
+  - name: narration-on-delegation
+    agent: dispatcher
+    input: "tune the crew based on recent sessions"
+    criteria: |
+      The response should narrate its plan before delegating.
+      It should explain the multi-step pattern (analyze then fix).
+      It should identify which agents will be involved and in what order.
+    tags: [components, meta-crew]
+    threshold: 3

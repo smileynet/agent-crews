@@ -1,0 +1,27 @@
+name: decisions-minimal
+description: "Minimal decision tracking — capture only, no formal log"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Decision Protocol (Minimal)
+
+  ## Capture Only
+  Note decisions as they happen. No formal log, no ADRs, no ceremony.
+  - "Chose X because Y"
+  - "Assumed Z"
+
+  Surface assumptions in the DONE signal. That's it.
+
+  Use for: hobby projects, experiments, spikes, throwaway work.
+
+subagents: []

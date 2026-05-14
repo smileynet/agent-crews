@@ -1,0 +1,52 @@
+name: git-manual
+description: "User-controlled git — commit locally, never push"
+
+targets: [worker]
+
+prompt: ""
+
+allowed_commands:
+  - "git add *"
+  - "git commit *"
+  - "git status *"
+  - "git diff *"
+  - "git log *"
+  - "git branch *"
+  - "git stash *"
+
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Git Protocol (Manual)
+
+  User controls git. Commit locally, never push.
+
+  ## Workflow
+  - Commit after meaningful work units
+  - NEVER push (user handles remote operations)
+  - NEVER create/switch branches without asking
+  - User manages merges, rebases, and remote state
+
+  ## Commit Timing (invariants)
+  - Commit BEFORE risky operations
+  - Commit AFTER reaching a working state
+  - Only commit AFTER verification passes
+  - Never commit broken code
+
+  ## Commit Messages
+  - Use conventional commits: `type(scope): description`
+  - One logical change per commit
+  - Message explains WHAT and WHY
+
+  ## Rules
+  - Stage explicit files (not `git add .`)
+  - Never push
+  - Never force anything
+  - Never amend without asking
+  - Ask before any branch operation
+
+subagents: []

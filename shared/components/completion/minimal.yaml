@@ -1,0 +1,35 @@
+name: completion-minimal
+description: "Minimal completion sequence with 3-element handoff"
+
+targets: [all]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Completion Protocol (Minimal)
+
+  ## Sequence (execute in order)
+  1. **Verification** — confirm all checks pass
+  2. **Git** — commit and push verified work (push if remote exists)
+  3. **Signaling** — emit DONE/PARTIAL/BLOCKED/FAILED signal
+  4. **Followups** — file issues for out-of-scope findings
+  5. **Handoff** — deliver handoff summary
+  6. **Notifications** — fire configured channels
+  7. **Memory** — persist lessons/decisions
+
+  ## Handoff Elements (Minimal = 3)
+  1. **Asked → Delivered** — what was requested vs what was produced
+  2. **Files** — what was created/modified/deleted
+  3. **Next steps** — what to do next
+
+  ## Secret Handling
+  If a user pastes a secret: do NOT echo it back. Reference by name only.
+
+subagents: []

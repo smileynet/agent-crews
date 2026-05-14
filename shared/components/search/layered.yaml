@@ -1,0 +1,55 @@
+name: search-layered
+description: "Additive search sources with priority-based resolution"
+
+targets: [worker]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Search Protocol (Layered)
+
+  ## Sources (ordered by priority)
+  {{search.priority}}
+
+  Available sources: {{search.sources}}
+
+  ## Resolution Rules
+  - Search sources in priority order
+  - Stop when answer is found with sufficient confidence
+  - If sources conflict: {{search.conflict}}
+  - Always cite source for every finding
+
+  ## Source Types
+  | Source | What it searches | When to use |
+  |--------|-----------------|-------------|
+  | local | Project files, code, docs | First — cheapest, most relevant |
+  | cached-docs | Pre-indexed documentation | Known APIs, frameworks |
+  | web | Live internet search | Current info, unknown topics |
+  | internal | Company wikis, repos | Org-specific knowledge |
+  | mcp | MCP server tools | Specialized data sources |
+
+  ## Anti-Patterns
+  - ❌ Searching web before checking local docs
+  - ❌ Trusting a single source for critical claims
+  - ❌ Searching without a specific question in mind
+  - ❌ Long specific queries (start broad, narrow later)
+
+  ## Output
+  Every search result must include:
+  - Source (file path, URL, or tool name)
+  - Confidence (verified / likely / uncertain)
+  - Relevance to the original question
+
+subagents: []
+
+scripts:
+  - file: cache-docs.sh
+    description: "Cache external documentation locally for search (tries llms.txt first)"
+    args: "URL [NAME]"

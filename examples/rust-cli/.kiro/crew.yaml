@@ -1,0 +1,7 @@
+persona: personal
+
+mcpServers: {}
+
+hooks:
+  agentSpawn:
+    - command: printf '\033]2;%s\033\\' "{{agent_name}}" && echo "🤖 {{agent_name}} ready" && git status --short 2>/dev/null || true

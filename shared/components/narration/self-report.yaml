@@ -1,0 +1,32 @@
+name: narration-self-report
+description: "Narration without verification — for research, planning, brainstorming"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Narration Protocol (Self-Report)
+
+  ## When to Narrate
+  - **Before delegating:** announce plan (what, who, why)
+  - **Between steps:** one-line status update
+  - **After completion:** summary of findings
+
+  ## Grounding: SELF-REPORT
+  No verification required. Use for tasks with no verifiable side-effects:
+  - Research and investigation
+  - Planning and brainstorming
+  - Analysis and recommendations
+  - Design exploration
+
+  Report what was found/produced. The output IS the deliverable.
+
+subagents: []

@@ -1,0 +1,48 @@
+name: decisions-upfront
+description: "Upfront decision-making — spec/PRD before implementation"
+
+targets: [orchestrator]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Decision Protocol (Upfront)
+
+  ## Spec Before Implementation
+  Before starting implementation on any non-trivial task:
+  1. Draft a lightweight spec covering:
+     - Problem statement (what's broken/missing)
+     - Key scenarios (3-5 representative cases)
+     - Requirements (must / should / could)
+     - Assumptions (what we're taking as given)
+     - Success criteria (how we'll know it's done)
+  2. Get user approval on the spec
+  3. Then implement
+
+  ## When to Skip
+  - Single-file changes under 20 lines
+  - Bug fixes with obvious root cause
+  - Documentation-only changes
+  - User explicitly says "just do it"
+
+  ## Decision Capture
+  All decisions made during spec and implementation go in the decision log:
+  - What was decided
+  - What alternatives were considered
+  - Why this option won
+
+  ## ADR Promotion
+  Promote to Architecture Decision Record when:
+  - Constrains future work
+  - Required research to decide
+  - Affects multiple components
+  - Has been explained twice
+
+subagents: []

@@ -1,0 +1,74 @@
+name: completion-standard
+description: "Standard completion sequence with 5-element handoff"
+
+targets: [all]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Completion Protocol (Standard)
+
+  ## Sequence (execute in order)
+  1. **Verification** — confirm all checks pass (gate workflow)
+  2. **Git** — commit and push verified work:
+     - If `git remote get-url origin` succeeds → `git pull --rebase && git push`
+     - If NO remote → commit locally, report "No git remote. Committed at [SHA]."
+     - Never silently skip push.
+  3. **Signaling** — emit structured status signal (see format below)
+  4. **Followups** — file issues for out-of-scope findings
+  5. **Handoff** — deliver handoff summary (see elements below)
+  6. **Notifications** — fire configured channels
+  7. **Memory** — persist lessons/decisions to appropriate tier
+
+  ## Signal Format
+  ```
+  ## DONE
+  - Task: [what was assigned]
+  - Result: [what was delivered]
+  - Evidence: [verification command + output proving it works]
+  - Remaining: [follow-up work, or "none"]
+  - Assumptions: [what was assumed but not confirmed, or "none"]
+  ```
+
+  For BLOCKED:
+  ```
+  ## BLOCKED
+  - Task: [what was assigned]
+  - Blocker: [specific reason]
+  - Tried: [what was attempted]
+  - Need: [what would unblock]
+  ```
+
+  For FAILED:
+  ```
+  ## FAILED
+  - Task: [what was assigned]
+  - Strategies tried: [list of approaches attempted]
+  - Root cause: [best understanding of why]
+  - Recommendation: [what to try next or who to ask]
+  ```
+
+  ## Handoff Elements (Standard = 5)
+  1. **Asked → Delivered** — what was requested vs what was produced
+  2. **State change** — what's different now (before/after)
+  3. **Files** — what was created/modified/deleted
+  4. **Issues filed** — follow-up work logged
+  5. **Next steps** — what to do next (actionable, specific)
+
+  ## Followups
+  Default: file issues for anything discovered but out of scope.
+  Format: one-line title + context for why it matters.
+
+  ## Anti-Patterns
+  - ❌ "Ready to push when you are" — push NOW
+  - ❌ Marking done without verification evidence
+  - ❌ Closing without documenting current state
+
+subagents: []

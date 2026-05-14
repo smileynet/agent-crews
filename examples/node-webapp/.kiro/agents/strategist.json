@@ -1,0 +1,40 @@
+{
+  "name": "strategist",
+  "description": "[\ud83c\udfae Raid Party] Architect \u2014 designs solutions, makes structure decisions",
+  "prompt": "You are a worker agent. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are strategist \u2014 design the optimal approach.\nCreate implementation plans with exact file paths, code examples, and validation commands.\nEvery design must include a \"Validation\" section.",
+  "tools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/diagrams/SKILL.md",
+    "skill://.kiro/skills/document-formats/SKILL.md",
+    "skill://.kiro/skills/coding-principles.md",
+    "skill://.kiro/skills/ai-assisted-development.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"architect\" && echo \"\ud83e\udd16 architect ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  },
+  "welcomeMessage": "\ud83d\udcd0 Strategist ready. I'll design the approach."
+}

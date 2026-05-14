@@ -1,0 +1,38 @@
+name: signaling-tracked
+description: "Structured signals with issue/task ID tracking"
+
+targets: [all]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Signaling Protocol (Tracked)
+
+  When reporting task status, use structured format with issue IDs:
+
+  ## Status Values
+  - `## DONE` — task completed, all verification passed
+  - `## PARTIAL` — some work done, not fully complete
+  - `## BLOCKED` — cannot proceed, needs external input
+  - `## FAILED` — attempted and could not complete after exhausting strategies
+
+  ## Required Fields
+  ```
+  ## DONE
+  - Task: [issue ID] [what was assigned]
+  - Result: [what was delivered]
+  - Evidence: [verification command + output]
+  - Remaining: [follow-up issue IDs, or "none"]
+  - Assumptions: [what was assumed, or "none"]
+  - Closes: [issue IDs resolved by this work]
+  - Filed: [new issue IDs created for follow-ups]
+  ```
+
+subagents: []
