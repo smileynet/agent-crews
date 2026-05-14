@@ -1,70 +1,65 @@
 ---
 name: diagnose-crew
-description: Diagnose agent team issues from session transcripts and feedback. Use when agents misbehave, produce poor output, or need improvement.
+description: Guide users through diagnosing agent issues. Ask about symptoms, help identify root causes, suggest targeted fixes.
 ---
 
-# Diagnose Crew Workflow
+# Diagnose Crew — Advisory Guide
 
-## Step 1: Gather Evidence
+## When a user reports agent issues
 
-```bash
-# List sessions for the project
-python3 analyze-session.py --project <name>
+Ask:
+- What did the agent do wrong? (specific behavior, not just "it's broken")
+- Which agent? (dispatcher, a lead, a worker?)
+- Was this a one-time thing or recurring?
+- Can you point me to the session? (session ID or project path)
 
-# Get stats on a specific session
-python3 analyze-session.py <session-id> --stats
+## Diagnosis approach
 
-# Get readable transcript
-python3 analyze-session.py <session-id> --transcript > /tmp/transcript.md
-
-# Read feedback
-cat <project-path>/feedback.md
-
-# Read current crew config
-cat examples/<project>/.kiro/crew.yaml
-```
-
-## Step 2: Check for Antipatterns
-
-### Tool Usage Patterns
-
-| Pattern | Indicates | Fix |
-|---------|-----------|-----|
-| read count >> write count | Agent over-researching, under-acting | Tighten researcher scope, add "act after N reads" rule |
-| shell failures > 20% | Wrong commands or missing permissions | Update allowlist, add correct commands to prompt |
-| 0 subagent calls from lead | Lead doing all work itself | Strengthen "YOU DO NOT implement" boundary |
-| subagent calls > 10 | Over-delegating simple tasks | Add "handle simple requests directly" to lead |
-| External search > 5 per session | Missing local context | Add more to steering or resources |
-
-### Behavioral Patterns (from transcript)
-
-| Pattern | Indicates | Fix |
-|---------|-----------|-----|
-| Agent asks user questions it could research | Lazy delegation back to human | Add "research first, propose with evidence" rule |
-| Reviewer suggests fixes | Role boundary violation | Add explicit "DO NOT FIX" in bold |
-| Builder skips tests | Missing verification step | Add "MUST run tests before reporting done" |
-| Agent repeats work already done | Context lost between turns | Check if steering/resources are loading |
-| Agent uses wrong file paths | Stale or incorrect project context | Update steering with current layout |
-
-## Step 3: Propose Specific Fixes
-
-For each issue, write:
-1. **Symptom**: What you observed (quote from transcript)
-2. **Root cause**: Why it happened (missing rule, wrong permission, etc.)
-3. **Fix**: Exact change to crew.yaml (before → after)
-
-## Step 4: Apply and Verify
+### 1. Gather evidence
 
 ```bash
-# Edit the crew.yaml
-# Regenerate
-python3 generate.py examples/<project>/.kiro/crew.yaml
-
-# Redeploy
-cp -r examples/<project>/.kiro <target-path>/.kiro
-
-# Commit
-cd <target-path> && git add .kiro/ && git commit -m "fix(agents): <what was fixed>"
+uv run analyze-session.py <session-id> --stats
+uv run analyze-session.py <session-id> --antipatterns
 ```
 
-Then test with the same task that failed before.
+Read the transcript if stats aren't conclusive:
+```bash
+uv run analyze-session.py <session-id> --transcript
+```
+
+### 2. Match symptoms to causes
+
+| Symptom | Likely cause | Where to look |
+|---------|-------------|---------------|
+| Routes to wrong agent | Scope overlap or missing handles | Crew YAML `scope.handles` |
+| Agent does work outside its role | Missing refuses or weak boundary | Crew YAML `scope.refuses` + agent prompt |
+| Lead does everything itself | Delegation rules too weak | Lead prompt — "DO NOT implement" section |
+| Agent asks user obvious questions | Missing "research first" rule | Agent prompt or steering |
+| Skips tests/verification | Verification component not configured | fleet.yaml `verification.checks` |
+| Doesn't commit | Git component or no remote | fleet.yaml `git.variant` |
+| Ignores project conventions | Stale project.md steering | `.kiro/steering/project.md` |
+| Uses wrong file paths | Project layout changed | Update steering with current structure |
+
+### 3. Propose fixes
+
+For each issue, surface:
+- **What you observed** (quote or describe specific behavior)
+- **Why it happened** (which config/rule is missing or wrong)
+- **What to change** (specific file + specific edit)
+
+Ask: "Does this match what you experienced? Should I apply this fix?"
+
+## Key considerations to surface
+
+- One fix at a time — don't change multiple things, you won't know what helped
+- After fixing, test with the same task that failed
+- Consider writing an eval to catch regressions
+- If the same issue recurs across sessions, it's a structural problem (component or crew design), not a one-off
+
+## After fixing
+
+Remind:
+1. `just build` to regenerate
+2. `just link <project>` to redeploy
+3. Test with the original failing task
+4. Optionally: `just eval` to verify no regressions
