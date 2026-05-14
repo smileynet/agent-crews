@@ -1,118 +1,70 @@
 ---
 name: run-evals
-description: Process for running and writing model-based agent evaluations. Use when testing agent behavior, adding new evals, or diagnosing regressions.
+description: Guide users through running and writing agent evaluations. Ask relevant questions, surface considerations, help them write effective criteria.
 ---
 
-# Run Evaluations Process
+# Agent Evaluations — Advisory Guide
 
-## Running evals
+## When a user wants to run evals
 
+Ask:
+- Are you testing a specific change (routing, scope, component) or running a general health check?
+- Have you modified crew YAML or steering recently?
+
+Key considerations to surface:
+- Each eval invokes the agent + a judge — costs ~$0.02–0.10 per eval
+- Use `--tag` to scope runs when testing specific changes
+- Use `--verbose` to see what the agent actually produced (essential for debugging)
+- `--dry-run` shows what would execute without spending tokens
+
+Commands:
 ```bash
-# All evals
-uv run scripts/eval-crew.py
-
-# Filter by tag
-uv run scripts/eval-crew.py --tag routing
-
-# Single eval
-uv run scripts/eval-crew.py --name dispatcher-routes-augment
-
-# Stricter threshold
-uv run scripts/eval-crew.py --threshold 4
-
-# Show agent output + judge reasoning
-uv run scripts/eval-crew.py --verbose
-
-# Preview without running
-uv run scripts/eval-crew.py --dry-run
+uv run scripts/eval-crew.py              # all
+uv run scripts/eval-crew.py --tag routing  # filtered
+uv run scripts/eval-crew.py --verbose      # debug mode
 ```
 
-## Writing a new eval
+## When a user wants to write a new eval
 
-### Step 1: Identify the behavior to test
+Ask:
+- What behavior are you trying to verify? (routing, scope enforcement, protocol compliance)
+- What would a correct response look like?
+- What would a WRONG response look like? (this becomes the "should NOT" criteria)
+- Is this testing one behavior or multiple? (split if multiple)
 
-One eval = one behavior. Examples:
-- Dispatcher routes "add an agent" to crew-augmenter
-- Dispatcher refuses out-of-scope work
-- Agent follows troubleshooting escalation protocol
+Key considerations to surface:
+- Criteria should describe behavior, not output format
+- Always include negative criteria (what the agent should NOT do)
+- `ideal` field is optional but helps the judge calibrate on ambiguous cases
+- Threshold 4 for critical behaviors (routing, scope), 3 for general compliance
+- If an eval flakes, the criteria are too tight — loosen them
 
-### Step 2: Write the fixture
+Fixture location: `tests/crew-evals.yaml`
 
-Add to `tests/crew-evals.yaml`:
+## When evals fail
+
+Ask:
+- Did the agent produce wrong behavior, or did the judge score valid behavior too low?
+- Run with `--verbose` — does the output look correct to you?
+
+Considerations:
+- Score 3 with correct behavior = criteria too strict, loosen
+- Score 2 with wrong behavior = real issue, investigate the agent
+- ERR status = agent timeout or empty output, not a scoring problem
+- Check if crew YAML or steering changed recently (`git log --oneline -5 base/crews/ shared/components/`)
+
+## Fixture format reference
 
 ```yaml
-  - name: descriptive-kebab-case-name
+  - name: kebab-case-identifier
     agent: agent-name
-    input: "The exact prompt to send"
+    input: "Prompt sent to agent"
     criteria: |
-      What the agent SHOULD do.
-      What the agent should NOT do.
-      Specific signals to look for.
-    ideal: |                    # optional — reference for judge calibration
-      Example of correct behavior.
-    tags: [category]            # routing, scope, components, identity
-    threshold: 4                # 3 = acceptable, 4 = strict
-    timeout: 120                # seconds, default 120
+      Should do X.
+      Should NOT do Y.
+    ideal: |              # optional
+      Example correct response.
+    tags: [routing]       # for filtering
+    threshold: 4          # pass threshold (default 3)
+    timeout: 120          # seconds
 ```
-
-### Step 3: Dry run to verify
-
-```bash
-uv run scripts/eval-crew.py --name your-new-eval --dry-run
-```
-
-### Step 4: Run and calibrate
-
-```bash
-uv run scripts/eval-crew.py --name your-new-eval --verbose
-```
-
-If the eval fails but the agent behavior looks correct, loosen the criteria. If it passes but the behavior is wrong, tighten the criteria.
-
-### Step 5: Run full suite to check for interference
-
-```bash
-uv run scripts/eval-crew.py
-```
-
-## Fixture fields
-
-| Field | Required | Purpose |
-|-------|----------|---------|
-| `name` | yes | Unique identifier (kebab-case) |
-| `agent` | yes | Agent to invoke |
-| `input` | yes | Prompt sent to the agent |
-| `criteria` | yes | What the judge evaluates against |
-| `ideal` | no | Reference answer — helps judge calibrate |
-| `tags` | no | For filtering (`--tag routing`) |
-| `threshold` | no | Per-eval pass threshold (default: 3) |
-| `timeout` | no | Seconds before timeout (default: 120) |
-
-## Interpreting results
-
-- **Score 5**: Agent nailed it
-- **Score 4**: Correct behavior, minor style issues
-- **Score 3**: Right direction, missing signals (e.g., routed correctly but no narration)
-- **Score 2**: Partially correct but missed the point
-- **Score 1**: Wrong behavior entirely
-- **ERR**: Agent timed out or produced empty output (not scored)
-
-## Results files
-
-Written to `results/eval-agent-crews-{timestamp}.json`. Fields:
-- `summary.passed` / `summary.failed` — count
-- `summary.avg_score` — trend indicator
-- `results[].reason` — judge's one-line explanation
-
-## Diagnosing failures
-
-1. Run with `--verbose` to see full agent output
-2. Check if the criteria are too strict (valid behavior scored low)
-3. Check if the agent prompt/steering changed (expected behavior shifted)
-4. Check if the judge is miscalibrating (compare ideal vs actual)
-
-## Exit codes
-
-- 0: all evaluated evals pass
-- 1: one or more below threshold
-- 2: configuration error (bad YAML, missing fixture)

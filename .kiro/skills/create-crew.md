@@ -1,119 +1,97 @@
 ---
 name: create-crew
-description: Step-by-step workflow for creating an agent team for a new project. Use when onboarding a project, creating a crew, or adapting the base for a new stack.
+description: Guide users through creating and deploying an agent crew to a new project. Ask relevant questions, help them make good choices about crews and configuration.
 ---
 
-# Create Crew Workflow
+# Create Crew — Advisory Guide
 
-## Step 1: Read the Project
+## When a user wants to create a crew
 
+Ask:
+- What's the project path? (need to scan it)
+- What kind of work do you primarily do in this project? (features, bugs, infra, research, writing)
+- What's the build/test/lint setup? (or let me scan for it)
+- Any commands that should be off-limits? (deploy, destroy, start servers)
+
+## Step 1: Scan the project
+
+Read to understand:
 ```bash
-# Structure
 find <path> -maxdepth 3 -type f | grep -v .git | grep -v node_modules | sort
-
-# Entry points
 cat <path>/README.md
-cat <path>/AGENTS.md
-
-# Build system (check in order)
-cat <path>/.mise.toml        # mise (preferred)
-cat <path>/justfile           # just
-cat <path>/Makefile           # make
-cat <path>/package.json      # npm
-cat <path>/pyproject.toml    # python
-cat <path>/Cargo.toml        # rust
-cat <path>/cdk.json          # CDK
-
-# Existing agents
-find <path>/.kiro -type f 2>/dev/null
-
-# Contribution conventions
-find <path> -path "*.github/PULL_REQUEST_TEMPLATE*" -o -path "*.github/ISSUE_TEMPLATE*"
-cat <path>/CONTRIBUTING.md 2>/dev/null
-
-# Recent history
-git -C <path> log --oneline -10
+cat <path>/AGENTS.md 2>/dev/null
 ```
 
-## Step 2: Decide What to Build
+Look for build system:
+- `.mise.toml`, `justfile`, `Makefile`, `package.json`, `pyproject.toml`, `Cargo.toml`, `cdk.json`
 
-- **Crews**: Always start with `general`. Add specialized crews based on primary work type.
-- **Language**: Python, TypeScript, Rust, Terraform, mixed?
-- **Build commands**: What runs tests? What builds? What lints?
-- **Dangerous commands**: What should be denied? (deploy, destroy, start servers)
-- **Existing agents**: Coexist or replace?
-- **Primary work type**: Feature dev? Bug fixes? Docs? Research? All of the above?
+Check for existing agents:
+```bash
+find <path>/.kiro -type f 2>/dev/null
+```
 
-## Step 3: Select Crews
+## Step 2: Help choose crews
 
-Every project gets `general` as baseline. Add specialized crews based on need:
+Key considerations to surface:
+- General is ALWAYS included — it's the baseline
+- Only add specialized crews if the work genuinely benefits from domain-specific protocols
+- More crews = more agents = more context for the user to manage
+- Start minimal, add crews later if needed
 
-| Primary work | Add crew |
-|-------------|----------|
-| Bug fixing focus | bug-fix |
-| Infrastructure/deploy | infrastructure |
-| Research/investigation | research |
-| New to codebase | onboarding |
-| Maintenance/cleanup | hygiene |
-| Presentations/tutorials | content |
-| Writing/editing | writing |
+| If they say... | Suggest |
+|---------------|---------|
+| "Mostly features and fixes" | Just general |
+| "Lots of bug hunting" | general + bug-fix |
+| "Heavy infrastructure work" | general + infrastructure |
+| "Research-heavy, lots of docs" | general + research |
+| "Brand new to this codebase" | general + onboarding (temporary) |
+| "Maintenance mode" | general + hygiene |
 
-Update fleet.yaml:
+## Step 3: Configure components
+
+Ask:
+- What are your build/test/lint commands?
+- Do you want notifications? (toast, slack, discord)
+- Git workflow: commit-and-push (solo) or PR-based (team)?
+- Any theme preference? (or null for standard names)
+
+## Step 4: Add to fleet.yaml
+
 ```yaml
 projects:
-  <project>:
-    crews: [general, <specialized>]  # general is ALWAYS first
+  <project-name>:
+    crews: [general]          # add specialized as needed
+    theme: null
+    components:
+      verification:
+        checks:
+          build: "<build cmd>"
+          test: "<test cmd>"
+          lint: "<lint cmd>"
+      git:
+        variant: checkpoint   # or pr-based
 ```
 
-NEVER omit general. A research project still needs builder/tester for prototyping.
-
-## Step 4: Create the Example
+## Step 5: Generate and deploy
 
 ```bash
-mkdir -p examples/<project>/.kiro/skills examples/<project>/.kiro/steering
+just build
+just link <project-name>
 ```
 
-Start from `base/crew.yaml` and adapt:
-1. Shell allowlist (add project's build/test/lint commands)
-2. Denied commands (deploy, destroy, dev servers)
-3. Agent prompts (reference project-specific files, patterns, conventions)
-4. Resources (load project's key docs as context)
-
-## Step 5: Write Project Steering
-
-Create `examples/<project>/.kiro/steering/project.md` with:
-- What the project is (1-2 sentences)
-- Stack (language, framework, tools)
-- Code layout (where things live)
-- Conventions (style, patterns to follow)
-- Key commands (build, test, lint)
-- DO NOT list (safety guardrails)
-
-## Step 6: Copy Relevant Skills
-
-From `base/skills/`, copy what applies:
-- `git-conventions.md` — always
-- `contribution-conventions.md` — if contributing upstream
-- `code-review.md` — always
-- `aws-architecture.md` — if AWS project
-- `testing-patterns.md` — if has tests
-- `project-setup.md` — if new/scaffolding project
-
-Add project-specific skills if needed (e.g., `terraform-patterns.md` for infrastructure projects).
-
-## Step 7: Generate and Deploy
-
+Verify agents appear:
 ```bash
-python3 generate.py examples/<project>/.kiro/crew.yaml
-cp -r examples/<project>/.kiro <target-path>/.kiro
-cp base/feedback.md <target-path>/feedback.md
-cd <target-path> && git add .kiro/ feedback.md && git commit -m "feat(agents): deploy SA dev crew"
+ls <path>/.kiro/agents/
 ```
 
-## Step 8: Commit in agent-crews
+## Step 6: Recommend committing
 
-```bash
-cd ~/code/agent-crews
-git add examples/<project>/
-git commit -m "feat(examples): add <project> crew for <description>"
-```
+Surface: "Commit `.kiro/` to your project so contributors get working agents without needing agent-crews."
+
+## Common mistakes to prevent
+
+- Don't omit general crew (mandatory baseline)
+- Don't add every specialized crew "just in case" (start minimal)
+- Don't forget to set build/test/lint commands (agents need these for verification)
+- Don't set dangerous commands as allowed (deploy, destroy, rm -rf)
+- Don't forget `just build` after fleet.yaml changes
