@@ -28,7 +28,7 @@ Start with general. Switch to a specialist when the work is complex enough to be
 ```bash
 git clone https://github.com/smileynet/agent-crews.git
 cd agent-crews
-kiro-cli chat -A --agent dispatcher
+kiro-cli chat -a --agent dispatcher
 ```
 
 The dispatcher will walk you through setup — configuring your project, picking crews, and deploying agents.
