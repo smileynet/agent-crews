@@ -475,6 +475,57 @@ def validate_coverage(fleet: dict):
                         print(f"  ⚠️  {proj_name}: '{refused}' refused by {crew['workflow']} — possible vocab mismatch with: {', '.join(similar)}", file=sys.stderr)
 
 
+def generate_vocabulary(kiro_dir: Path, dry_run: bool = False):
+    """Generate project-specific vocabulary.md from assigned crew YAMLs."""
+    crews_dir = kiro_dir / "crews"
+    if not crews_dir.is_dir():
+        return
+    crew_files = sorted(crews_dir.glob("*.yaml"))
+    if not crew_files:
+        return
+
+    # Collect scope data from each crew
+    crews = []
+    for cf in crew_files:
+        with open(cf, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        if not data:
+            continue
+        scope = data.get("scope", {}) or {}
+        crews.append({
+            "workflow": data.get("workflow", cf.stem),
+            "handles": scope.get("handles", []),
+            "refuses": scope.get("refuses", []),
+        })
+
+    # Build vocabulary table
+    lines = [
+        "---",
+        "inclusion: always",
+        "---",
+        "",
+        "# Vocabulary",
+        "",
+        "Canonical intent keywords for this project's crews. Use these exact terms in routing and scope decisions.",
+        "",
+        "| Keyword | Crew | Role |",
+        "|---------|------|------|",
+    ]
+    for crew in crews:
+        for h in crew["handles"]:
+            lines.append(f"| {h} | {crew['workflow']} | handles |")
+    for crew in crews:
+        for r in crew["refuses"]:
+            lines.append(f"| {r} | {crew['workflow']} | refuses |")
+
+    lines.append("")
+
+    if not dry_run:
+        dest = kiro_dir / "steering"
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "vocabulary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def generate_all(dry_run: bool = False):
     """Sync crews+steering from base to all projects, then generate all."""
     root = Path(__file__).parent
@@ -484,13 +535,15 @@ def generate_all(dry_run: bool = False):
     # Load fleet config for component generation
     fleet = load_fleet_config()
 
-    # Sync to each example project
-    for kiro_dir in sorted(examples.glob("*/.kiro")):
+    # Sync to each project (projects/ for real, examples/ for reference)
+    project_dirs = list(examples.glob("*/.kiro")) + list((root / "examples").glob("*/.kiro"))
+    for kiro_dir in sorted(project_dirs):
         proj = kiro_dir.parent.name
         persona = get_project_persona(kiro_dir)
         if has_custom_crews(kiro_dir):
             print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
             sync_steering_to_project(kiro_dir, root)
+            generate_vocabulary(kiro_dir, dry_run)
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
         else:
@@ -532,6 +585,7 @@ def generate_all(dry_run: bool = False):
 
             # Sync steering based on persona
             sync_steering_to_project(kiro_dir, root)
+            generate_vocabulary(kiro_dir, dry_run)
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
 

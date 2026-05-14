@@ -8,10 +8,10 @@ scope:
   - implementation
   - refactoring
   refuses:
-  - bug-fixing
+  - bugs
   - infrastructure
-  - research-only
-  - documentation-only
+  - research
+  - documentation
 
 tools:
   - read
@@ -307,7 +307,7 @@ architypes:
         routes: "Need code reviewed (read-only verification)"
         resources:
           - skill://.kiro/skills/code-review.md
-          - skill://.kiro/skills/antipatterns.md
+          - skill://.kiro/skills/coding-principles.md
         prompt: |
           You are reviewer — review code for correctness, security, and conventions.
           YOU DO NOT FIX CODE. You DO NOT modify files. Identify issues only.
