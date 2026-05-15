@@ -25,7 +25,7 @@ base/
 3. Theme overlay from `shared/themes/` renames agents cosmetically (optional)
 4. `generate.py --all` produces `.json` agent files + steering + crew-sheet for each project
 5. Projects in `projects/` get crews synced from here (unless they have `.custom-crews`)
-6. `fleet.yaml` controls which crews each project gets (`crews:` field)
+6. `.crews/crew.yaml` controls which crews each project gets (`crews:` field)
 
 ## Crew YAML Format
 

@@ -1,6 +1,6 @@
 # Creating Crews
 
-Deploy an agent crew to any kiro-cli project.
+Deploy an agent crew to any project.
 
 ## The easy way
 
@@ -10,49 +10,72 @@ kiro-cli chat -A --agent dispatcher
 # "Create a crew for ~/code/my-project"
 ```
 
-The dispatcher delegates to crew-creator, which reads your project, picks crews, configures components, and deploys.
+The dispatcher delegates to crew-creator, which scans your project, analyzes session history, picks crews, and generates agents.
 
 ## What happens during crew creation
 
-1. **Project scan** — reads your repo structure, build system, conventions
-2. **Crew selection** — picks which crews fit (general is always included)
-3. **Configuration** — sets build/test/lint commands, component preferences
-4. **Generation** — assembles agents from crew YAML + components + steering
-5. **Deployment** — links or copies `.kiro/` to your project
+1. **Project scan** (`./scripts/project-scan.sh`) — detects stack, build tools, structure
+2. **Session analysis** (`./scripts/session-summary.sh`) — analyzes work patterns across all AI tools
+3. **Crew selection** — picks crews based on intent distribution and project signals
+4. **Configuration** — writes `.crews/crew.yaml` with full self-contained config
+5. **Generation** — assembles `.kiro/` output (agents, prompts, steering)
+6. **Push** — copies `.crews/` + `.kiro/` to your project
 
 ## Choosing crews
 
-Every project gets `general`. Add specialized crews based on your primary work:
+Every project gets `general`. Add specialized crews based on signals:
 
-| Primary work | Add crew |
-|-------------|----------|
-| Bug fixing | bug-fix |
-| Infrastructure / deploy | infrastructure |
-| Research / investigation | research |
-| New to codebase | onboarding |
-| Maintenance / cleanup | hygiene |
-| Presentations / tutorials | content |
-| Writing / editing | writing |
+| Signal | Add crew |
+|--------|----------|
+| >30% bugs/testing in sessions | bug-fix |
+| >30% research/docs in sessions | research |
+| >20% infrastructure in sessions | infrastructure |
+| Heavy test suite (>10 test files) | bug-fix |
+| Terraform/CDK/Docker files | infrastructure |
+| No session data — user says "bug hunting" | bug-fix |
 
-A project can have multiple specialized crews alongside general.
+Start minimal. Add crews later if needed.
 
 ## Configuration
 
-Your project's config lives in `fleet.yaml`:
+Your project's config lives in `.crews/crew.yaml` (self-contained, no inheritance):
 
 ```yaml
-projects:
-  my-project:
-    crews: [general, research]
-    theme: null
-    components:
-      verification:
-        checks:
-          build: "npm run build"
-          test: "npm test"
-          lint: "npx eslint ."
+# ~/code/my-project/.crews/crew.yaml
+persona: personal
+crews: [general, research]
+theme: null
+components:
+  verification:
+    variant: gate
+    checks:
+      build: "npm run build"
+      test: "npm test"
+      lint: "npx eslint ."
+  git:
+    variant: checkpoint
 ```
 
-The generator uses this to assemble the right agents with the right behavioral rules.
+## Rebuilding
 
-See [Fleet Configuration](fleet-configuration.md) for build and deploy commands.
+```bash
+# From agent-crews
+just build my-project
+
+# From the project itself
+agent-crews build
+```
+
+## What gets created
+
+```
+~/code/my-project/
+  .crews/          ← source (commit this)
+    crew.yaml
+    evals.yaml
+    scripts/
+  .kiro/           ← generated output
+    agents/*.json
+    prompts/*.md
+    steering/**/*.md
+```

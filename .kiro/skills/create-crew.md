@@ -33,7 +33,7 @@ General is ALWAYS included. Start minimal — add crews later if needed.
 
 ## Step 3: Configure
 
-Build commands come from project-scan output. Add to fleet.yaml:
+Build commands come from project-scan output. The config lives in .crews/crew.yaml:
 ```yaml
 projects:
   <name>:
@@ -54,12 +54,12 @@ just build
 just link <project-name>
 ```
 
-Verify: `ls projects/<name>/.kiro/agents/`
+Verify: `ls <project>/.kiro/agents/`
 
 ## Rules
 
 - Never omit general crew
 - Don't add crews without signal (static files OR session history)
 - Always set build/test/lint from scan output
-- Run `just build` after any fleet.yaml change
+- Run `just build` after any .crews/crew.yaml change
 - If session data shows high token/session, enable task_tracking component

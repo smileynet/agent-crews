@@ -1,0 +1,13 @@
+# agent-crews crew configuration (self-hosted)
+persona: personal
+crews: [meta]
+theme: null
+components:
+  verification:
+    variant: gate
+    checks:
+      build: "uv run generate.py --dry-run"
+      test: null
+      lint: null
+  git:
+    variant: checkpoint

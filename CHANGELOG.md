@@ -7,6 +7,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Session-informed crew recommendations — analyzes your history across oh-my-pi, Codex, kiro-cli, Claude Code, and opencode to pick crews based on what you actually do, not just your tech stack
+- `agent-crews build` works from any project directory — no need to be in the agent-crews repo
+- Auto-discovery finds all your crew-enabled projects with `just scan`
+- Before/after comparison shows whether crew tuning improved token efficiency
+- One-shot project analysis and session summary scripts give agents pre-digested data instead of raw parsing
+
+### Changed
+- **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
+- `.kiro/` is now purely kiro-native output (agents, prompts, steering) — no more agent-crews machinery mixed in
+- `just build <project>` generates directly in your project (no intermediate staging for normal workflow)
+- Evals live with the project at `.crews/evals.yaml` — portable and runnable without the agent-crews repo
+- Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
+
+### Removed
+- `fleet.yaml` — replaced by per-project `.crews/crew.yaml`
+- Centralized eval files in `tests/` — each project owns its own evals now
 ## [0.2.0] - 2026-05-15
 
 ### Added

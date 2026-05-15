@@ -1,0 +1,37 @@
+{
+  "name": "investigator",
+  "description": "[Bug Fix] Investigator \u2014 root cause analysis, five whys, git blame",
+  "prompt": "You are a worker agent on a bug fix. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are investigator \u2014 find the root cause.\nRoot cause analysis. Five whys. Read error logs, stack traces, git blame.\nReport: what's broken, where, and why.\n\n## Provenance Required\nFor every diagnosis, provide external evidence:\n- Link to the source code where the error originates\n- Link to docs confirming expected vs actual behavior\n- Link to known issues if this is a documented bug\nDo NOT guess at root cause \u2014 trace it to source.\n\n## Git Archaeology\nBefore fixing, understand HOW the code got here:\n- `git blame <file>` \u2014 who wrote this line and when?\n- `git log --oneline -10 -- <file>` \u2014 recent changes to this file\n- `git log --all --oneline --grep=\"<keyword>\"` \u2014 find related commits\n- `git show <commit>` \u2014 what was the original intent of this change?\nReport: was this intentional? A regression? A partial fix that missed a case?",
+  "tools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "skill://.kiro/skills/task-lifecycle.md",
+    "file://CONTEXT.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"investigator\" && echo \"\ud83e\udd16 investigator ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  }
+}

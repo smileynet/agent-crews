@@ -5,10 +5,10 @@ Behavioral building blocks for agent crews. Each component is a YAML file that d
 ## How It Works
 
 ```
-fleet.yaml defaults → project crew.yaml overrides → shared/components/<name>/<variant>.yaml
+.crews/crew.yaml defaults → project crew.yaml overrides → shared/components/<name>/<variant>.yaml
 ```
 
-1. `fleet.yaml` declares which component variant each project uses
+1. `.crews/crew.yaml` declares which component variant each project uses
 2. `generate.py --all` loads components, substitutes project-specific config (`{{checks.build}}` etc.)
 3. Generator writes steering files to `.kiro/steering/{universal,orchestrator,worker}/`
 4. Agents load steering via resource globs — no prompt bloat, subagents inherit automatically
@@ -66,12 +66,12 @@ Verifier and editor subagents intentionally get NO steering (fresh context for u
 ## Adding a New Component
 
 1. Create `shared/components/<name>/<variant>.yaml`
-2. Add to `fleet.yaml` defaults (and/or project overrides)
+2. Add to `.crews/crew.yaml` defaults (and/or project overrides)
 3. Run `just build`
 
 ## Overriding Per-Project
 
-In `fleet.yaml` under the project:
+In `.crews/crew.yaml` under the project:
 
 ```yaml
 projects:

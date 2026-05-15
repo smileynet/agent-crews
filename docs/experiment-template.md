@@ -14,7 +14,7 @@ Use this template when testing new agent-crews features or platform capabilities
 ### Isolation
 Create experiments in a separate `~/code/<experiment-name>/` folder:
 - Keeps agent-crews repo clean
-- No interference with `just build` or fleet.yaml
+- No interference with `just build` or .crews/crew.yaml
 - Easy teardown (delete the folder)
 - Can run kiro-cli independently
 

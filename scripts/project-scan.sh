@@ -175,8 +175,8 @@ if [ -d "$TARGET/.kiro/agents" ]; then
   echo "  count: $AGENT_COUNT"
   echo "  agents: [$AGENTS]"
   # Detect crews from crew files
-  if [ -d "$TARGET/.kiro/crews" ]; then
-    CREWS=$(ls "$TARGET/.kiro/crews/"*.yaml 2>/dev/null | xargs -I{} basename {} .yaml | paste -sd, | sed 's/,$//')
+  if [ -d "$TARGET/.crews" ]; then
+    CREWS=$(ls "$TARGET/.crews/"*.yaml 2>/dev/null | xargs -I{} basename {} .yaml | paste -sd, | sed 's/,$//')
     echo "  crews: [$CREWS]"
   fi
 else

@@ -1,0 +1,16 @@
+{
+  "source": "agent-crews",
+  "project": "agent-crews",
+  "agents": [
+    "dispatcher",
+    "crew-creator",
+    "crew-augmenter",
+    "crew-doctor",
+    "crew-analyst",
+    "crew-researcher",
+    "kiro-helper",
+    "crew-validator",
+    "crew-releaser",
+    "project-hygiene"
+  ]
+}

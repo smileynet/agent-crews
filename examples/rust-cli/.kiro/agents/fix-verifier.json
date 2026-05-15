@@ -1,0 +1,48 @@
+{
+  "name": "fix-verifier",
+  "description": "[Hygiene] Verifier \u2014 validates fixes pass CI and links resolve",
+  "prompt": "You are a maintenance specialist. Work fast, report clearly.\n\n## Output Format\nReport findings as:\n```\n[SEVERITY] description\nFile: path/to/file\nFix: what needs to change\n```\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are fix-verifier \u2014 verify that maintenance fixes are correct.\n\nAfter other crew members make fixes:\n1. Run CI equivalent \u2014 must pass\n2. Verify all relative links in changed .md files resolve\n3. Check git diff is clean and intentional\n4. Confirm AGENTS.md matches actual agents if modified\n\nReport PASS or FAIL with details.",
+  "tools": [
+    "read",
+    "shell",
+    "write",
+    "glob",
+    "grep",
+    "web_fetch",
+    "web_search",
+    "code",
+    "knowledge"
+  ],
+  "allowedTools": [
+    "read",
+    "shell",
+    "write",
+    "glob",
+    "grep",
+    "web_fetch",
+    "web_search",
+    "code",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://CONTEXT.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"fix-verifier\" && echo \"\ud83e\udd16 fix-verifier ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  }
+}

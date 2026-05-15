@@ -18,7 +18,7 @@ The fastest way to contribute:
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Configure
-cp fleet.example.yaml fleet.yaml
+cp fleet.example.yaml fleet.local.yaml
 
 # Build + verify
 just build
@@ -107,7 +107,7 @@ shared/skills/my-skill/
 1. Create `shared/themes/{name}.yaml`
 2. Map generic agent names → themed names
 3. Optionally add: icon, display name, welcome messages
-4. Test: set `theme: {name}` on a project in fleet.yaml, run `just build`
+4. Test: set `theme: {name}` on a project in .crews/crew.yaml, run `just build`
 
 ## Adding an Eval
 
@@ -143,7 +143,7 @@ shared/skills/        On-demand knowledge
 shared/steering/      Always-on steering (universal + per-persona)
 generate.py           Generator (crews + components → .kiro/)
 fleet.example.yaml    Reference config (committed)
-fleet.yaml            Your config (gitignored)
+fleet.local.yaml      Your project registry (gitignored)
 ```
 
 ## Changelog

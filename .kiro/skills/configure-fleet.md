@@ -1,6 +1,6 @@
 ---
 name: configure-fleet
-description: Guide users through fleet.yaml configuration. Ask about their project, help them make good choices about crews, components, and deployment.
+description: Guide users through .crews/crew.yaml configuration. Ask about their project, help them make good choices about crews, components, and deployment.
 ---
 
 # Fleet Configuration — Advisory Guide
@@ -63,7 +63,7 @@ Only mention if the user seems interested in customization. It's cosmetic — do
 Ask: "Where does this project live on your machine?"
 
 ```yaml
-deployments:
+projects:
   project-name: /absolute/path/to/project
 ```
 

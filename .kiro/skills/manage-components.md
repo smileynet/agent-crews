@@ -28,7 +28,7 @@ Ask:
 
 Key considerations to surface:
 - Changes propagate to ALL projects on next `just build`
-- If only one project needs different behavior, override in fleet.yaml rather than changing the shared component
+- If only one project needs different behavior, override in .crews/crew.yaml rather than changing the shared component
 - Run evals after changes: `just eval-components`
 - Check the generated steering to verify: `cat .kiro/steering/<target>/<name>.md`
 
@@ -56,11 +56,11 @@ Targets determine delivery:
 ## When a component isn't working
 
 Ask:
-- Is the component configured in fleet.yaml for this project?
+- Is the component configured in .crews/crew.yaml for this project?
 - Did you run `just build` after changes?
 
 Debug path:
-1. Check fleet.yaml config for the project
+1. Check .crews/crew.yaml config for the project
 2. Check `just build` output for errors
 3. Check `.kiro/steering/<target>/` for the generated file
 4. Check agent's `resources` field includes the steering glob

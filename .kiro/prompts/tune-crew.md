@@ -32,7 +32,7 @@ Observe → diagnose → fix → validate loop for a deployed crew.
    | Dead agents in health check | Routing gaps | Fix availableAgents in crew YAML |
    | Same file read 3+ times | Context loss | Add to agent resources |
 
-4. **Apply fixes** — edit crew YAML, steering, or fleet.yaml
+4. **Apply fixes** — edit crew YAML, steering, or .crews/crew.yaml
 
 5. **Validate**
    ```bash
@@ -53,7 +53,7 @@ Observe → diagnose → fix → validate loop for a deployed crew.
 | Tokens/session | <500K | session-summary.sh |
 | Failure rate | <10% | session-summary.sh |
 | Delegation ratio | >80% subagent calls from leads | analyze-session.py --stats |
-| Intent coverage | All top intents have matching crew | session-summary.sh vs fleet.yaml |
+| Intent coverage | All top intents have matching crew | session-summary.sh vs .crews/crew.yaml |
 
 ## When NOT to tune
 

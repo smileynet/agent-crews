@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# agent-crews CLI wrapper — delegates to generate.py from any directory
+# Requires: AGENT_CREWS_HOME env var pointing to agent-crews repo
+set -euo pipefail
+
+if [ -z "${AGENT_CREWS_HOME:-}" ]; then
+  # Try to find it relative to this script
+  SCRIPT_DIR=$(cd "$(dirname "$0")/.." && pwd)
+  if [ -f "$SCRIPT_DIR/generate.py" ]; then
+    AGENT_CREWS_HOME="$SCRIPT_DIR"
+  else
+    echo "Error: Set AGENT_CREWS_HOME to your agent-crews repo path" >&2
+    exit 2
+  fi
+fi
+
+CMD="${1:-help}"
+shift 2>/dev/null || true
+
+case "$CMD" in
+  build)
+    exec uv run "$AGENT_CREWS_HOME/generate.py" "$@"
+    ;;
+  eval)
+    exec uv run "$AGENT_CREWS_HOME/scripts/eval-crew.py" "$@"
+    ;;
+  scan)
+    exec "$AGENT_CREWS_HOME/scripts/scan-fleet.sh" "$@"
+    ;;
+  ingest)
+    exec uv run "$AGENT_CREWS_HOME/session-ingest.py" "$@"
+    ;;
+  health)
+    exec "$AGENT_CREWS_HOME/scripts/crew-health.sh" "$@"
+    ;;
+  help|--help|-h)
+    cat << 'EOF'
+agent-crews — AI agent crew management
+
+Usage: agent-crews <command> [args]
+
+Commands:
+  build [name|.]     Generate .kiro/ from .crews/crew.yaml
+  eval [name]        Run behavioral evals (.crews/evals.yaml)
+  scan [dir]         Discover projects, update fleet.local.yaml
+  ingest [args]      Ingest session logs
+  health <name>      Crew health check
+  help               Show this help
+
+Environment:
+  AGENT_CREWS_HOME   Path to agent-crews repo (auto-detected if on PATH)
+EOF
+    ;;
+  *)
+    echo "Unknown command: $CMD (try: agent-crews help)" >&2
+    exit 1
+    ;;
+esac

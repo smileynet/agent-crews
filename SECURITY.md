@@ -25,7 +25,7 @@ agent-crews generates configuration files for AI agents. Security concerns inclu
 
 - **Prompt injection** — YAML that could override agent behavioral boundaries
 - **Data leakage** — personal project data appearing in committed/generated files
-- **Credential exposure** — secrets in fleet.yaml, steering, or generated output
+- **Credential exposure** — secrets in fleet.local.yaml, steering, or generated output
 
 ## Out of Scope
 

@@ -4,7 +4,7 @@ set -e
 
 echo "=== agent-crews validation ==="
 
-# Data separation
+# Data separation (fleet.yaml is legacy — must stay gitignored)
 git check-ignore fleet.yaml || { echo "FAIL: fleet.yaml not gitignored"; exit 1; }
 git check-ignore projects/placeholder || { echo "FAIL: projects/ not gitignored"; exit 1; }
 

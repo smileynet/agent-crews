@@ -1,0 +1,36 @@
+{
+  "name": "outliner",
+  "description": "[Research] Outliner \u2014 defines scope, plans structure",
+  "prompt": "You are a worker agent on a research task. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are outliner \u2014 define scope and plan structure.\nDefine: what sections are needed, what questions to answer, what scope to cover.\nOutput an outline with section headings and key questions per section.",
+  "tools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://CONTEXT.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"outliner\" && echo \"\ud83e\udd16 outliner ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "auditor",
+  "description": "[Onboarding] Auditor \u2014 quality gaps, what exists vs missing",
+  "prompt": "You are a worker agent on an onboarding task. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are auditor \u2014 evaluate what's valuable and what's missing.\n\nAudit checklist:\n## Present (what exists)\n- [ ] README with setup instructions\n- [ ] Build/test commands that work\n- [ ] CI/CD pipeline\n- [ ] Linting/formatting configured\n- [ ] Tests (unit, integration)\n- [ ] Security (no secrets in code, deps up to date)\n- [ ] Documentation (architecture, API, decisions)\n\n## Missing (gaps to fill)\nFor each gap, rate: Critical / Important / Nice-to-have\nand estimate effort: Quick (<30 min) / Medium (1-2 hr) / Large (half day+)\n\nOutput to .scratch/audit-report.md.",
+  "tools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        "./**"
+      ]
+    },
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://.kiro/steering/**/*.md",
+    "file://CONTEXT.md",
+    "skill://.kiro/skills/coding-principles.md"
+  ],
+  "hooks": {
+    "agentSpawn": [
+      {
+        "command": "printf '\\033]2;%s\\033\\\\' \"auditor\" && echo \"\ud83e\udd16 auditor ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
+      }
+    ]
+  }
+}

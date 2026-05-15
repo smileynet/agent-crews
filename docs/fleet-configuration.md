@@ -1,85 +1,78 @@
 # Fleet Configuration
 
-fleet.yaml is where you register projects and configure how agents behave. It's the single source of truth for what gets deployed where.
+## Project Registry
 
-## Why fleet.yaml exists
-
-Without it, you'd configure each project's agents individually. Set defaults once, override per-project where needed.
-
-## Structure
+`fleet.local.yaml` is the project registry — a name→path mapping of all projects managed by agent-crews. It's gitignored (machine-specific paths).
 
 ```yaml
-defaults:          # baseline for all projects
-  crews: [general]
-  components: ...
-
-projects:          # per-project overrides
-  my-project:
-    crews: [general, research]
-    components:
-      verification:
-        checks:
-          build: "npm run build"
+# fleet.local.yaml
+projects:
+  agent-crews: ~/code/agent-crews
+  pidev-crafter: ~/code/pidev-crafter
+  craft-mmo: ~/code/craft-mmo
 ```
 
-Projects inherit everything from `defaults` and only override what's different.
+## Auto-discovery
 
-## Key decisions
+```bash
+just scan ~/code    # finds all dirs with .crews/crew.yaml, updates fleet.local.yaml
+```
 
-### Which crews?
+## Project Configuration
 
-General is always included. Add specialized crews only when the work benefits from domain-specific agents. More crews = more agents to manage. Start minimal.
+Each project's config lives in `.crews/crew.yaml` — self-contained, no inheritance:
+
+```yaml
+# ~/code/my-project/.crews/crew.yaml
+persona: personal
+crews: [general, research]
+theme: null
+components:
+  verification:
+    variant: gate
+    checks:
+      build: "cargo check"
+      test: "cargo test"
+      lint: "cargo clippy"
+  git:
+    variant: checkpoint
+```
+
+### Key fields
+
+| Field | Purpose |
+|-------|--------|
+| `persona` | personal or team identifier |
+| `crews` | Which base crews to include (general is mandatory) |
+| `theme` | Cosmetic agent renaming (null for standard names) |
+| `components` | Behavioral configuration (verification, git, notifications, etc.) |
 
 ### Build/test/lint commands
 
-These are critical — agents use them to verify their own work. If you don't set them, agents can't confirm their changes are correct.
+Critical — agents use these to verify their own work:
 
 ```yaml
 components:
   verification:
     checks:
-      build: "cargo check"    # fast compilation check
-      test: "cargo test"      # run test suite
-      lint: "cargo clippy"    # static analysis
+      build: "npm run build"   # fast compilation check
+      test: "npm test"         # run test suite
+      lint: "npx eslint ."    # static analysis
 ```
 
-Set to `null` if your project doesn't have one of these.
+Set to `null` if your project doesn't have one.
 
 ### Git workflow
 
-- `checkpoint` — commit frequently, push immediately (solo/personal projects)
-- `pr-based` — branch, commit, open PR (team projects)
+- `checkpoint` — commit frequently, push immediately (solo/personal)
+- `pr-based` — branch, commit, open PR (team)
 
-### Notifications
+## Commands
 
-Where agents tell you they're done:
-
-```yaml
-components:
-  notifications:
-    channels: [toast]           # OS notification
-    # channels: [toast, slack]  # + Slack webhook
-    policy: completions         # only on task completion
-```
-
-### Themes
-
-Cosmetic only — rename agents to fit your project's vibe. See [Themed Crews Guide](themed-crews-guide.md).
-
-## Files
-
-- `fleet.example.yaml` — committed reference showing the format and all options
-- `fleet.yaml` — your actual config (gitignored, copy from example)
-- `fleet.local.yaml` — deployment paths mapping project names to filesystem locations (gitignored)
-
-## fleet.local.yaml
-
-Maps project names to where they live on your machine:
-
-```yaml
-deployments:
-  my-project: /home/user/code/my-project
-  other-project: /home/user/code/other-project
-```
-
-Used by `just link <project>` to know where to deploy.
+| Task | Command |
+|------|---------|
+| Build one project | `just build <name>` |
+| Build all | `just build --all` |
+| Build current dir | `just build .` |
+| Fleet status | `just status` |
+| Scan for projects | `just scan ~/code` |

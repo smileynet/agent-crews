@@ -4,7 +4,7 @@ Optional game-themed agent names for your projects. Themes are cosmetic overlays
 
 ## Enabling a Theme
 
-In `fleet.yaml`, add `theme: wow` to your project:
+In `.crews/crew.yaml`, add `theme: wow` to your project:
 
 ```yaml
 projects:
@@ -132,4 +132,4 @@ agents:
   # ... map all 58 agents
 ```
 
-Then set `theme: my-theme` in fleet.yaml and run `just build`.
+Then set `theme: my-theme` in .crews/crew.yaml and run `just build`.

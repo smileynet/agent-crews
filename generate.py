@@ -868,6 +868,73 @@ def generate_all(dry_run: bool = False):
             if fleet and proj_name in fleet.get("projects", {}):
                 generate_components_for_project(proj_name, kiro_dir, fleet, dry_run)
 
+    # --- NEW: Generate from fleet.local.yaml projects with .crews/ ---
+    fleet_local = load_fleet_local()
+    for proj_name, proj_path in fleet_local.items():
+        proj_dir = Path(proj_path).expanduser()
+        crews_config = proj_dir / '.crews' / 'crew.yaml'
+        if not crews_config.exists():
+            continue
+        # Skip if already handled above (projects/ dir)
+        if (root / 'projects' / proj_name / '.kiro').exists():
+            continue
+        print(f"\nGenerating (in-place): {proj_name}")
+        kiro_dir = proj_dir / '.kiro'
+        # Remove dangling symlink from old deployment model
+        if kiro_dir.is_symlink() and not kiro_dir.exists():
+            kiro_dir.unlink()
+        # Read crew config to get crews list
+        with open(crews_config, encoding='utf-8') as f:
+            crew_cfg = yaml.safe_load(f) or {}
+        proj_crews = crew_cfg.get('crews', ['general'])
+        # Sync base crews to a temp crews dir inside .kiro
+        crews_dir = kiro_dir / 'crews'
+        crews_dir.mkdir(parents=True, exist_ok=True)
+        for crew_name in proj_crews:
+            src = base_crews / f"{crew_name}.yaml"
+            if src.exists():
+                shutil.copy2(src, crews_dir / src.name)
+        # Generate agents
+        output_dir = kiro_dir / 'agents'
+        if not dry_run:
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        proj_crew_files = sorted(crews_dir.glob('*.yaml'))
+        proj_siblings = build_sibling_map(proj_crew_files)
+        agents = []
+        for cf in proj_crew_files:
+            agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
+        print(f"  -> {len(agents)} agents")
+        # Apply theme
+        theme_name = crew_cfg.get('theme')
+        if theme_name and not dry_run:
+            theme = load_theme(theme_name)
+            if theme:
+                apply_theme_to_agents(output_dir, theme)
+        # Generate crew-sheet
+        if not dry_run:
+            theme_for_sheet = load_theme(theme_name) if theme_name else None
+            crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+            prompts_dir = kiro_dir / 'prompts'
+            prompts_dir.mkdir(parents=True, exist_ok=True)
+            (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
+        # Sync steering
+        sync_steering_to_project(kiro_dir, root)
+        generate_vocabulary(kiro_dir, dry_run)
+        sync_prompts_to_project(kiro_dir, root)
+        generate_project_md_skeleton(kiro_dir)
+        # Components
+        if fleet:
+            # Build a synthetic fleet entry from .crews/crew.yaml
+            synthetic_fleet = {'projects': {proj_name: crew_cfg}, 'defaults': fleet.get('defaults', {})}
+            generate_components_for_project(proj_name, kiro_dir, synthetic_fleet, dry_run)
+        # Clean up: remove .kiro/crews/ (was only needed for generation)
+        if not dry_run:
+            crews_cleanup = kiro_dir / 'crews'
+            if crews_cleanup.is_dir():
+                shutil.rmtree(crews_cleanup)
+
     print("\nDone.")
 
 
@@ -1083,6 +1150,42 @@ def load_fleet_config() -> dict:
                 fleet["projects"] = example_projects
 
     return fleet
+
+
+def load_fleet_local() -> dict:
+    """Load fleet.local.yaml (name→path project registry)."""
+    root = Path(__file__).parent
+    path = root / "fleet.local.yaml"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data.get("projects", {})
+
+
+def resolve_project(name_or_path: str) -> Path:
+    """Resolve project name or '.' to the project root directory."""
+    if name_or_path == '.':
+        cwd = Path.cwd()
+        while cwd != cwd.parent:
+            if (cwd / '.crews' / 'crew.yaml').exists():
+                return cwd
+            cwd = cwd.parent
+        sys.exit('No .crews/crew.yaml found in cwd or parents')
+    # Check if it's a path
+    p = Path(name_or_path).expanduser()
+    if p.is_dir() and (p / '.crews' / 'crew.yaml').exists():
+        return p
+    # Look up in fleet.local.yaml
+    fleet = load_fleet_local()
+    if name_or_path in fleet:
+        resolved = Path(fleet[name_or_path]).expanduser()
+        if (resolved / '.crews' / 'crew.yaml').exists():
+            return resolved
+        # Fallback: maybe it still uses old .kiro/crew.yaml layout
+        if (resolved / '.kiro' / 'crew.yaml').exists():
+            return resolved
+    sys.exit(f'Project not found or missing .crews/crew.yaml: {name_or_path}')
 
 
 def resolve_component_config(project_name: str, fleet: dict) -> dict:
@@ -1477,6 +1580,73 @@ def main():
     if all_flag:
         generate_all(dry_run)
         return
+
+    # Handle project name or '.' argument
+    if args and not Path(args[0]).suffix:
+        # Looks like a project name or '.', not a file path
+        candidate = args[0]
+        if candidate == '.' or not Path(candidate).exists():
+            try:
+                proj_dir = resolve_project(candidate)
+                crews_config = proj_dir / '.crews' / 'crew.yaml'
+                if crews_config.exists():
+                    # Generate in-place for this project
+                    print(f"Building: {proj_dir.name}")
+                    # Reuse generate_all logic for single project
+                    root = Path(__file__).parent
+                    base_crews_dir = root / 'base' / 'crews'
+                    fleet_cfg = load_fleet_config()
+                    with open(crews_config, encoding='utf-8') as f:
+                        crew_cfg = yaml.safe_load(f) or {}
+                    proj_crews = crew_cfg.get('crews', ['general'])
+                    kiro_dir = proj_dir / '.kiro'
+                    # Remove dangling symlink from old deployment model
+                    if kiro_dir.is_symlink() and not kiro_dir.exists():
+                        kiro_dir.unlink()
+                    crews_dir = kiro_dir / 'crews'
+                    crews_dir.mkdir(parents=True, exist_ok=True)
+                    for crew_name in proj_crews:
+                        src = base_crews_dir / f"{crew_name}.yaml"
+                        if src.exists():
+                            shutil.copy2(src, crews_dir / src.name)
+                    output_dir = kiro_dir / 'agents'
+                    if not dry_run:
+                        if output_dir.exists():
+                            shutil.rmtree(output_dir)
+                        output_dir.mkdir(parents=True, exist_ok=True)
+                    proj_crew_files = sorted(crews_dir.glob('*.yaml'))
+                    proj_siblings = build_sibling_map(proj_crew_files)
+                    agents = []
+                    for cf in proj_crew_files:
+                        agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
+                    print(f"  -> {len(agents)} agents")
+                    theme_name = crew_cfg.get('theme')
+                    if theme_name and not dry_run:
+                        theme = load_theme(theme_name)
+                        if theme:
+                            apply_theme_to_agents(output_dir, theme)
+                    if not dry_run:
+                        theme_for_sheet = load_theme(theme_name) if theme_name else None
+                        crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+                        prompts_dir = kiro_dir / 'prompts'
+                        prompts_dir.mkdir(parents=True, exist_ok=True)
+                        (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
+                    sync_steering_to_project(kiro_dir, root)
+                    generate_vocabulary(kiro_dir, dry_run)
+                    sync_prompts_to_project(kiro_dir, root)
+                    generate_project_md_skeleton(kiro_dir)
+                    if fleet_cfg:
+                        synthetic = {'projects': {proj_dir.name: crew_cfg}, 'defaults': fleet_cfg.get('defaults', {})}
+                        generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
+                    # Clean up: remove .kiro/crews/ (was only needed for generation)
+                    if not dry_run:
+                        crews_cleanup = kiro_dir / 'crews'
+                        if crews_cleanup.is_dir():
+                            shutil.rmtree(crews_cleanup)
+                    print(f"Generated {len(agents)} agents at {output_dir}/")
+                    return
+            except SystemExit:
+                pass  # Fall through to old behavior
 
     crew_path = Path(args[0]) if args else Path(".kiro/crew.yaml")
     if not crew_path.exists():

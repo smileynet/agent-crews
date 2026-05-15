@@ -26,7 +26,7 @@ Instead of copy-pasting instructions into every agent prompt, components deliver
 
 ## Configuring components
 
-Set defaults in `fleet.yaml` under `defaults.components`, override per-project:
+Set defaults in `.crews/crew.yaml` under `defaults.components`, override per-project:
 
 ```yaml
 defaults:

@@ -15,7 +15,7 @@ Audit the generated crew for `<project>` against structural quality conventions.
 
 ## Steps
 
-1. Read `projects/<project>/.kiro/` — measure line counts against targets
+1. Read `<project>/.kiro/` — measure line counts against targets
 2. Check each dimension above — flag violations
 3. Cross-reference: orchestrators have scope enforcement, workers have no subagent tool
 4. Report findings as Must Fix / Should Fix / Looks Good

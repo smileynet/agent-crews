@@ -30,6 +30,19 @@ import yaml
 
 ROOT = Path(__file__).parent.parent
 DEFAULT_FIXTURE = ROOT / "tests" / "crew-evals.yaml"
+
+
+def discover_fixture() -> Path:
+    """Find .crews/evals.yaml by walking up from cwd."""
+    cwd = Path.cwd()
+    while cwd != cwd.parent:
+        candidate = cwd / ".crews" / "evals.yaml"
+        if candidate.exists():
+            return candidate
+        cwd = cwd.parent
+    return DEFAULT_FIXTURE
+
+
 DEFAULT_THRESHOLD = 3
 DEFAULT_TIMEOUT = 300
 PROJECT = "agent-crews"
@@ -188,7 +201,7 @@ def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIME
 
 def main():
     parser = argparse.ArgumentParser(description="Model-based crew evaluation")
-    parser.add_argument("--fixture", default=str(DEFAULT_FIXTURE), help="Path to eval YAML")
+    parser.add_argument("--fixture", default=None, help="Path to eval YAML (default: .crews/evals.yaml or tests/crew-evals.yaml)")
     parser.add_argument("--tag", help="Filter evals by tag")
     parser.add_argument("--name", help="Run single eval by name")
     parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD, help="Pass threshold (default: 3)")
@@ -203,7 +216,7 @@ def main():
         args.timeout = min(args.timeout, 30)
 
     # Load fixture
-    fixture_path = Path(args.fixture)
+    fixture_path = Path(args.fixture) if args.fixture else discover_fixture()
     if not fixture_path.exists():
         print(f"Error: fixture not found: {fixture_path}", file=sys.stderr)
         sys.exit(2)

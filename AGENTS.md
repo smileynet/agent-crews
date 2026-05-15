@@ -31,26 +31,17 @@ See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
 `base/crews/*.yaml` + `shared/components/*.yaml` are the source of truth. Never edit generated `.json` files directly.
 
 ```
-base/              Base template
+base/              Base templates
   crews/              Generic crew definitions (8 crews, 58 agents total)
-    general.yaml      General purpose (12 agents)
-    bug-fix.yaml      Bug fixing (8 agents)
-    infrastructure.yaml  Infrastructure/deploy (7 agents)
-    research.yaml     Research/docs (7 agents)
-    onboarding.yaml   Brownfield onboarding (6 agents)
-    hygiene.yaml      Project maintenance (6 agents)
-    content.yaml      Presentations/tutorials (6 agents)
-    writing.yaml      Writing/editing (6 agents)
 shared/               Shared resources across all projects
-  components/         Component system (15 behavioral concerns, 24 files)
-  themes/             Theme overlays (cosmetic name/voice mapping)
+  components/         Component system (15 behavioral concerns)
+  themes/             Theme overlays
   skills/             Shared skills
   steering/           Universal + persona-specific steering
-projects/             Per-project adaptations
-fleet.yaml            Project registry + component defaults + theme config
-generate.py           crews/*.yaml + components + theme → .kiro/agents/*.json + steering
-analyze-session.py    Session transcript analysis
-.kiro/                This repo's own agents and prompts
+.crews/               This repo's own crew config + evals
+fleet.local.yaml      Project registry (name→path, gitignored)
+generate.py           .crews/crew.yaml → .kiro/ output
+bin/agent-crews       CLI wrapper for cross-project use
 ```
 
 ## Architecture: 3-Level Hierarchy
@@ -89,11 +80,9 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 
 ### Theme Overlay (optional)
 
-Themes rename agents cosmetically without changing behavior. Configure in fleet.yaml:
+Themes rename agents cosmetically without changing behavior. Configure in .crews/crew.yaml:
 ```yaml
-projects:
-  my-project:
-    theme: wow  # general-lead → raid-leader, builder → paladin, etc.
+theme: wow  # general-lead → raid-leader, builder → paladin, etc.
 ```
 
 See [Themed Crews Guide](docs/themed-crews-guide.md) for available themes and mappings.
@@ -102,36 +91,28 @@ See [Themed Crews Guide](docs/themed-crews-guide.md) for available themes and ma
 
 | Task | Command |
 |------|---------|
-| Generate all | `just build` |
-| Generate one | `just generate <project>` |
-| Generate components only | `just components` |
-| Sync steering only | `just sync-steering` |
-| Check health | `just check` |
-| Deploy to project | `just link <project>` |
-| Show fleet status | `just status` |
-| Bootstrap all | `just bootstrap` |
-| Validate schema | `just validate <project>` |
-| Full CI | `just ci` |
-| Smoke test (behavioral) | `just smoke-test <target-path>` |
-| Integration test | `just integration-test <target-path>` |
-| List sessions | `uv run analyze-session.py --project <name>` |
-| Analyze session | `uv run analyze-session.py <id> --stats` |
-| Ingest sessions (all tools) | `just ingest <project>` |
-| Ingest all projects | `just ingest-all` |
-| Project scan | `./scripts/project-scan.sh <path>` |
-| Session summary | `./scripts/session-summary.sh <path>` |
-| Crew health check | `./scripts/crew-health.sh <project>` |
-| Cross-tool comparison | `uv run analyze-session.py --compare <path>` |
-| Session diff (before/after) | `./scripts/session-diff.sh <path> <date>` |
-| Validate hierarchy | `uv run generate.py --all` (errors on violations) |
+| Generate all | `just build --all` |
+| Generate one | `just build <project>` |
+| Generate cwd | `just build .` |
+| Fleet status | `just status` |
+| Scan for projects | `just scan ~/code` |
+| Push staging | `just push <project>` |
+| Crew health check | `just check <project>` |
+| Run evals | `just eval <project>` |
+| Eval dry run | `just eval-dry <project>` |
+| Session summary | `just summary <project>` |
+| Cross-tool compare | `just compare <project>` |
+| Ingest sessions | `just ingest <project>` |
+| Migrate old layout | `just migrate <project>` |
+| Smoke test | `just smoke-test <target-path>` |
 
 ## Post-Change Rule
-After ANY modification to crew.yaml or crews/*.yaml, ALWAYS run `just build` before considering the task complete. Generation is not optional — it's part of the change.
+After ANY modification to .crews/crew.yaml or base/crews/*.yaml, ALWAYS run `just build <project>` before considering the task complete.
 
 ## Deploy Checklist
 
 Every project deployment MUST include a `@crew-sheet` prompt:
-- Auto-generated at `projects/<project>/.kiro/prompts/crew-sheet.md` by `just build`
+- Auto-generated at `<project>/.kiro/prompts/crew-sheet.md` by `just build`
 - Lists all crews, agents, roles, and common tasks
 - Uses the project's actual agent names (themed if theme is active)
 
@@ -177,6 +158,6 @@ The `dispatcher` is the default entry point. It delegates to the specialist agen
 | [shared/themes/](shared/themes/) | Theme overlays (cosmetic name mapping) |
 | [shared/components/](shared/components/) | Component system (15 behavioral concerns) |
 | [shared/skills/](shared/skills/) | Shared skills library |
-| [fleet.yaml](fleet.yaml) | Project registry + component defaults + theme config |
+| [docs/session-analysis.md](docs/session-analysis.md) | Multi-tool session analysis and crew recommendations |
 | [docs/component-architecture/spec.md](docs/component-architecture/spec.md) | Component architecture specification |
 | [docs/decisions/](docs/decisions/) | Architecture Decision Records |

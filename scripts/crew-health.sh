@@ -7,7 +7,7 @@ show_help() {
 Usage: ./scripts/crew-health.sh <project-name>
 
 Crew structural health check. Finds: dead agents, scope overlaps, missing routing, tool permission issues.
-Project name must match fleet.yaml (e.g. 'craft-mmo', not a path).
+Project name must match fleet.local.yaml (e.g. 'craft-mmo', not a path).
 
 Examples:
   ./scripts/crew-health.sh craft-mmo
@@ -30,10 +30,10 @@ import yaml, json, os, sys, glob
 
 project = sys.argv[1]
 repo = sys.argv[2]
-fleet_path = os.path.join(repo, 'fleet.yaml')
+fleet_path = os.path.join(repo, 'fleet.local.yaml')
 
 if not os.path.exists(fleet_path):
-    print(f'ERROR: fleet.yaml not found at {fleet_path}', file=sys.stderr)
+    print(f'ERROR: fleet.local.yaml not found at {fleet_path}', file=sys.stderr)
     sys.exit(2)
 
 with open(fleet_path) as f:
@@ -43,7 +43,7 @@ defaults = fleet.get('defaults', {})
 projects = fleet.get('projects', {})
 
 if project not in projects:
-    print(f'ERROR: project "{project}" not found in fleet.yaml', file=sys.stderr)
+    print(f'ERROR: project "{project}" not found in fleet.local.yaml', file=sys.stderr)
     print(f'Available: {list(projects.keys())}', file=sys.stderr)
     sys.exit(2)
 
@@ -80,7 +80,7 @@ elif 'meta' in crews:
 else:
     issues.append('general crew not included')
     checks.append('\u2717 general crew NOT included')
-    fixes.append(f"Add 'general' to {project}'s crews in fleet.yaml")
+    fixes.append(f"Add 'general' to {project}'s crews in .crews/crew.yaml")
 
 # 2+3. Routing table and availableAgents checks
 for name, agent in agents.items():

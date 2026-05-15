@@ -2,218 +2,165 @@
 # Usage: just <recipe>    List all: just --list
 set windows-shell := ["powershell.exe", "-c"]
 
-# ─── Primary Commands (JTBD-aligned) ─────────────────────────────────────────
+# ─── Build ─────────────────────────────────────────────────────────────────────
 
-# Generate all projects (crews + components + steering)
-build:
+# Generate all projects (reads fleet.local.yaml, writes .kiro/ in each project)
+build *args:
+    uv run generate.py {{args}}
+
+# Generate all projects (explicit)
+build-all:
     uv run generate.py --all
 
-# Create/update symlink from fleet.local.yaml path to project .kiro/
+# Push staging to project (first-gen workflow: copies .crews/ + .kiro/, deletes staging)
+push project:
+    #!/usr/bin/env bash
+    set -e
+    STAGING="projects/{{project}}"
+    if [ ! -d "$STAGING" ]; then echo "No staging for {{project}}"; exit 1; fi
+    TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
+    TARGET="${TARGET/#\~/$HOME}"
+    if [ -z "$TARGET" ]; then echo "{{project}} not in fleet.local.yaml"; exit 1; fi
+    echo "Pushing: $STAGING -> $TARGET"
+    # Copy .crews/ (source)
+    if [ -d "$STAGING/.crews" ]; then
+      mkdir -p "$TARGET/.crews"
+      cp -r "$STAGING/.crews/"* "$TARGET/.crews/"
+      echo "  ✓ .crews/"
+    fi
+    # Copy .kiro/ (generated output)
+    if [ -d "$STAGING/.kiro" ]; then
+      rm -rf "$TARGET/.kiro"
+      cp -r "$STAGING/.kiro" "$TARGET/.kiro"
+      echo "  ✓ .kiro/"
+    fi
+    # Delete staging
+    rm -rf "$STAGING"
+    echo "  ✓ staging deleted"
+    echo "Done: {{project}} deployed to $TARGET"
+
+# Scan for projects with .crews/ and update fleet.local.yaml
+scan *args:
+    ./scripts/scan-fleet.sh {{args}}
+
+# ─── Deploy (dev iteration) ───────────────────────────────────────────────────
+
+# Symlink for rapid dev iteration (opt-in, not default)
 link project:
     #!/usr/bin/env bash
     set -e
-    TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['deployments']['{{project}}'])")
+    TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
     TARGET="${TARGET/#\~/$HOME}"
-    if [ -z "$TARGET" ]; then echo "Project {{project}} not in fleet.local.yaml"; exit 1; fi
-    # Preserve memory if it exists
-    if [ -d "$TARGET/.kiro/memory" ]; then
-      cp -r "$TARGET/.kiro/memory" /tmp/.kiro-memory-{{project}}
-    fi
+    if [ -z "$TARGET" ]; then echo "{{project}} not in fleet.local.yaml"; exit 1; fi
+    STAGING="projects/{{project}}"
+    if [ ! -d "$STAGING/.kiro" ]; then echo "No staging .kiro/ for {{project}}. Run: just build --staging {{project}}"; exit 1; fi
     rm -rf "$TARGET/.kiro"
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-      cmd //c mklink //d "$(cygpath -w "$TARGET/.kiro")" "$(cygpath -w "$(pwd)/projects/{{project}}/.kiro")"
-    else
-      ln -sf "$(pwd)/projects/{{project}}/.kiro" "$TARGET/.kiro"
-    fi
-    # Restore memory
-    if [ -d /tmp/.kiro-memory-{{project}} ]; then
-      mv /tmp/.kiro-memory-{{project}} "$TARGET/.kiro/memory"
-      echo "  ✔ memory preserved"
-    fi
-    echo "Linked: projects/{{project}}/.kiro → $TARGET/.kiro"
+    ln -sf "$(pwd)/$STAGING/.kiro" "$TARGET/.kiro"
+    echo "Linked: $STAGING/.kiro -> $TARGET/.kiro (dev mode)"
 
-# Show deployment status (what's deployed where)
+# ─── Validation ──────────────────────────────────────────────────────────
+
+# Check crew health for a project
+check project:
+    ./scripts/crew-health.sh {{project}}
+
+# Show fleet status
 status:
     #!/usr/bin/env bash
-    echo "Fleet Status:"
-    python3 scripts/status.py
+    echo "Fleet (fleet.local.yaml):"
+    python3 << 'EOF'
+    import yaml
+    from pathlib import Path
+    d = yaml.safe_load(open('fleet.local.yaml'))
+    for name, path in d.get('projects', {}).items():
+        p = Path(path).expanduser()
+        has_crews = '✅' if (p / '.crews' / 'crew.yaml').exists() else '❌'
+        has_kiro = '✅' if (p / '.kiro' / 'agents').exists() else '❌'
+        print(f'  {has_crews} {has_kiro} {name:<20} {path}')
+    print()
+    print('Legend: [.crews/] [.kiro/] name  path')
+    EOF
 
-# Validate all projects (schema + health + components)
-check:
-    uv run generate.py --check-health
+# ─── Evaluation ──────────────────────────────────────────────────────────
 
-# Setup all projects from fleet.local.yaml (generate + link)
-bootstrap:
+# Run evals for a project (finds .crews/evals.yaml)
+eval *project:
     #!/usr/bin/env bash
     set -e
-    echo "=== Building all ==="
-    just build
-    echo ""
-    echo "=== Linking deployments ==="
-    python3 scripts/bootstrap-list.py | while read proj; do
-      just link "$proj" 2>/dev/null && echo "  ✅ $proj" || echo "  ❌ $proj (target missing?)"
-    done
-
-# ─── Generation ──────────────────────────────────────────────────────────────
-
-# Generate agents for a specific project
-generate project:
-    uv run generate.py projects/{{project}}/.kiro/crew.yaml
-
-# Generate all (alias for build)
-generate-all: build
-
-# Generate component steering + subagents only
-components:
-    uv run generate.py --components
-
-# Sync shared steering docs to all projects
-sync-steering:
-    uv run generate.py --sync-steering
-
-# ─── Validation ──────────────────────────────────────────────────────────────
-
-# Validate generated JSON against kiro-cli schema
-validate project=".kiro":
-    #!/usr/bin/env bash
-    set -e
-    DIR="{{project}}/agents"
-    if [ "{{project}}" != ".kiro" ]; then DIR="projects/{{project}}/.kiro/agents"; fi
-    echo "Validating agents in $DIR..."
-    FAIL=0
-    for f in "$DIR"/*.json; do
-      name=$(basename "$f" .json)
-      if kiro-cli agent validate --path "$f" 2>&1 | grep -qi "error\|invalid\|malformed"; then
-        echo "  ❌ $name"
-        FAIL=1
+    if [ -z "{{project}}" ]; then
+      # No arg: run this repo's own evals
+      if [ -f ".crews/evals.yaml" ]; then
+        uv run scripts/eval-crew.py --fixture .crews/evals.yaml
       else
-        echo "  ✅ $name"
+        uv run scripts/eval-crew.py
       fi
-    done
-    if [ $FAIL -eq 0 ]; then echo "All agents valid"; else exit 1; fi
+    else
+      TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
+      TARGET="${TARGET/#\~/$HOME}"
+      FIXTURE="$TARGET/.crews/evals.yaml"
+      if [ ! -f "$FIXTURE" ]; then echo "No evals: $FIXTURE"; exit 1; fi
+      uv run scripts/eval-crew.py --fixture "$FIXTURE"
+    fi
 
-# Full CI: generate + validate + health check
-ci:
+# Run evals in verbose mode
+eval-verbose *project:
     #!/usr/bin/env bash
     set -e
-    echo "=== Generate ==="
-    just build
-    echo ""
-    echo "=== Health Check ==="
-    just check
-    echo ""
-    echo "✅ CI pass"
+    if [ -z "{{project}}" ]; then
+      uv run scripts/eval-crew.py --verbose
+    else
+      TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
+      TARGET="${TARGET/#\~/$HOME}"
+      uv run scripts/eval-crew.py --fixture "$TARGET/.crews/evals.yaml" --verbose
+    fi
 
-# ─── Deployment ──────────────────────────────────────────────────────────────
-
-# Deploy a crew to a target path (copy, not symlink)
-deploy project target:
-    rm -rf {{target}}/.kiro
-    cp -r projects/{{project}}/.kiro {{target}}/.kiro
-    @echo "Deployed projects/{{project}}/.kiro → {{target}}/.kiro"
-
-# Generate + deploy
-ship project target: (generate project) (deploy project target)
-
-# ─── Analysis ────────────────────────────────────────────────────────────────
-
-# List recent sessions for a project
-sessions project:
-    uv run analyze-session.py --project {{project}}
-
-# Analyze a specific session
-analyze id *args:
-    uv run analyze-session.py {{id}} {{args}}
-
-# Compliance check on most recent session
-compliance-last project:
+# Dry run evals
+eval-dry *project:
     #!/usr/bin/env bash
-    SESSION=$(uv run analyze-session.py --project {{project}} 2>/dev/null | tail -n +3 | head -1 | awk '{print $1}')
-    if [ -z "$SESSION" ]; then echo "No sessions found for {{project}}"; exit 1; fi
-    echo "Checking session: $SESSION"
-    uv run analyze-session.py "$SESSION" --compliance
+    set -e
+    if [ -z "{{project}}" ]; then
+      uv run scripts/eval-crew.py --dry-run
+    else
+      TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
+      TARGET="${TARGET/#\~/$HOME}"
+      uv run scripts/eval-crew.py --fixture "$TARGET/.crews/evals.yaml" --dry-run
+    fi
 
-# Ingest sessions for a project (all tools)
+# ─── Analysis ───────────────────────────────────────────────────────────
+
+# Session summary for a project
+summary project:
+    ./scripts/session-summary.sh ~/code/{{project}}
+
+# Cross-tool comparison
+compare project:
+    uv run analyze-session.py --compare ~/code/{{project}}
+
+# Session diff (before/after)
+diff project date:
+    ./scripts/session-diff.sh ~/code/{{project}} {{date}}
+
+# Ingest sessions for a project
 ingest project:
     uv run session-ingest.py --ingest ~/code/{{project}} --since 30d
 
-# Ingest all registered projects
+# Ingest all projects
 ingest-all:
     #!/usr/bin/env bash
     set -e
-    for proj in $(python3 -c "import yaml; d=yaml.safe_load(open('fleet.yaml')); [print(k) for k in d.get('projects',{}).keys() if k != 'agent-crews']"); do
+    python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); [print(k) for k in d.get('projects',{}).keys()]" | while read proj; do
         echo "Ingesting: $proj"
         just ingest "$proj" 2>/dev/null || echo "  ⚠ no sessions for $proj"
     done
 
-# ─── Testing ─────────────────────────────────────────────────────────────────
+# ─── Testing ────────────────────────────────────────────────────────────
 
 # Run behavioral smoke tests
 smoke-test target:
     ./scripts/smoke-test.sh {{target}}
 
-# Run integration tests
-integration-test target:
-    ./integration-test.sh {{target}}
+# ─── Migration ──────────────────────────────────────────────────────────
 
-# ─── Evaluation ──────────────────────────────────────────────────────────────
-
-# Run model-based crew evaluations (all)
-eval:
-    uv run scripts/eval-crew.py
-
-# Run routing evals only
-eval-routing:
-    uv run scripts/eval-crew.py --tag routing
-
-# Run scope evals only
-eval-scope:
-    uv run scripts/eval-crew.py --tag scope
-
-# Run component evals only
-eval-components:
-    uv run scripts/eval-crew.py --tag components
-
-# Run evals in verbose mode
-eval-verbose:
-    uv run scripts/eval-crew.py --verbose
-
-# Dry run (show what would run)
-eval-dry:
-    uv run scripts/eval-crew.py --dry-run
-
-# ─── Release ─────────────────────────────────────────────────────────────────
-
-# Cut a release: just release <major|minor|patch>
-release bump:
-    uv run scripts/release.py {{bump}}
-
-# Cut and push: just release-push <major|minor|patch>
-release-push bump:
-    uv run scripts/release.py {{bump}} --push
-
-# Create platform release (GitHub/GitLab) from latest tag
-publish:
-    #!/usr/bin/env bash
-    set -e
-    VERSION=$(cat version.txt)
-    TAG="v$VERSION"
-    # Extract latest release notes from CHANGELOG.md
-    NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
-    if [ -z "$NOTES" ]; then
-        echo "❌ No release notes found for $VERSION in CHANGELOG.md"
-        exit 1
-    fi
-    if command -v gh &>/dev/null; then
-        echo "Creating GitHub release $TAG..."
-        gh release create "$TAG" \
-            --title "$TAG" \
-            --notes "$NOTES" \
-            --verify-tag
-    elif command -v glab &>/dev/null; then
-        echo "Creating GitLab release $TAG..."
-        glab release create "$TAG" --notes "$NOTES"
-    else
-        echo "No platform CLI found (gh, glab). Push tag manually."
-        echo "Tag $TAG is ready. Push with: git push --tags"
-    fi
+# Migrate a project from old .kiro/-mixed to .crews/ layout
+migrate project:
+    ./scripts/migrate-to-crews.sh ~/code/{{project}}

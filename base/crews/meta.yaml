@@ -202,8 +202,8 @@ architypes:
           - Start minimal: 2-3 crews max
 
           ### 3. Create Configuration
-          - Add entry to fleet.yaml with crews and verification commands (from scan output)
-          - Create projects/<project>/.kiro/crew.yaml
+          - Add entry to fleet.local.yaml with project path (or run `just scan`)
+          - Create <project>/.crews/crew.yaml
 
           ### 4. Generate and Deploy
           - Run: just build
@@ -773,7 +773,7 @@ architypes:
           - No orphan agents (defined but not routed to)
 
           ### 4. Component Drift
-          - fleet.yaml components match generated output
+          - .crews/crew.yaml components match generated output
           - No stale component references
 
           ### 5. Eval Recommendations
@@ -887,7 +887,7 @@ architypes:
           ## Your Checks
 
           ### 1. Data Separation
-          - fleet.yaml is gitignored (not in index)
+          - fleet.local.yaml is gitignored (not in index)
           - projects/ is gitignored (not in index)
           - No personal project names in committed files
           - fleet.example.yaml exists and is valid
@@ -897,7 +897,7 @@ architypes:
           (check validate.sh for the current blocklist)
 
           ### 2. Doc Accuracy
-          - README.md references fleet.example.yaml (not fleet.yaml)
+          - README.md references fleet.example.yaml (not fleet.local.yaml)
           - AGENTS.md matches .kiro/agents/*.json (all agents listed, descriptions match)
           - No broken internal links in any .md file
           - crew-sheet prompt matches actual agent roster

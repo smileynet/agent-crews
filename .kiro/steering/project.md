@@ -13,15 +13,15 @@ base/              # Base template (crews/*.yaml — generic names)
 shared/            # Shared resources (components, themes, skills, steering)
 projects/          # Per-project adaptations (crew.yaml + generated agents)
 docs/              # Specs, decisions, guides
-fleet.yaml         # Project registry + component defaults + theme config
+.crews/crew.yaml         # Project registry + component defaults + theme config
 generate.py        # crews/*.yaml + components + theme → .kiro/agents/*.json + steering
 analyze-session.py # Session transcript analysis
 .kiro/             # This repo's own agents, skills, prompts
 ```
 
 ## Workflow
-1. Create/edit crew YAML in `base/crews/` or `projects/<project>/.kiro/`
-2. Configure components in `fleet.yaml`
+1. Create/edit crew YAML in `base/crews/` or `<project>/.kiro/`
+2. Configure components in `.crews/crew.yaml`
 3. Generate: `just build`
 4. Deploy: `just link <project>`
 5. Test in target project
@@ -40,7 +40,7 @@ After ANY modification to crew.yaml, crews/*.yaml, or shared/components/, ALWAYS
 
 ## Conventions
 - crew.yaml + crews/*.yaml are the source of truth (never edit generated .json files)
-- Shared skills live in `shared/skills/`, project-specific in `projects/<project>/.kiro/skills/`
+- Shared skills live in `shared/skills/`, project-specific in `<project>/.kiro/skills/`
 - Behavioral rules live in `shared/components/` (never inline in crew prompts)
 - Conventional commits: feat/fix/docs(scope): description
 - All generation happens here, target projects get pre-built artifacts

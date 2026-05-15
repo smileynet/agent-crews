@@ -37,7 +37,12 @@ Once deployed, use `@crew-sheet` in your project for a quick reference of availa
 
 ## What to commit in your project
 
-Commit the deployed `.kiro/` directory to your project repo. The generated files are self-contained — no dependency on agent-crews at runtime. Skip this if you prefer to regenerate on demand.
+After deploying, your project has two directories:
+
+- **`.crews/`** — crew source config (crew.yaml, evals.yaml). Always commit this — it's how others regenerate your agents.
+- **`.kiro/`** — generated agent output (agents, prompts, steering). Commit if you want the project to work without agent-crews installed. Gitignore if you prefer clean repos.
+
+Anyone with agent-crews can regenerate `.kiro/` from `.crews/crew.yaml` by running `agent-crews build`.
 
 ## Session-informed recommendations
 
@@ -59,10 +64,11 @@ You define crews and configure behavior. The generator assembles everything into
 
 | Task | Command |
 |------|--------|
-| Generate all | `just build` |
-| Deploy to project | `just link <project>` |
+| Generate all | `just build --all` |
+| Generate one | `just build <project>` |
 | Fleet status | `just status` |
-| Validate | `just check` |
+| Scan projects | `just scan ~/code` |
+| Run evals | `just eval <project>` |
 
 ---
 

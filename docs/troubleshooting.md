@@ -10,7 +10,7 @@ When your agents aren't working as expected.
 
 **Check:**
 - Is `.kiro/agents/` present in your project? (`ls .kiro/agents/`)
-- Did you run `just build` + `just link` after fleet.yaml changes?
+- Did you run `just build` + `just link` after .crews/crew.yaml changes?
 - Is the symlink intact? (`file .kiro` — should be a directory or valid symlink)
 
 ### Agent does the wrong thing
@@ -28,7 +28,7 @@ When your agents aren't working as expected.
 **Symptoms:** agent reports done without running build/test/lint.
 
 **Check:**
-- Are build/test/lint commands set in fleet.yaml? (null = nothing to run)
+- Are build/test/lint commands set in .crews/crew.yaml? (null = nothing to run)
 - Is the verification component configured? Check `.kiro/steering/worker/verification.md`
 - Regenerate: `just build` + `just link`
 
@@ -55,7 +55,7 @@ When your agents aren't working as expected.
 **Symptoms:** agents still use generic names after setting a theme.
 
 **Check:**
-- Is `theme:` set in fleet.yaml for this project?
+- Is `theme:` set in .crews/crew.yaml for this project?
 - Did you regenerate? (`just build`)
 - Check `.kiro/agents/` — filenames should reflect themed names
 

@@ -35,8 +35,8 @@ uv run analyze-session.py <session-id> --transcript
 | Agent does work outside its role | Missing refuses or weak boundary | Crew YAML `scope.refuses` + agent prompt |
 | Lead does everything itself | Delegation rules too weak | Lead prompt — "DO NOT implement" section |
 | Agent asks user obvious questions | Missing "research first" rule | Agent prompt or steering |
-| Skips tests/verification | Verification component not configured | fleet.yaml `verification.checks` |
-| Doesn't commit | Git component or no remote | fleet.yaml `git.variant` |
+| Skips tests/verification | Verification component not configured | .crews/crew.yaml `verification.checks` |
+| Doesn't commit | Git component or no remote | .crews/crew.yaml `git.variant` |
 | Ignores project conventions | Stale project.md steering | `.kiro/steering/project.md` |
 | Uses wrong file paths | Project layout changed | Update steering with current structure |
 
