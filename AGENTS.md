@@ -42,7 +42,7 @@ base/              Base template
     content.yaml      Presentations/tutorials (6 agents)
     writing.yaml      Writing/editing (6 agents)
 shared/               Shared resources across all projects
-  components/         Component system (14 behavioral concerns, 24 files)
+  components/         Component system (15 behavioral concerns, 24 files)
   themes/             Theme overlays (cosmetic name/voice mapping)
   skills/             Shared skills
   steering/           Universal + persona-specific steering
@@ -52,6 +52,25 @@ generate.py           crews/*.yaml + components + theme → .kiro/agents/*.json 
 analyze-session.py    Session transcript analysis
 .kiro/                This repo's own agents and prompts
 ```
+
+## Architecture: 3-Level Hierarchy
+
+Every deployed project uses a 3-level agent hierarchy:
+
+```
+Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
+```
+
+| Depth | Archetype | Role | Tools |
+|-------|-----------|------|-------|
+| 0 | `dispatcher` | Routes by intent to the right crew | `subagent`, `read` |
+| 1 | `orchestrator` | Plans and delegates within one crew | `subagent`, `read`, `todo_list` |
+| 2 | `worker` | Executes tasks, produces artifacts | `read`, `write`, `shell` |
+
+**Guardrails (enforced at build time):**
+- Workers cannot have `subagent` (no delegation)
+- Orchestrators cannot target other orchestrators (no lateral dispatch)
+- Only dispatchers can target orchestrators
 
 ## Crews (58 agents across 8 crews)
 
@@ -104,6 +123,7 @@ See [Themed Crews Guide](docs/themed-crews-guide.md) for available themes and ma
 | Crew health check | `./scripts/crew-health.sh <project>` |
 | Cross-tool comparison | `uv run analyze-session.py --compare <path>` |
 | Session diff (before/after) | `./scripts/session-diff.sh <path> <date>` |
+| Validate hierarchy | `uv run generate.py --all` (errors on violations) |
 
 ## Post-Change Rule
 After ANY modification to crew.yaml or crews/*.yaml, ALWAYS run `just build` before considering the task complete. Generation is not optional — it's part of the change.
@@ -155,7 +175,7 @@ The `dispatcher` is the default entry point. It delegates to the specialist agen
 | [docs/themed-crews-guide.md](docs/themed-crews-guide.md) | Theme overlay — game-themed agent names and when to use each |
 | [base/crews/](base/crews/) | Generic crew definitions (8 crews) |
 | [shared/themes/](shared/themes/) | Theme overlays (cosmetic name mapping) |
-| [shared/components/](shared/components/) | Component system (14 behavioral concerns) |
+| [shared/components/](shared/components/) | Component system (15 behavioral concerns) |
 | [shared/skills/](shared/skills/) | Shared skills library |
 | [fleet.yaml](fleet.yaml) | Project registry + component defaults + theme config |
 | [docs/component-architecture/spec.md](docs/component-architecture/spec.md) | Component architecture specification |

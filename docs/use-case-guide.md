@@ -11,6 +11,25 @@ How to use your deployed agents for common development tasks.
 
 You talk to the lead. It handles the rest.
 
+## The Dispatcher Model
+
+Projects with multiple crews use a **dispatcher** as the entry point:
+
+```
+/agent dispatcher
+"Add pagination to /users, then write docs for it"
+```
+
+The dispatcher routes to the right crew lead automatically:
+- Feature work → general-lead
+- Bug fixing → bugfix-lead
+- Research/docs → research-lead
+- Infrastructure → infrastructure-lead
+
+For multi-step work (research then build), the dispatcher stages the work sequentially — research completes before implementation starts. Findings are persisted in `scratch/research/` and passed to the next crew.
+
+For single-crew projects, talk directly to the crew lead. The dispatcher adds value when work spans multiple crews.
+
 ## Common Workflows
 
 ### "I need to build a feature"

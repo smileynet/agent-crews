@@ -1,0 +1,41 @@
+name: relay-protocol-standard
+description: "Information flow protocol for sequential agent chaining (research → build)"
+
+targets: [orchestrator, dispatcher]
+
+prompt: ""
+
+allowed_commands: []
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Relay Protocol
+
+  When chaining sequential agents (research → build):
+
+  ## Passing Findings Forward
+  - Research agent writes detailed findings to `scratch/research/<topic>.md`
+  - Research agent returns compact summary (max 200 words) + file path
+  - Include the summary + file path in the next agent's task description
+  - Tell the next agent: "Prior research is at scratch/research/<file>.md"
+
+  ## What to Relay
+  - Key decisions already made
+  - Constraints discovered
+  - Recommended approach
+  - File paths to detailed findings
+
+  ## What NOT to Relay
+  - Search process or rejected alternatives
+  - Raw source quotes (reference the file instead)
+  - Full research output inline (use file path)
+
+  ## Rule
+  If findings > 500 tokens: write to scratch/, pass summary + path.
+  Never inline large research output in a task description.
+
+subagents: []

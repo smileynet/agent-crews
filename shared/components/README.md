@@ -30,7 +30,8 @@ shared/components/
 ├── task-tracking/      soft-hard
 ├── search/             layered
 ├── memory/             four-tier
-└── notifications/      channels
+├── notifications/      channels
+└── relay-protocol/     standard
 ```
 
 ## Component File Format

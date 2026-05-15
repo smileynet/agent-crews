@@ -38,3 +38,15 @@ Designed the handoff and routing system for multi-crew projects. Needed to defin
 - Ordering uses set intersection of refuses ∩ sibling handles
 - Coverage validation warns at build time if refused scopes have no covering crew
 - Worker archetype prompts include escalation instruction
+
+## Amendment: Dispatcher-Mediated Orchestration (2026-05-15)
+
+**Exception to rule #1:** A project-level dispatcher (`type: dispatcher`, depth 0) MAY dispatch to multiple crew leads sequentially. This is intra-project orchestration, not cross-crew handoff.
+
+**Constraints:**
+- Only ONE dispatcher per project
+- Dispatcher owns the session and manages token budget
+- Crew leads still cannot dispatch cross-crew (only to their own workers)
+- The dispatcher is the only agent that can target orchestrators
+
+**Rationale:** Validated by experiment (~/code/depth-test, 2026-05-15). Enables research→build patterns and multi-crew coordination without user-mediated switching for every scope change.

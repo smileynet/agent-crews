@@ -51,4 +51,24 @@ steering: |
   - Recommendation: [what to try next or who to ask]
   ```
 
+  ## Crew Lead → Dispatcher (aggregated report)
+  When reporting as a crew lead back to a dispatcher, use this extended format:
+  ```
+  ## DONE
+  - Outcome: [summary of all work completed]
+  - Workers: [who did what]
+  - Files: [all modified/created paths]
+  - Confidence: [high/medium/low]
+  - Research: scratch/research/<file>.md (if applicable)
+  ```
+
+  For aggregated BLOCKED:
+  ```
+  ## BLOCKED
+  - Outcome: [what was completed before blocking]
+  - Blocker: [specific reason]
+  - Workers tried: [who attempted what]
+  - Need: [what would unblock]
+  ```
+
 subagents: []

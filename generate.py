@@ -241,6 +241,8 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
     # Resolve inheritance if extends: is specified
     crew = resolve_extends(crew, crew_path)
 
+    validate_hierarchy(crew_path, crew)
+
     # Workflow-level config (everything except architypes)
     workflow_cfg = {k: v for k, v in crew.items() if k != "architypes"}
 
@@ -255,17 +257,21 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
     for archetype in crew.get("architypes", []):
         # Archetype-level config (everything except agents and type)
         archetype_cfg = {k: v for k, v in archetype.items() if k not in ("agents", "type")}
-        is_orchestrator = archetype.get("type") == "orchestrator"
+        is_orchestrator = archetype.get("type") in ("orchestrator", "dispatcher")
+        is_dispatcher = archetype.get("type") == "dispatcher"
 
         for agent_cfg in archetype.get("agents", []):
             agent_json = build_agent(workflow_cfg, archetype_cfg, agent_cfg)
 
             # Scope orchestrator subagent access to own crew only
             if is_orchestrator and "subagent" in agent_json.get("tools", []):
-                crew_workers = [n for n in crew_agent_names if n != agent_json["name"]]
-                ts = agent_json.setdefault("toolsSettings", {})
-                ts.setdefault("subagent", {})["availableAgents"] = crew_workers
-                ts["subagent"]["trustedAgents"] = crew_workers
+                if not is_dispatcher:
+                    # Regular orchestrators auto-scope to same-crew workers
+                    crew_workers = [n for n in crew_agent_names if n != agent_json["name"]]
+                    ts = agent_json.setdefault("toolsSettings", {})
+                    ts.setdefault("subagent", {})["availableAgents"] = crew_workers
+                    ts["subagent"]["trustedAgents"] = crew_workers
+                # Dispatchers keep their explicitly-defined availableAgents
 
                 # Auto-inject routing table from routes: fields
                 routing_lines = ["\n\n## Routing Table\n",
@@ -613,6 +619,56 @@ def generate_vocabulary(kiro_dir: Path, dry_run: bool = False):
         dest = kiro_dir / "steering"
         dest.mkdir(parents=True, exist_ok=True)
         (dest / "vocabulary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def validate_hierarchy(crew_path: Path, crew: dict):
+    """Validate 3-level hierarchy: dispatcher→orchestrator→worker. No lateral dispatch."""
+    orchestrator_names = set()
+    worker_names = set()
+    dispatcher_names = set()
+
+    for archetype in crew.get("architypes", []):
+        atype = archetype.get("type", "worker")
+        for agent_cfg in archetype.get("agents", []):
+            name = agent_cfg["name"]
+            if atype == "dispatcher":
+                dispatcher_names.add(name)
+            elif atype == "orchestrator":
+                orchestrator_names.add(name)
+            else:
+                worker_names.add(name)
+
+    errors = []
+
+    for archetype in crew.get("architypes", []):
+        atype = archetype.get("type", "worker")
+        for agent_cfg in archetype.get("agents", []):
+            name = agent_cfg["name"]
+            tools = agent_cfg.get("tools", [])
+
+            # Rule 1: Workers must NOT have subagent
+            if atype == "worker" and "subagent" in tools:
+                errors.append(f"{name}: worker has 'subagent' tool (workers cannot delegate)")
+
+            # Rule 2: Orchestrators cannot target other orchestrators
+            if atype == "orchestrator":
+                available = (agent_cfg.get("toolsSettings", {})
+                             .get("subagent", {})
+                             .get("availableAgents", []))
+                # Also check crew-level toolsSettings
+                arch_available = (archetype.get("toolsSettings", {})
+                                  .get("crew", {})
+                                  .get("availableAgents", []))
+                all_targets = set(available or arch_available)
+                bad_targets = all_targets & (orchestrator_names | dispatcher_names)
+                if bad_targets:
+                    errors.append(f"{name}: orchestrator dispatches to orchestrator(s) {bad_targets} (must only target workers)")
+
+    if errors:
+        print(f"\n❌ Hierarchy violation in {crew_path.name}:", file=sys.stderr)
+        for e in errors:
+            print(f"  - {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def generate_all(dry_run: bool = False):

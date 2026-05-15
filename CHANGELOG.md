@@ -12,6 +12,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Release workflow with guided changelog curation, version bumping, and platform publishing
 - Projects can opt into changelog discipline that catches missing entries before completion
 - Behavioral changes now prompt for eval re-runs to catch regressions early
+- 3-level agent hierarchy: a dispatcher routes to crew leads, crew leads delegate to workers
+- Build-time enforcement catches hierarchy violations before deployment
+- Relay protocol ensures research findings reach downstream agents automatically
+- Crew leads report aggregated outcomes to dispatchers with structured signals
+- Workers check for prior research before starting tasks
+- Experiment template for testing new agent behaviors in isolation
+
+### Changed
+- Dispatcher is now a distinct archetype type with its own routing rules
 
 ## [0.1.0] - 2026-05-15
 

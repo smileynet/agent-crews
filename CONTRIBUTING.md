@@ -168,3 +168,17 @@ Write from the user's perspective:
 ### When to write it
 
 In the same commit as the change. You have the most context right now.
+
+## Archetype Types
+
+When creating or modifying crews, use the correct archetype type:
+
+| Type | Depth | Can delegate to | Use for |
+|------|:-----:|-----------------|--------|
+| `dispatcher` | 0 | Orchestrators only | Project-level routing |
+| `orchestrator` | 1 | Workers only | Crew leads |
+| `worker` | 2 | Nobody | Task execution |
+
+**Build-time enforcement:** `generate.py` validates these rules. A worker with `subagent` or an orchestrator targeting another orchestrator will fail the build.
+
+Most crews only need `orchestrator` + `worker`. The `dispatcher` type is for project-level entry points that route across multiple crews.

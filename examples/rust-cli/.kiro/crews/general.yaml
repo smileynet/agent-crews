@@ -153,6 +153,9 @@ architypes:
     prompt: |
       You are a worker agent. Complete your assigned task autonomously.
 
+      ## Before Starting
+      If your task mentions prior research or findings, check scratch/research/ for detailed context.
+
       ## Project Context
 
 
