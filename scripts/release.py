@@ -3,6 +3,9 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
+import sys
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 """Release script for agent-crews.
 
 Usage:
