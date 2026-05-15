@@ -14,5 +14,6 @@ All available agents and crews for this project.
 | crew-researcher | Crew Researcher — deep investigation, patterns, best practices | `/agent crew-researcher` |
 | kiro-helper | Kiro Helper — CLI troubleshooting, MCP config, tool naming | `/agent kiro-helper` |
 | crew-validator | Crew Validator — proactive post-change verification, changelog enforcement | `/agent crew-validator` |
+| crew-releaser | Crew Releaser — release pipeline orchestration, changelog curation, version management | `/agent crew-releaser` |
 | project-hygiene | Project Hygiene — data separation, doc accuracy, sanitization | `/agent project-hygiene` |
 

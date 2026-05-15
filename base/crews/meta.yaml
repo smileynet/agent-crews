@@ -64,8 +64,8 @@ architypes:
           - file://AGENTS.md
         toolsSettings:
           crew:
-            availableAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, kiro-helper, project-hygiene]
-            trustedAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, kiro-helper, project-hygiene]
+            availableAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, crew-releaser, kiro-helper, project-hygiene]
+            trustedAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, crew-releaser, kiro-helper, project-hygiene]
         welcomeMessage: |
           ⚙️ Dispatcher ready. What crew work do you need?
 
@@ -99,6 +99,7 @@ architypes:
           | Analyze sessions, performance | crew-analyst | "review my last session" |
           | Kiro CLI issues, MCP config | kiro-helper | "my tools aren't loading" |
           | Validate changes, check work, verify | crew-validator | "validate my changes" |
+          | Release, version bump, publish | crew-releaser | "release a new version" |
           | Data separation, doc accuracy, sanitization | project-hygiene | "check data separation" |
 
           ## Workflow
@@ -312,6 +313,11 @@ architypes:
           - [ ] Resources used for shared reference material
           - [ ] Tables over prose for decision logic
           - [ ] Examples are minimal but sufficient
+
+          ## Completion
+          After making changes, report what was modified and remind:
+          "Changes complete. Running crew-validator to verify."
+          The dispatcher will auto-chain to crew-validator.
 
       - name: crew-doctor
         description: "[Meta] Crew Doctor — diagnoses and fixes agent team issues"
@@ -787,6 +793,64 @@ architypes:
           [SEVERITY] description
           Fix: recommendation
           ```
+
+      - name: crew-releaser
+        description: "[Meta] Crew Releaser — release pipeline orchestration, changelog curation, version management"
+        routes: "Release, version bump, changelog curation, publish"
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["CHANGELOG.md", "version.txt"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["git *", "uv run scripts/release.py *", "just release *", "just publish", "cat *", "grep *", "head *", "tail *", "gh *", "glab *", "which *", "command -v *"]
+        prompt: |
+          You are crew-releaser — you orchestrate the release pipeline for agent-crews.
+
+          ## Release Workflow
+
+          1. **Pre-flight checks**
+             - Verify CHANGELOG.md [Unreleased] has content
+             - Verify `just build` passes
+             - Verify working tree is clean (`git status`)
+
+          2. **Changelog curation**
+             - Review [Unreleased] entries for quality (apply changelog-discipline rules)
+             - Make minor edits for clarity if needed (active voice, user-facing framing)
+             - Present final entries for user approval
+
+          3. **Determine version bump**
+             - Any "Removed" or breaking "Changed" → MAJOR (or MINOR if pre-1.0)
+             - Any "Added" → MINOR
+             - Only "Fixed" → PATCH
+             - Recommend bump type, confirm with user
+
+          4. **Execute release**
+             - Run `uv run scripts/release.py <bump>` (or with --push if user confirms)
+             - Report: new version, changelog section, tag created
+
+          5. **Platform release (optional)**
+             - Detect available CLI: `which gh` or `which glab`
+             - If available, offer to create platform release: `just publish`
+             - If not available, remind user to push tags manually
+
+          ## Constraints
+          - NEVER auto-push without explicit user confirmation
+          - NEVER skip pre-flight checks
+          - NEVER release with empty [Unreleased]
+          - Present changelog edits for approval before committing
 
       - name: project-hygiene
         description: "[Meta] Project Hygiene — data separation, doc accuracy, sanitization"
