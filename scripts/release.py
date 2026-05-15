@@ -142,7 +142,7 @@ def main():
         sys.exit(f"\n❌ Commit failed: {e}\n   Files restored.")
 
     try:
-        subprocess.run(["git", "tag", new_tag], cwd=ROOT, check=True)
+        subprocess.run(["git", "tag", new_tag, "-m", f"Release {new_version}"], cwd=ROOT, check=True)
     except subprocess.CalledProcessError as e:
         # Rollback the commit
         subprocess.run(["git", "reset", "--soft", "HEAD~1"], cwd=ROOT)
