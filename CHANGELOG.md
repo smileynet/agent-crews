@@ -7,6 +7,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-15
+
 ### Added
 - Changes are automatically validated after every crew modification (build, changelog, structure, drift)
 - Release workflow with guided changelog curation, version bumping, and platform publishing
@@ -42,5 +44,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Crews use consistent intent vocabulary (no more mismatches between "bug-fixing" and "bugs")
 - Redeployment to paths with `~` now works correctly
 
-[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/smileynet/agent-crews/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/smileynet/agent-crews/releases/tag/v0.1.0
