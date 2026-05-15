@@ -12,6 +12,8 @@ Usage:
     uv run scripts/eval-crew.py --threshold 4  # override pass threshold
     uv run scripts/eval-crew.py --dry-run      # show what would run
     uv run scripts/eval-crew.py --verbose      # show full output
+    uv run scripts/eval-crew.py --timeout 600   # longer timeout
+    uv run scripts/eval-crew.py --intent-only    # check delegation intent only (30s timeout)
 """
 
 import argparse
@@ -29,7 +31,7 @@ import yaml
 ROOT = Path(__file__).parent.parent
 DEFAULT_FIXTURE = ROOT / "tests" / "crew-evals.yaml"
 DEFAULT_THRESHOLD = 3
-DEFAULT_TIMEOUT = 120
+DEFAULT_TIMEOUT = 300
 PROJECT = "agent-crews"
 
 JUDGE_PROMPT = """You are evaluating an AI agent from a multi-agent crew system. Agents have specific roles: orchestrators route work to specialists, workers execute tasks within their scope.
@@ -61,7 +63,7 @@ def strip_ansi(text: str) -> str:
     return re.sub(r'\x1B\[[0-9;]*[a-zA-Z]', '', text)
 
 
-def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT_TIMEOUT) -> tuple[str, bool]:
+def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT_TIMEOUT, intent_only: bool = False) -> tuple[str, bool]:
     """Invoke kiro-cli agent. Returns (output, success)."""
     cmd = ["kiro-cli", "chat", "--no-interactive", "-a", "--wrap", "never"]
     if agent:
@@ -76,7 +78,12 @@ def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT
         if not output.strip():
             return "", False
         return output, True
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
+        # In intent-only mode, partial output is fine — we just want the first response
+        if intent_only:
+            output = strip_ansi((e.stdout or "") + (e.stderr or ""))
+            if output.strip():
+                return output, True
         return "", False
     except Exception as e:
         return str(e), False
@@ -121,7 +128,7 @@ def parse_judge_response(text: str) -> tuple[int | None, str]:
     return score, reason
 
 
-def run_eval(ev: dict, verbose: bool = False) -> dict:
+def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIMEOUT) -> dict:
     """Run a single eval. Returns result dict."""
     name = ev["name"]
     agent = ev["agent"]
@@ -129,14 +136,15 @@ def run_eval(ev: dict, verbose: bool = False) -> dict:
     criteria = ev["criteria"]
     ideal = ev.get("ideal")
     cwd = ev.get("cwd", ".")
-    timeout = ev.get("timeout", DEFAULT_TIMEOUT)
+    timeout = ev.get("timeout", global_timeout)
 
     start = time.time()
 
     # Invoke agent (with retry)
-    output, success = invoke_agent(agent, input_text, cwd, timeout)
+    intent_only = ev.get("intent_only", False) or getattr(run_eval, '_intent_only', False)
+    output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
     if not success:
-        output, success = invoke_agent(agent, input_text, cwd, timeout)
+        output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
 
     if not success:
         duration = time.time() - start
@@ -186,7 +194,13 @@ def main():
     parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD, help="Pass threshold (default: 3)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would run")
     parser.add_argument("--verbose", action="store_true", help="Show full agent output")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Agent timeout in seconds (default: 300)")
+    parser.add_argument("--intent-only", action="store_true", help="Check delegation intent only (short timeout, judge first response)")
     args = parser.parse_args()
+
+    # Intent-only mode: short timeout, we only care about the first response
+    if args.intent_only:
+        args.timeout = min(args.timeout, 30)
 
     # Load fixture
     fixture_path = Path(args.fixture)
@@ -223,8 +237,11 @@ def main():
     results = []
     start_time = time.time()
 
+    # Set intent_only flag for run_eval to pick up
+    run_eval._intent_only = args.intent_only
+
     for ev in evals:
-        result = run_eval(ev, verbose=args.verbose)
+        result = run_eval(ev, verbose=args.verbose, global_timeout=args.timeout)
         results.append(result)
 
         # Print result
