@@ -7,6 +7,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-15
+
 ### Added
 - crew-validator agent for post-change verification (build, changelog, structure, drift, eval coverage)
 - crew-releaser agent for release pipeline orchestration (changelog curation, version bump, tag, publish)
@@ -41,5 +43,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Validator only warns on vocab mismatches, not deliberately missing crews
 - Tilde expansion in `just link` for fleet.local.yaml paths
 
-[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/smileynet/agent-crews/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/smileynet/agent-crews/releases/tag/v0.1.0
