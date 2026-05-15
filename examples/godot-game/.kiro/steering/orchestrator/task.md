@@ -15,7 +15,6 @@ inclusion: always
 - **Scope anchoring** — restate the original ask before diving in
 - **Coverage gate** — "Have we considered all angles?" before committing
 - **Decision capture** — log choices as they happen (feeds into decisions component)
-- **Rubber-stamp guard** — pause after 3 consecutive agent-decided choices
 
 ## Hard Tracking (persistence backend: todo-tool)
 
@@ -32,12 +31,11 @@ Track work items using the configured backend. Each item has:
 - `github-issues` — GitHub Issues API
 - `flat-file` — .scratch/tasks.md
 
-## Simulation-as-Validation
-Before committing to an approach, mentally simulate execution:
-- Walk through the plan step-by-step — does each step have a clear input/output?
-- Identify where "magic happens" (gaps in the plan)
-- Predict failure points — what's most likely to go wrong?
-- If simulation reveals gaps → back to Explore mode before executing
+## Plan Validation
+Before executing a multi-step plan, check each step:
+- What's the input? What's the output?
+- What could fail? What's the fallback?
+- If any step has no clear answer → back to Explore mode
 
 ## Soft → Hard Flow
 Soft planning produces decisions and task breakdowns.

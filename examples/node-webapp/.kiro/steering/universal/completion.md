@@ -9,11 +9,39 @@ inclusion: always
    - If `git remote get-url origin` succeeds → `git pull --rebase && git push`
    - If NO remote → commit locally, report "No git remote. Committed at [SHA]."
    - Never silently skip push.
-3. **Signaling** — emit structured DONE/PARTIAL/BLOCKED/FAILED signal
+3. **Signaling** — emit structured status signal (see format below)
 4. **Followups** — file issues for out-of-scope findings
 5. **Handoff** — deliver handoff summary (see elements below)
 6. **Notifications** — fire configured channels
 7. **Memory** — persist lessons/decisions to appropriate tier
+
+## Signal Format
+```
+## DONE
+- Task: [what was assigned]
+- Result: [what was delivered]
+- Evidence: [verification command + output proving it works]
+- Remaining: [follow-up work, or "none"]
+- Assumptions: [what was assumed but not confirmed, or "none"]
+```
+
+For BLOCKED:
+```
+## BLOCKED
+- Task: [what was assigned]
+- Blocker: [specific reason]
+- Tried: [what was attempted]
+- Need: [what would unblock]
+```
+
+For FAILED:
+```
+## FAILED
+- Task: [what was assigned]
+- Strategies tried: [list of approaches attempted]
+- Root cause: [best understanding of why]
+- Recommendation: [what to try next or who to ask]
+```
 
 ## Handoff Elements (Standard = 5)
 1. **Asked → Delivered** — what was requested vs what was produced
@@ -25,12 +53,6 @@ inclusion: always
 ## Followups
 Default: file issues for anything discovered but out of scope.
 Format: one-line title + context for why it matters.
-
-## Secret Handling
-If a user pastes a secret (API key, token, PAT):
-- Do NOT echo it back. Reference by name only.
-- Store in Secrets Manager or `.env` (not in code/commits)
-- Warn: "⚠️ I see a secret. I'll reference it by name only."
 
 ## Anti-Patterns
 - ❌ "Ready to push when you are" — push NOW

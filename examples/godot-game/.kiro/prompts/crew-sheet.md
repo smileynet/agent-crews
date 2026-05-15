@@ -2,6 +2,17 @@
 
 All available agents and crews for this project.
 
+## Content
+
+| Agent | Role | Command |
+|-------|------|---------|
+| content-lead | Orchestrator — plans content structure, assigns roles | `/agent content-lead` or `ctrl+shift+b` |
+| narrative-writer | Narrative writer — slides, rhetoric, storytelling | `/agent narrative-writer` |
+| content-researcher | Researcher — fact-checking, citations, technical accuracy | `/agent content-researcher` |
+| tutorial-writer | Tutorial writer — workshops, step-by-step guides | `/agent tutorial-writer` |
+| content-reviewer | Reviewer — accessibility, tone, consistency, polish | `/agent content-reviewer` |
+| publisher | Publisher — formatting, export, MARP, handouts | `/agent publisher` |
+
 ## General
 
 | Agent | Role | Command |

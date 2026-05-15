@@ -2,6 +2,19 @@
 
 All available agents and crews for this project.
 
+## Bug-Fix
+
+| Agent | Role | Command |
+|-------|------|---------|
+| bugfix-lead | Orchestrator — assigns bugs, tracks fixes, reports results | `/agent bugfix-lead` or `ctrl+shift+h` |
+| triager | Triager — prioritizes bugs, defines fix criteria | `/agent triager` |
+| investigator | Investigator — root cause analysis, five whys, git blame | `/agent investigator` |
+| practices-advisor | Practices advisor — how others solved this class of bug | `/agent practices-advisor` |
+| reproducer | Reproducer — creates minimal repro, isolates with failing test | `/agent reproducer` |
+| fixer | Fixer — applies minimal targeted code fix | `/agent fixer` |
+| verifier | Verifier — runs test suite, checks for regressions | `/agent verifier` |
+| documenter | Documenter — PR description, changelog, commit message | `/agent documenter` |
+
 ## General
 
 | Agent | Role | Command |

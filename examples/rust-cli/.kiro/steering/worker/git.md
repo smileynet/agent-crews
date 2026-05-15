@@ -1,37 +1,30 @@
 ---
 inclusion: always
 ---
-# Git Protocol (PR-Based)
+# Git Protocol (Checkpoint)
 
-Team/shared workflow: feature branches, PRs to merge.
+Solo/personal workflow: commit frequently, push immediately.
 
 ## Workflow
-- Create feature branch from main: `feat/<description>` or `fix/<description>`
-- Commit frequently on feature branch
-- Push feature branch (never push to main directly)
-- Create PR when work is complete and verified
-- Never merge your own PR without review
+- Work directly on current branch (or create feature branch for larger work)
+- Commit after each meaningful unit of work
+- Push immediately after commit
+- No PR required — direct to branch
 
-## Branch Naming
-- `feat/<short-description>` — new features
-- `fix/<short-description>` — bug fixes
-- `docs/<short-description>` — documentation
-- `chore/<short-description>` — maintenance
-
-## Commit Timing (invariants)
-- Commit BEFORE risky operations
+## Commit Timing (invariants — always true)
+- Commit BEFORE risky operations (refactors, dependency changes)
 - Commit AFTER reaching a working state
 - Only commit AFTER verification passes
 - Never commit broken code
 
 ## Commit Messages
 - Use conventional commits: `type(scope): description`
+- Types: feat, fix, docs, chore, refactor, test, style
+- Message must explain WHAT changed and WHY (not HOW)
 - One logical change per commit
-- Message explains WHAT and WHY
 
 ## Rules
 - Stage explicit files (not `git add .`)
 - Never force-push without explicit user permission
-- Never push directly to main/master
 - Never amend pushed commits
-- Keep PRs focused — one concern per PR
+- If unsure whether to commit: commit (you can always squash later)

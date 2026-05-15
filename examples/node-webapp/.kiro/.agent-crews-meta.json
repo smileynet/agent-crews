@@ -1,7 +1,7 @@
 {
   "source": "agent-crews",
   "project": "node-webapp",
-  "generated_at": "2026-05-15T02:17:41.502758+00:00",
+  "generated_at": "2026-05-15T04:49:03.473654+00:00",
   "agents": [
     "general-lead",
     "planner",
@@ -14,7 +14,14 @@
     "tester",
     "committer",
     "reviewer",
-    "advocate"
+    "advocate",
+    "infrastructure-lead",
+    "deploy-planner",
+    "infra-advisor",
+    "provisioner",
+    "monitor",
+    "security-reviewer",
+    "cleanup"
   ],
   "shared_prompts": [
     "grill-me.md"

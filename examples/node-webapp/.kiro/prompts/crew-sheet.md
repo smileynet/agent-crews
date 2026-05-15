@@ -19,3 +19,15 @@ All available agents and crews for this project.
 | reviewer | Reviewer — verifies claims against evidence | `/agent reviewer` |
 | advocate | Customer advocate — JTBD lens, validates the right problem | `/agent advocate` |
 
+## Infrastructure
+
+| Agent | Role | Command |
+|-------|------|---------|
+| infrastructure-lead | Orchestrator — plans missions, manages checkpoints | `/agent infrastructure-lead` or `ctrl+shift+c` |
+| deploy-planner | Planner — deployment sequence, dependencies, rollback | `/agent deploy-planner` |
+| infra-advisor | Advisor — IaC best practices, known pitfalls | `/agent infra-advisor` |
+| provisioner | Builder — terraform/cdk/cfn apply, docker build | `/agent provisioner` |
+| monitor | Monitor — health checks, resource state verification | `/agent monitor` |
+| security-reviewer | Security — SGs, IAM, compliance checks | `/agent security-reviewer` |
+| cleanup | Cleanup — terraform destroy, scale-to-zero | `/agent cleanup` |
+

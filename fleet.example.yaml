@@ -107,3 +107,34 @@ projects:
           build: "godot --headless --check-only"
           test: "godot --headless --run-tests"
           lint: null
+
+  # Reference examples (in examples/ directory)
+  rust-cli:
+    crews: [general, bug-fix]
+    theme: null
+    components:
+      verification:
+        checks:
+          build: "cargo check"
+          test: "cargo test"
+          lint: "cargo clippy"
+
+  node-webapp:
+    crews: [general, infrastructure]
+    theme: null
+    components:
+      verification:
+        checks:
+          build: "npm run build"
+          test: "npm test"
+          lint: "npx eslint ."
+
+  godot-game:
+    crews: [general, content]
+    theme: null
+    components:
+      verification:
+        checks:
+          build: null
+          test: null
+          lint: null

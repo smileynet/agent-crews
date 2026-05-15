@@ -23,16 +23,7 @@ inclusion: always
 - Check episodic for relevant lessons before starting new work
 - Check semantic for architectural constraints before proposing changes
 
-## Aging
-- Working: cleared between sessions (ephemeral)
-- Session: cleared between sessions (ephemeral)
-- Episodic: reviewed periodically, stale entries archived
-- Semantic: permanent until explicitly superseded
-
-## Discovery Mechanism
-Knowledge scatters across: commits, comments, TODOs, threads, old docs.
-When you encounter scattered knowledge:
-1. Note where you found it
-2. Propose where it should live (which tier)
-3. Capture it in the appropriate location
-4. Leave a breadcrumb at the original location if possible
+## Discovery
+When you encounter scattered knowledge (commits, TODOs, old docs):
+1. Capture it in the appropriate tier
+2. Leave a breadcrumb at the original location

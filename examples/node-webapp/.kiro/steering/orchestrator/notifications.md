@@ -4,8 +4,8 @@ inclusion: always
 # Notifications Protocol
 
 ## Channels
-Active channels: toast, slack
-Slack channel: #project-dev (ID: C0EXAMPLE)
+Active channels: toast
+Slack channel:  (ID: )
 
 ## Policy: completions
 
