@@ -83,7 +83,7 @@ While at `0.x.y`:
 
 ### Version Location
 
-Single source of truth: `VERSION` file at repo root (plain text, one line, e.g. `0.1.0`).
+Single source of truth: `version.txt` file at repo root (plain text, one line, e.g. `0.1.0`).
 
 ---
 
@@ -206,7 +206,7 @@ uv run scripts/release.py [--bump major|minor|patch] [--push] [--dry-run]
    - Current branch is `main`
 
 2. **Determine version:**
-   - Read current version from `VERSION` file
+   - Read current version from `version.txt` file
    - Apply bump (default: `minor` for new features, `patch` for fixes)
    - If `--bump` not specified, infer from changelog categories:
      - Has `Removed` or `Changed` → suggest `major` (confirm interactively)
@@ -217,10 +217,10 @@ uv run scripts/release.py [--bump major|minor|patch] [--push] [--dry-run]
    - Replace `## [Unreleased]` content → move to `## [X.Y.Z] - YYYY-MM-DD`
    - Add empty `## [Unreleased]` section above
    - Update comparison links at bottom of file
-   - Write new version to `VERSION` file
+   - Write new version to `version.txt` file
 
 4. **Commit and tag:**
-   - `git add CHANGELOG.md VERSION`
+   - `git add CHANGELOG.md version.txt`
    - `git commit -m "release: vX.Y.Z"`
    - `git tag -a vX.Y.Z -m "Release X.Y.Z"`
 
@@ -280,7 +280,7 @@ publish:
 | `[Unreleased]` is empty | Hard block — cannot release (Decision #5) |
 | Working tree dirty | Hard block — commit or stash first |
 | Not on `main` branch | Hard block — switch to main |
-| VERSION file missing | Create with `0.0.0`, then bump |
+| version.txt file missing | Create with `0.0.0`, then bump |
 | Malformed changelog | Error with line number and description |
 
 ---
@@ -311,7 +311,7 @@ publish:
   "tools": ["read", "shell", "write", "summary"],
   "allowedCommands": ["just build", "just check", "just validate *", "git diff *", "git status *", "uv run generate.py --dry-run"],
   "skills": ["shared/skills/changelog-discipline/SKILL.md"],
-  "resources": ["CHANGELOG.md", "VERSION", "fleet.example.yaml"]
+  "resources": ["CHANGELOG.md", "version.txt", "fleet.example.yaml"]
 }
 ```
 
@@ -333,7 +333,7 @@ publish:
   "tools": ["read", "write", "shell", "subagent", "summary"],
   "allowedCommands": ["just release *", "just publish", "just build", "just check", "git *", "uv run scripts/release.py *"],
   "skills": ["shared/skills/changelog-discipline/SKILL.md"],
-  "resources": ["CHANGELOG.md", "VERSION", "docs/specs/changelog-versioning.md"]
+  "resources": ["CHANGELOG.md", "version.txt", "docs/specs/changelog-versioning.md"]
 }
 ```
 
@@ -562,7 +562,7 @@ When crew-creator sets up a new project, it includes a release infrastructure st
 
 **Detection phase:**
 1. Check if `CHANGELOG.md` exists in target project
-2. Check if `VERSION` file exists
+2. Check if `version.txt` file exists
 3. Check if justfile has `release` recipe
 4. Check if git tags exist with semver pattern
 
@@ -573,7 +573,7 @@ Detected: No changelog infrastructure.
 
 I'll set up:
   ✓ CHANGELOG.md (Keep a Changelog format)
-  ✓ VERSION file (starting at 0.1.0)
+  ✓ version.txt file (starting at 0.1.0)
   ✓ Release recipes in justfile (just release, just publish)
   ✓ scripts/release.py (version bump + tag)
 
@@ -587,7 +587,7 @@ If user declines: set `changelog: null` in fleet.yaml for that project.
 | File | Content |
 |------|---------|
 | `CHANGELOG.md` | Template with `[Unreleased]` section |
-| `VERSION` | `0.1.0` (or detected from existing tags) |
+| `version.txt` | `0.1.0` (or detected from existing tags) |
 | `justfile` additions | `release` and `publish` recipes |
 | `scripts/release.py` | Copy from agent-crews template (adapted for project) |
 
@@ -617,7 +617,7 @@ This is a warning, not a hard error — the project might not be deployed yet.
 
 ### ADR: High Reliability Principle
 
-File: `docs/decisions/ADR-006-high-reliability-principle.md`
+File: `docs/decisions/ADR-006-high-reliability.md`
 
 ```markdown
 # ADR-006: High Reliability Principle
@@ -717,10 +717,10 @@ Add a "Release Process" section documenting:
 
 **Deliverables:**
 - `CHANGELOG.md` — backfilled with 0.1.0 content (Decision #2)
-- `VERSION` — containing `0.1.0`
+- `version.txt` — containing `0.1.0`
 - `scripts/release.py` — full release script
 - `just release` and `just publish` recipes in justfile
-- `docs/decisions/ADR-006-high-reliability-principle.md`
+- `docs/decisions/ADR-006-high-reliability.md`
 
 **Verification:**
 - `just release --dry-run` succeeds
@@ -835,7 +835,7 @@ Phase 1 (Foundation)
 | **Auto-generate changelog from commits** | Commit messages are for developers; changelog is for users. Different audiences, different language. | Write entries manually with user-facing language |
 | **One entry per commit** | Produces noise. Users don't care about 47 implementation steps. | One entry per user-visible change, regardless of commit count |
 | **Changelog as afterthought** | Entries written at release time are low-quality — you've forgotten the context. | Write entries as you work (component enforces this) |
-| **Version in multiple files** | Drift between sources. Which one is canonical? | Single `VERSION` file, everything reads from it |
+| **Version in multiple files** | Drift between sources. Which one is canonical? | Single `version.txt` file, everything reads from it |
 | **Changelog in a non-standard location** | Tools can't find it, contributors don't know where to look. | Always `CHANGELOG.md` at repo root |
 | **Custom format** | Every reader must learn your format. Tooling doesn't work. | Keep a Changelog 1.1.0 — widely understood, tooling-friendly |
 | **Mixing user-facing and internal changes** | Dilutes signal. Users skip the changelog because it's full of noise. | Internal changes don't get entries. Period. |
