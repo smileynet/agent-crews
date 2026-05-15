@@ -14,6 +14,18 @@ If spawn hook reports issues, help the user fix them before proceeding.
 - If both OK: ready to work. Show available agents and prompts.
 - Fallback (no uv): `pip install pyyaml` then use `python generate.py` directly
 
+## Design Principles
+
+**High reliability** is the core value of agent-crews. Every decision favors correctness over speed.
+
+- Enforcement over suggestion — tool permissions enforce; prompts suggest (ADR-001)
+- Validation is automatic — augmenter → validator pipeline is the default
+- Eval coverage required — behavioral changes need eval updates
+- Changelog discipline enforced — user-facing changes require entries
+- Generated output verified — `just build` must pass before done
+
+See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
+
 ## How this repo works
 
 `base/crews/*.yaml` + `shared/components/*.yaml` are the source of truth. Never edit generated `.json` files directly.
