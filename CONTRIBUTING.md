@@ -145,3 +145,26 @@ generate.py           Generator (crews + components → .kiro/)
 fleet.example.yaml    Reference config (committed)
 fleet.yaml            Your config (gitignored)
 ```
+
+## Changelog
+
+Every user-facing change requires a changelog entry in `CHANGELOG.md` under `[Unreleased]`.
+
+### What's user-facing?
+
+If the change affects what someone deploying agent-crews can do, how they do it, or fixes something broken for them — it's user-facing. If you can't write the entry without naming a file, class, or internal module, it's probably not user-facing.
+
+**Include:** New crews, components, themes, generator features, breaking changes, bug fixes.
+**Exclude:** Refactors, test additions, internal tooling, steering tweaks, research artifacts.
+
+### Entry format
+
+Use [Keep a Changelog](https://keepachangelog.com/) categories: Added, Changed, Deprecated, Removed, Fixed, Security.
+
+Write from the user's perspective:
+- ✅ "Projects can now inherit base crews with `extends:` and override specific agents"
+- ❌ "Added resolve_extends function to generate.py"
+
+### When to write it
+
+In the same commit as the change. You have the most context right now.

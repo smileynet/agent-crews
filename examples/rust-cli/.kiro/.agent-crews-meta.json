@@ -1,7 +1,7 @@
 {
   "source": "agent-crews",
   "project": "rust-cli",
-  "generated_at": "2026-05-15T11:09:46.686611+00:00",
+  "generated_at": "2026-05-15T13:44:45.355563+00:00",
   "agents": [
     "bugfix-lead",
     "triager",

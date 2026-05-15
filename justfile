@@ -133,6 +133,19 @@ compliance-last project:
     echo "Checking session: $SESSION"
     uv run analyze-session.py "$SESSION" --compliance
 
+# Ingest sessions for a project (all tools)
+ingest project:
+    uv run session-ingest.py --ingest ~/code/{{project}} --since 30d
+
+# Ingest all registered projects
+ingest-all:
+    #!/usr/bin/env bash
+    set -e
+    for proj in $(python3 -c "import yaml; d=yaml.safe_load(open('fleet.yaml')); [print(k) for k in d.get('projects',{}).keys() if k != 'agent-crews']"); do
+        echo "Ingesting: $proj"
+        just ingest "$proj" 2>/dev/null || echo "  ⚠ no sessions for $proj"
+    done
+
 # ─── Testing ─────────────────────────────────────────────────────────────────
 
 # Run behavioral smoke tests
@@ -168,3 +181,32 @@ eval-verbose:
 # Dry run (show what would run)
 eval-dry:
     uv run scripts/eval-crew.py --dry-run
+
+# ─── Release ─────────────────────────────────────────────────────────────────
+
+# Cut a release: just release <major|minor|patch>
+release bump:
+    uv run scripts/release.py {{bump}}
+
+# Cut and push: just release-push <major|minor|patch>
+release-push bump:
+    uv run scripts/release.py {{bump}} --push
+
+# Create platform release (GitHub/GitLab) from latest tag
+publish:
+    #!/usr/bin/env bash
+    set -e
+    VERSION=$(cat version.txt)
+    TAG="v$VERSION"
+    # Extract latest release notes from CHANGELOG.md
+    NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
+    if command -v gh &>/dev/null; then
+        echo "Creating GitHub release $TAG..."
+        gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+    elif command -v glab &>/dev/null; then
+        echo "Creating GitLab release $TAG..."
+        glab release create "$TAG" --notes "$NOTES"
+    else
+        echo "No platform CLI found (gh, glab). Push tag manually."
+        echo "Tag $TAG is ready. Push with: git push --tags"
+    fi
