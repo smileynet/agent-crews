@@ -24,3 +24,7 @@ feedback/
 scratch/
 .kiro/crews/
 .kiro/memory/
+
+# Per-project evals (generated, not tracked)
+tests/*-evals.yaml
+!tests/crew-evals.yaml

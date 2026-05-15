@@ -1,0 +1,33 @@
+name: changelog-standard
+description: "Changelog discipline — verifier checks for entry on user-facing changes"
+
+targets: [worker]
+
+prompt: ""
+
+allowed_commands: []
+
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Changelog Protocol
+
+  After any user-facing change, update CHANGELOG.md `[Unreleased]` before task completion.
+
+  **User-facing** = changes what the user can do, how they do it, or fixes something broken.
+  **Not user-facing** = refactors, test additions, internal tooling, steering tweaks.
+
+  ## Entry Rules
+  - Categories: Added, Changed, Deprecated, Removed, Fixed, Security
+  - Write from user perspective ("✅ Users can now X" not "❌ Added X to file Y")
+  - One bullet per logical change
+  - If you can't write it without naming a file, it's not user-facing
+
+  ## Verification
+  Before reporting DONE on user-facing work: check CHANGELOG.md was updated.
+
+subagents: []

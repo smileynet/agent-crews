@@ -1,0 +1,48 @@
+name: changelog-pr-review
+description: "Changelog enforcement with draft generation and breaking change detection"
+
+targets: [worker]
+
+prompt: ""
+
+allowed_commands:
+  - "git log *"
+  - "git diff *"
+  - "git tag *"
+
+resources: []
+hooks: {}
+
+steering: |
+  ---
+  inclusion: always
+  ---
+  # Changelog Protocol (PR Review)
+
+  ## Entry Discipline
+  After any user-facing change, update CHANGELOG.md `[Unreleased]` before task completion.
+  User-facing = changes what deployers can do, how they do it, or fixes something broken.
+
+  ## Draft Generation
+  When completing user-facing work without a changelog entry:
+  1. Read recent commits (`git log --oneline`)
+  2. Identify user-facing consequences
+  3. Draft entry in Keep a Changelog format
+  4. Present for approval — never auto-commit changelog entries
+
+  ## Breaking Change Detection
+  Flag as potential breaking change if:
+  - Config schema modified (fleet.yaml, crew YAML format)
+  - Public interfaces removed or renamed
+  - Required fields added to existing configs
+  - Default behavior changed
+
+  When detected: recommend BREAKING CHANGE + entry under "Changed" with migration path.
+
+  ## Version Recommendation
+  After accumulating entries, recommend bump type:
+  - Any "Removed" or breaking "Changed" → MAJOR (MINOR if pre-1.0)
+  - Any "Added" → MINOR
+  - Only "Fixed" → PATCH
+
+subagents: []
