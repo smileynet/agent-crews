@@ -548,6 +548,22 @@ def validate_coverage(fleet: dict):
                         print(f"  ⚠️  {proj_name}: '{refused}' refused by {crew['workflow']} — possible vocab mismatch with: {', '.join(similar)}", file=sys.stderr)
 
 
+def validate_changelog_prerequisites(fleet: dict):
+    """Warn if changelog component is enabled but CHANGELOG.md is missing in target."""
+    root = Path(__file__).parent
+    for proj_name, proj_cfg in fleet.get("projects", {}).items():
+        if proj_cfg.get("self_hosted"):
+            continue
+        components = proj_cfg.get("components", {})
+        changelog_cfg = components.get("changelog")
+        if changelog_cfg is None:
+            continue  # changelog not enabled
+        # Check if project dir has CHANGELOG.md
+        proj_dir = root / "projects" / proj_name
+        if proj_dir.exists() and not (proj_dir / "CHANGELOG.md").exists():
+            print(f"  ⚠️  {proj_name}: changelog component enabled but no CHANGELOG.md (run crew-creator to scaffold)", file=sys.stderr)
+
+
 def generate_vocabulary(kiro_dir: Path, dry_run: bool = False):
     """Generate project-specific vocabulary.md from assigned crew YAMLs."""
     crews_dir = kiro_dir / "crews"
@@ -754,6 +770,7 @@ def generate_all(dry_run: bool = False):
     # Validate coverage gaps
     if fleet:
         validate_coverage(fleet)
+        validate_changelog_prerequisites(fleet)
 
     # Generate self-hosted projects (output to repo root .kiro/)
     if fleet:

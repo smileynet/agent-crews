@@ -210,6 +210,13 @@ architypes:
           - Verify: ls projects/<project>/.kiro/agents/
           - Run: just link <project>
 
+          ### 5. Scaffold Release Tooling (if changelog component enabled)
+          If the project has `changelog` component configured (not null):
+          - Check if CHANGELOG.md exists in target project; create if missing
+          - Check if version.txt exists; create with 0.1.0 if missing
+          - Check if release script/recipe exists (just release, npm version, cargo release); scaffold if missing
+          - Report what was created
+
           ## Decision Matrix (session signals → crews)
 
           | Session Signal | Action |
