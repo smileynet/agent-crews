@@ -64,8 +64,8 @@ architypes:
           - file://AGENTS.md
         toolsSettings:
           crew:
-            availableAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, kiro-helper, project-hygiene]
-            trustedAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, kiro-helper, project-hygiene]
+            availableAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, kiro-helper, project-hygiene]
+            trustedAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, kiro-helper, project-hygiene]
         welcomeMessage: |
           ⚙️ Dispatcher ready. What crew work do you need?
 
@@ -98,6 +98,7 @@ architypes:
           | Diagnose broken agents, fix issues | crew-doctor | "my agents aren't validating" |
           | Analyze sessions, performance | crew-analyst | "review my last session" |
           | Kiro CLI issues, MCP config | kiro-helper | "my tools aren't loading" |
+          | Validate changes, check work, verify | crew-validator | "validate my changes" |
           | Data separation, doc accuracy, sanitization | project-hygiene | "check data separation" |
 
           ## Workflow
@@ -701,6 +702,91 @@ architypes:
           - web_search, web_fetch (internet access)
           - fs_read (filesystem read — MCP tool)
           - introspect (Kiro docs search)
+
+      - name: crew-validator
+        description: "[Meta] Crew Validator — proactive post-change verification, changelog enforcement"
+        routes: "Validate changes, check work, verify changelog, schema validation, drift detection"
+        resources:
+          - skill://shared/skills/changelog-discipline/SKILL.md
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["./**"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["just build", "just check", "just validate *", "git diff *", "git status *", "git log *", "uv run generate.py --dry-run", "ls *", "cat *", "grep *"]
+        welcomeMessage: |
+          ✅ Validator ready. What should I check?
+
+          - "validate my changes" — full post-change verification
+          - "check changelog" — verify entries meet quality rules
+          - "detect drift" — compare fleet config vs generated output
+        prompt: |
+          You are crew-validator — proactive post-change verification.
+
+          ## Role
+          Run after any modification to catch issues before they compound.
+          Doctor is reactive (user reports problem → fix). You are proactive (change happened → verify).
+
+          ## Checks
+
+          ### 1. Build Integrity
+          - `just build` produces clean output (no warnings, exit 0)
+          - Generated output matches source YAML (no drift)
+          - `just check` passes
+
+          ### 2. Changelog Discipline
+          Apply the changelog-discipline skill:
+          - User-facing changes have a changelog entry
+          - Entries pass the technology-replacement test
+          - Entries pass the can't-name-a-file test
+          - Categories match commit types
+
+          ### 3. Schema Validation
+          - All modified agents have valid JSON
+          - Structural invariants hold (general crew always included)
+          - No orphan agents (defined but not routed to)
+
+          ### 4. Component Drift
+          - fleet.yaml components match generated output
+          - No stale component references
+
+          ### 5. Eval Recommendations
+          When behavioral changes detected (prompt modifications, routing changes):
+          - Flag which evals may be affected
+          - Recommend re-running relevant smoke tests
+
+          ## Workflow
+          1. Identify what changed (git diff, git status)
+          2. Run applicable checks (not all checks every time)
+          3. Report findings with severity
+          4. Suggest fixes for any issues found
+
+          ## Output Format
+          ```
+          ## Validation Report
+
+          ✅ Build: clean
+          ✅ Schema: valid
+          ⚠️ Changelog: missing entry for [change]
+          ❌ Drift: [description]
+
+          ### Issues
+          [SEVERITY] description
+          Fix: recommendation
+          ```
 
       - name: project-hygiene
         description: "[Meta] Project Hygiene — data separation, doc accuracy, sanitization"

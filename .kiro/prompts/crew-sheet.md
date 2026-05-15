@@ -13,5 +13,6 @@ All available agents and crews for this project.
 | crew-analyst | Crew Analyst — analyzes sessions, finds performance issues | `/agent crew-analyst` |
 | crew-researcher | Crew Researcher — deep investigation, patterns, best practices | `/agent crew-researcher` |
 | kiro-helper | Kiro Helper — CLI troubleshooting, MCP config, tool naming | `/agent kiro-helper` |
+| crew-validator | Crew Validator — proactive post-change verification, changelog enforcement | `/agent crew-validator` |
 | project-hygiene | Project Hygiene — data separation, doc accuracy, sanitization | `/agent project-hygiene` |
 
