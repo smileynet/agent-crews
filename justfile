@@ -200,9 +200,16 @@ publish:
     TAG="v$VERSION"
     # Extract latest release notes from CHANGELOG.md
     NOTES=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | sed '1d;$d')
+    if [ -z "$NOTES" ]; then
+        echo "❌ No release notes found for $VERSION in CHANGELOG.md"
+        exit 1
+    fi
     if command -v gh &>/dev/null; then
         echo "Creating GitHub release $TAG..."
-        gh release create "$TAG" --title "$TAG" --notes "$NOTES"
+        gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "$NOTES" \
+            --verify-tag
     elif command -v glab &>/dev/null; then
         echo "Creating GitLab release $TAG..."
         glab release create "$TAG" --notes "$NOTES"
