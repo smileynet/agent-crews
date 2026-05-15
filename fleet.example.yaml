@@ -52,6 +52,7 @@ defaults:
     completion:
       variant: standard
       followups: file-issues
+    changelog: null
 
 projects:
   # agent-crews itself (self-hosted — generates its own .kiro/)

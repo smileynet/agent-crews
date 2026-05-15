@@ -8,38 +8,30 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-- crew-validator agent for post-change verification (build, changelog, structure, drift, eval coverage)
-- crew-releaser agent for release pipeline orchestration (changelog curation, version bump, tag, publish)
-- `@release` prompt for guided release workflow
-- Changelog component: `standard` variant (verifier checks for entry on user-facing changes)
-- Changelog component: `pr-review` variant (draft generation + breaking change detection)
-- Changelog-discipline skill with entry quality rules and decision tests
-- High reliability design principle (ADR-006) with operational steering
-- Auto-chain pattern: crew changes automatically trigger crew-validator
-- Deployment setup: crew-creator scaffolds release tooling when changelog component enabled
-- Generator validates changelog prerequisites for projects with component enabled
+- Changes are automatically validated after every crew modification (build, changelog, structure, drift)
+- Release workflow with guided changelog curation, version bumping, and platform publishing
+- Projects can opt into changelog discipline that catches missing entries before completion
+- Behavioral changes now prompt for eval re-runs to catch regressions early
 
 ## [0.1.0] - 2026-05-15
 
 ### Added
-- 8 base crews (general, bug-fix, infrastructure, research, onboarding, hygiene, content, writing) with 58 agents
-- Fleet.yaml project registry with component defaults and per-project overrides
-- 14 behavioral components (verification, troubleshooting, git, writing, search, memory, notifications, etc.)
-- Theme overlay system for cosmetic agent renaming
-- Generator: `just build` produces .kiro/agents/*.json from crew YAML + components
-- `extends:` mechanism for crew inheritance (remove agents, redefine by name, scope inheritance)
-- Per-project vocabulary.md generated from assigned crews
-- `file://CONTEXT.md` convention for project domain glossaries
-- Orchestrator delegation enforcement (tools-level, not prompt-only)
-- Session analysis tooling (`analyze-session.py`)
-- Evaluation framework with delegation intent mode and tunable timeouts
-- Memory preservation during `just link` redeployment
-- Smart crew sync (preserves local `extends:` files while syncing base crews)
+- Deploy specialized AI agent teams to any project with one command (`just build`)
+- 8 crew types for different work: general, bug-fix, infrastructure, research, onboarding, hygiene, content, writing
+- Mix and match crews per project — configure in fleet.yaml, generate once, deploy everywhere
+- Inherit and customize base crews without forking (`extends:` with agent removal and replacement)
+- 14 behavioral components shape how agents work (verification gates, git workflow, troubleshooting escalation, etc.)
+- Theme overlay gives agents character without changing behavior (e.g., WoW-themed names)
+- Orchestrators delegate, they don't absorb — enforced at the tools level, not just prompts
+- Per-project vocabulary keeps agents aligned on domain language
+- Domain glossary (`CONTEXT.md`) automatically available to all deployed agents
+- Analyze past sessions to find crew performance issues and recommend improvements
+- Test crew behavior with model-based evals (delegation intent mode for fast feedback)
+- Redeployment preserves project memory (lessons learned survive `just link`)
 
 ### Fixed
-- Intent vocabulary normalized across all crews (bugs, research, documentation, implementation)
-- Validator only warns on vocab mismatches, not deliberately missing crews
-- Tilde expansion in `just link` for fleet.local.yaml paths
+- Crews use consistent intent vocabulary (no more mismatches between "bug-fixing" and "bugs")
+- Redeployment to paths with `~` now works correctly
 
 [Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/smileynet/agent-crews/releases/tag/v0.1.0

@@ -1,7 +1,6 @@
 {
   "source": "agent-crews",
   "project": "node-webapp",
-  "generated_at": "2026-05-15T14:24:55.209027+00:00",
   "agents": [
     "general-lead",
     "planner",

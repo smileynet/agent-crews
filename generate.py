@@ -753,12 +753,10 @@ def generate_all(dry_run: bool = False):
 
         # Write provenance marker
         if not dry_run:
-            import datetime
             shared_prompts_dir = root / "shared" / "prompts"
             meta = {
                 "source": "agent-crews",
                 "project": proj,
-                "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "agents": agents,
                 "shared_prompts": sorted(f.name for f in shared_prompts_dir.glob("*.md")) if shared_prompts_dir.is_dir() else [],
             }
