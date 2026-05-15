@@ -3,6 +3,8 @@ persona: personal
 crews: [meta]
 theme: null
 components:
+  narration: verified
+  writing: standard
   verification:
     variant: gate
     checks:

@@ -8,11 +8,21 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Three-level agent hierarchy for the meta crew — dispatcher routes to leads (build-lead, ops-lead, bugfix-lead), leads coordinate workers
+- Bug-fix crew for this repo — systematic debugging of generate.py, scripts, and tooling with independent test verification
+- Dispatcher can execute simple commands directly (≤1 tool call) without routing overhead
+- Change-point markers track what changed after each build — use `session-diff --since-change <commit>` to measure impact
+- Crew bypass detection, workflow clustering, and agent distribution analysis (`analyze-session.py --bypass-report`, `--clusters`, `--agent-distribution`)
 - Session-informed crew recommendations — analyzes your history across oh-my-pi, Codex, kiro-cli, Claude Code, and opencode to pick crews based on what you actually do, not just your tech stack
 - `agent-crews build` works from any project directory — no need to be in the agent-crews repo
 - Auto-discovery finds all your crew-enabled projects with `just scan`
 - Before/after comparison shows whether crew tuning improved token efficiency
 - One-shot project analysis and session summary scripts give agents pre-digested data instead of raw parsing
+
+### Fixed
+- Component utility agents (verifier, editor) are now automatically available to all orchestrators — previously generated but not wired into dispatch lists
+- Projects with components in `.crews/crew.yaml` now get component generation even without a fleet.yaml file
+- Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 
 ### Changed
 - **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it

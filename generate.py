@@ -267,10 +267,13 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
             if is_orchestrator and "subagent" in agent_json.get("tools", []):
                 if not is_dispatcher:
                     # Regular orchestrators auto-scope to same-crew workers
-                    crew_workers = [n for n in crew_agent_names if n != agent_json["name"]]
+                    # BUT respect explicit availableAgents if already defined
                     ts = agent_json.setdefault("toolsSettings", {})
-                    ts.setdefault("subagent", {})["availableAgents"] = crew_workers
-                    ts["subagent"]["trustedAgents"] = crew_workers
+                    sub = ts.setdefault("subagent", {})
+                    if "availableAgents" not in sub:
+                        crew_workers = [n for n in crew_agent_names if n != agent_json["name"]]
+                        sub["availableAgents"] = crew_workers
+                        sub["trustedAgents"] = crew_workers
                 # Dispatchers keep their explicitly-defined availableAgents
 
                 # Auto-inject routing table from routes: fields
@@ -1383,6 +1386,39 @@ def write_scripts_steering(deployed_scripts: list[dict], kiro_dir: Path):
     (steering_dir / "scripts.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def inject_subagents_into_orchestrators(subagent_names: list[str], kiro_dir: Path):
+    """Add component subagents to all orchestrator agents' availableAgents."""
+    agents_dir = kiro_dir / "agents"
+    if not agents_dir.is_dir():
+        return
+    for agent_file in agents_dir.glob("*.json"):
+        with open(agent_file, encoding="utf-8") as f:
+            agent = json.load(f)
+        # Only patch agents that have subagent in their tools (orchestrators)
+        if "subagent" not in agent.get("tools", []):
+            continue
+        ts = agent.get("toolsSettings", {})
+        sub = ts.get("subagent", {})
+        available = sub.get("availableAgents", [])
+        # Add any missing subagents
+        added = False
+        for name in subagent_names:
+            if name not in available:
+                available.append(name)
+                added = True
+        if added:
+            sub["availableAgents"] = available
+            sub.setdefault("trustedAgents", [])
+            for name in subagent_names:
+                if name not in sub["trustedAgents"]:
+                    sub["trustedAgents"].append(name)
+            ts["subagent"] = sub
+            agent["toolsSettings"] = ts
+            with open(agent_file, "w", encoding="utf-8") as f:
+                json.dump(agent, f, indent=2)
+                f.write("\n")
+
+
 def generate_components_for_project(project_name: str, kiro_dir: Path, fleet: dict, dry_run: bool = False):
     """Full component generation pipeline for a project."""
     component_config = resolve_component_config(project_name, fleet)
@@ -1398,7 +1434,9 @@ def generate_components_for_project(project_name: str, kiro_dir: Path, fleet: di
         subagents = generate_subagents(components, kiro_dir, dry_run)
         deployed_scripts = deploy_scripts(components, kiro_dir, dry_run)
         write_scripts_steering(deployed_scripts, kiro_dir)
+        # Wire subagents into orchestrator availableAgents
         if subagents:
+            inject_subagents_into_orchestrators(subagents, kiro_dir)
             print(f"    + subagents: {', '.join(subagents)}")
         if deployed_scripts:
             print(f"    + scripts: {len(deployed_scripts)}")
@@ -1635,8 +1673,8 @@ def main():
                     generate_vocabulary(kiro_dir, dry_run)
                     sync_prompts_to_project(kiro_dir, root)
                     generate_project_md_skeleton(kiro_dir)
-                    if fleet_cfg:
-                        synthetic = {'projects': {proj_dir.name: crew_cfg}, 'defaults': fleet_cfg.get('defaults', {})}
+                    if fleet_cfg or crew_cfg.get('components'):
+                        synthetic = {'projects': {proj_dir.name: crew_cfg}, 'defaults': fleet_cfg.get('defaults', {}) if fleet_cfg else {}}
                         generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
                     # Clean up: remove .kiro/crews/ (was only needed for generation)
                     if not dry_run:

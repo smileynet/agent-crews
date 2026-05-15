@@ -49,7 +49,8 @@
     "file://AGENTS.md",
     "file://.kiro/steering/vocabulary.md",
     "file://base/crews/general.yaml",
-    "skill://.kiro/skills/create-crew.md"
+    "skill://.kiro/skills/create-crew.md",
+    "skill://.kiro/skills/kiro-cli-schema/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
@@ -59,6 +60,5 @@
       }
     ]
   },
-  "keyboardShortcut": "ctrl+shift+c",
   "welcomeMessage": "I want to...\n\n- Build an agent team for a project \u2192 \"create a crew for ~/code/<project>\"\n- Adapt the base crew for a new stack \u2192 \"create a crew for ~/code/<project> \u2014 it's CDK + TypeScript\"\n- See what crews exist \u2192 \"list base/crews/\"\n"
 }

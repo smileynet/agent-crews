@@ -16,6 +16,9 @@ Usage:
     uv run analyze-session.py <session-id> --antipatterns  # detect measurable anti-patterns
     uv run analyze-session.py --normalized <file.jsonl>    # analyze normalized multi-tool data
     uv run analyze-session.py --compare <project-path>     # cross-tool performance comparison
+    uv run analyze-session.py --agent-distribution <name>  # agent usage breakdown
+    uv run analyze-session.py --bypass-report <name>       # detect crew bypass patterns
+    uv run analyze-session.py --clusters <name>            # workflow clusters by timestamp
 """
 
 import json
@@ -616,6 +619,206 @@ def compare_tools(project_path):
             print(f"  {tool_name:<14}{top}")
 
 
+def _load_project_sessions(project_filter):
+    """Load all session metadata for a project."""
+    sessions = []
+    for f in SESSIONS_DIR.glob("*.json"):
+        try:
+            with open(f) as fh:
+                d = json.load(fh)
+            if project_filter and project_filter not in d.get("cwd", ""):
+                continue
+            sessions.append(d)
+        except (json.JSONDecodeError, OSError):
+            continue
+    sessions.sort(key=lambda s: s.get("updated_at", ""), reverse=True)
+    return sessions
+
+
+def agent_distribution(project_filter):
+    """Show which agents handle sessions for a project."""
+    sessions = _load_project_sessions(project_filter)
+    if not sessions:
+        sys.exit(f"No sessions found for: {project_filter}")
+
+    agents = Counter()
+    for s in sessions:
+        agent = s.get("session_state", {}).get("agent_name", None) or "default"
+        agents[agent] += 1
+
+    total = sum(agents.values())
+    print(f"=== Agent Distribution: {project_filter} ({total} sessions) ===\n")
+    for agent, count in agents.most_common():
+        pct = count / total * 100
+        bar = "█" * round(pct / 5)
+        print(f"  {agent:<20} {count:>4} ({pct:4.1f}%) {bar}")
+
+
+def bypass_report(project_filter):
+    """Detect work that should route through crew but used default agent."""
+    sessions = _load_project_sessions(project_filter)
+    if not sessions:
+        sys.exit(f"No sessions found for: {project_filter}")
+
+    # Intent-to-crew mapping
+    intent_crew_map = {
+        "create": "build-lead",
+        "build": "build-lead",
+        "generate": "build-lead",
+        "research": "build-lead",
+        "add ": "build-lead",
+        "implement": "build-lead",
+        "phase": "build-lead",
+        "analyze": "ops-lead",
+        "review": "ops-lead",
+        "session": "ops-lead",
+        "tune": "ops-lead",
+        "validate": "ops-lead",
+        "verify": "ops-lead",
+        "check": "ops-lead",
+        "consistency": "ops-lead",
+        "fix": "bugfix-lead",
+        "debug": "bugfix-lead",
+        "error": "bugfix-lead",
+        "broken": "bugfix-lead",
+        "release": "crew-releaser",
+        "version": "crew-releaser",
+        "changelog": "crew-releaser",
+        "tag": "crew-releaser",
+        "push": "crew-releaser",
+    }
+
+    # Routing table patterns (from dispatcher)
+    routing_patterns = {
+        "crew for": "build-lead",
+        "agent": "build-lead",
+        "feature": "build-lead",
+        "best practice": "build-lead",
+        "pattern": "build-lead",
+        "diagnose": "ops-lead",
+        "health": "ops-lead",
+        "performance": "ops-lead",
+        "drift": "ops-lead",
+        "kiro": "kiro-helper",
+        "mcp": "kiro-helper",
+        "cli": "kiro-helper",
+    }
+
+    bypassed = Counter()
+    direct_exec = 0
+    uncategorized = 0
+    total_default = 0
+
+    for s in sessions:
+        agent = s.get("session_state", {}).get("agent_name", None) or "default"
+        if agent != "default":
+            continue
+        total_default += 1
+        title = (s.get("title") or "").lower()
+
+        # Check if it's a direct command (appropriate bypass)
+        if any(title.startswith(p) for p in ["run ", "1. ", "```", "git "]) or "write the file" in title:
+            direct_exec += 1
+            continue
+
+        # Check intent mapping
+        intent_match = None
+        for keyword, crew in intent_crew_map.items():
+            if keyword in title:
+                intent_match = crew
+                break
+
+        # Check routing patterns
+        routing_match = None
+        for pattern, crew in routing_patterns.items():
+            if pattern in title:
+                routing_match = crew
+                break
+
+        # Combine signals
+        if intent_match and routing_match and intent_match == routing_match:
+            bypassed[intent_match] += 1  # high confidence
+        elif intent_match:
+            bypassed[intent_match] += 1  # intent signal alone
+        elif routing_match:
+            bypassed[routing_match] += 1  # routing signal alone
+        else:
+            uncategorized += 1
+
+    total = len(sessions)
+    crew_sessions = total - total_default
+    bypass_total = sum(bypassed.values())
+
+    print(f"=== Crew Bypass Report: {project_filter} ===\n")
+    print(f"Sessions using crew agents: {crew_sessions}/{total} ({crew_sessions/total*100:.0f}%)")
+    print(f"Sessions bypassing crew:    {bypass_total}/{total} ({bypass_total/total*100:.0f}%)")
+    print()
+    print("Work that should route to:")
+    for crew, count in bypassed.most_common():
+        print(f"  {crew:<20} {count:>3} sessions")
+    print()
+    print(f"Direct execution (appropriate bypass): {direct_exec} sessions")
+    print(f"Uncategorized: {uncategorized} sessions")
+
+    if bypass_total > total * 0.3:
+        print(f"\n⚠️  High bypass rate ({bypass_total/total*100:.0f}%). Reduce routing friction.")
+
+
+def clusters(project_filter):
+    """Group sessions into workflow clusters by timestamp proximity."""
+    sessions = _load_project_sessions(project_filter)
+    if not sessions:
+        sys.exit(f"No sessions found for: {project_filter}")
+
+    # Parse timestamps and cluster (5-min gap = new cluster)
+    clustered = []
+    current_cluster = []
+
+    for s in sessions:
+        updated = s.get("updated_at", "")
+        try:
+            t = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            continue
+
+        agent = s.get("session_state", {}).get("agent_name", None) or "default"
+        title = (s.get("title") or "")[:60]
+
+        if current_cluster:
+            prev_time = current_cluster[-1][0]
+            if (prev_time - t).total_seconds() > 300:
+                clustered.append(current_cluster)
+                current_cluster = []
+
+        current_cluster.append((t, agent, title))
+
+    if current_cluster:
+        clustered.append(current_cluster)
+
+    # Show clusters with >1 session
+    print(f"=== Workflow Clusters: {project_filter} (recent) ===\n")
+    shown = 0
+    for cluster in clustered:
+        if len(cluster) < 2:
+            continue
+        shown += 1
+        if shown > 10:
+            break
+
+        span = (cluster[0][0] - cluster[-1][0]).total_seconds()
+        span_fmt = f"{span/3600:.1f}h" if span >= 3600 else f"{span/60:.0f}min"
+        agents = Counter(a for _, a, _ in cluster)
+        agents_str = ", ".join(f"{a}({c})" for a, c in agents.most_common())
+
+        print(f"Cluster {shown} ({len(cluster)} sessions, {span_fmt} span):")
+        print(f"  Agents: {agents_str}")
+        for _, agent, title in cluster[:5]:
+            print(f"    [{agent}] {title}")
+        if len(cluster) > 5:
+            print(f"    ... +{len(cluster)-5} more")
+        print()
+
+
 def main():
     args = sys.argv[1:]
 
@@ -625,6 +828,24 @@ def main():
 
     if args[0] == "--project":
         list_sessions(project_filter=args[1] if len(args) > 1 else None)
+        return
+
+    if args[0] == "--agent-distribution":
+        if len(args) < 2:
+            sys.exit("Usage: analyze-session.py --agent-distribution <project-name>")
+        agent_distribution(args[1])
+        return
+
+    if args[0] == "--bypass-report":
+        if len(args) < 2:
+            sys.exit("Usage: analyze-session.py --bypass-report <project-name>")
+        bypass_report(args[1])
+        return
+
+    if args[0] == "--clusters":
+        if len(args) < 2:
+            sys.exit("Usage: analyze-session.py --clusters <project-name>")
+        clusters(args[1])
         return
 
     if args[0] == "--normalized":

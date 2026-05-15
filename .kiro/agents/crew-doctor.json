@@ -47,7 +47,8 @@
   "resources": [
     "file://AGENTS.md",
     "file://.kiro/steering/vocabulary.md",
-    "skill://.kiro/skills/diagnose-crew.md"
+    "skill://.kiro/skills/diagnose-crew.md",
+    "skill://.kiro/skills/kiro-cli-schema/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
@@ -57,6 +58,5 @@
       }
     ]
   },
-  "keyboardShortcut": "ctrl+shift+f",
   "welcomeMessage": "I want to...\n\n- Diagnose why an agent keeps failing \u2192 \"diagnose the <project> crew\"\n- Review a session for improvements \u2192 \"review the last <project> session\"\n- Audit crew quality against conventions \u2192 \"@review-crew-quality <project>\"\n"
 }

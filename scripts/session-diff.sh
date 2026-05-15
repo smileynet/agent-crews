@@ -4,6 +4,7 @@ set -euo pipefail
 show_help() {
   cat << 'EOF'
 Usage: ./scripts/session-diff.sh <project-path> <before-date> [after-date]
+       ./scripts/session-diff.sh <project-path> --since-change <commit>
 
 Compare session performance before and after a crew change.
 Dates in YYYY-MM-DD format. After-date defaults to today.
@@ -11,6 +12,7 @@ Dates in YYYY-MM-DD format. After-date defaults to today.
 Examples:
   ./scripts/session-diff.sh ~/code/my-project 2026-05-10
   ./scripts/session-diff.sh ~/code/my-project 2026-05-01 2026-05-15
+  ./scripts/session-diff.sh ~/code/my-project --since-change b661f19
 EOF
   exit 0
 }
@@ -20,8 +22,27 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
 PROJECT_PATH="$1"
-BEFORE_DATE="$2"
-AFTER_DATE="${3:-$(date +%Y-%m-%d)}"
+shift
+
+# Handle --since-change: look up date from change markers or git
+if [[ "${1:-}" == "--since-change" ]]; then
+  COMMIT="${2:-}"
+  if [[ -z "$COMMIT" ]]; then echo "Error: --since-change requires a commit SHA"; exit 1; fi
+  # Try change-markers.yaml first
+  MARKERS_FILE="$REPO_DIR/scratch/change-markers.yaml"
+  if [[ -f "$MARKERS_FILE" ]]; then
+    BEFORE_DATE=$(grep -A1 "commit: \"$COMMIT\"" "$MARKERS_FILE" | grep "date:" | head -1 | sed 's/.*"\([0-9-]*\)T.*/\1/' || true)
+  fi
+  # Fall back to git log date
+  if [[ -z "${BEFORE_DATE:-}" ]]; then
+    BEFORE_DATE=$(git -C "$REPO_DIR" log -1 --pretty=format:'%cd' --date=short "$COMMIT" 2>/dev/null || true)
+  fi
+  if [[ -z "${BEFORE_DATE:-}" ]]; then echo "Error: cannot resolve date for commit $COMMIT"; exit 1; fi
+  AFTER_DATE="$(date +%Y-%m-%d)"
+else
+  BEFORE_DATE="$1"
+  AFTER_DATE="${2:-$(date +%Y-%m-%d)}"
+fi
 
 PROJECT_NAME="$(basename "$(realpath "$PROJECT_PATH")")"
 

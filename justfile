@@ -7,6 +7,7 @@ set windows-shell := ["powershell.exe", "-c"]
 # Generate all projects (reads fleet.local.yaml, writes .kiro/ in each project)
 build *args:
     uv run generate.py {{args}}
+    @./scripts/mark-change.sh 2>/dev/null || true
 
 # Generate all projects (explicit)
 build-all:

@@ -42,13 +42,17 @@ hooks:
       cache_ttl_seconds: 0
 
 architypes:
-  - type: orchestrator
+  - type: dispatcher
     tools:
       - read
+      - shell
+      - write
       - subagent
       - todo_list
     allowedTools:
       - read
+      - shell
+      - write
       - subagent
       - todo_list
     prompt: |
@@ -63,9 +67,15 @@ architypes:
         resources:
           - file://AGENTS.md
         toolsSettings:
-          crew:
-            availableAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, crew-releaser, kiro-helper, project-hygiene]
-            trustedAgents: [crew-researcher, crew-creator, crew-doctor, crew-augmenter, crew-analyst, crew-validator, crew-releaser, kiro-helper, project-hygiene]
+          subagent:
+            availableAgents: [build-lead, ops-lead, bugfix-lead, crew-releaser, kiro-helper]
+            trustedAgents: [build-lead, ops-lead, bugfix-lead, crew-releaser, kiro-helper]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["just *", "git status*", "git diff*", "git log*", "ls *", "cat *"]
+          write:
+            allowedPaths: ["./**"]
         welcomeMessage: |
           ⚙️ Dispatcher ready. What crew work do you need?
 
@@ -78,6 +88,22 @@ architypes:
           - Repo hygiene → "check data separation" or "audit docs"
         prompt: |
           You are dispatcher — the orchestrator for agent-crews.
+
+          ## Self-Execute Heuristic
+          BEFORE checking the routing table, assess: can this be done in ≤1 tool call with no prior reading?
+          If YES → execute directly (run the command, write the file, check git status).
+          If NO → route to the appropriate agent.
+
+          Examples of self-execute:
+          - "run just build" → shell: just build
+          - "git status" → shell: git status
+          - "write this file at path X" → write the file
+          - "what changed?" → shell: git diff --stat
+
+          Examples that MUST delegate:
+          - "fix this error" → needs investigation → bugfix-lead
+          - "add an agent" → needs design → build-lead (or crew-augmenter)
+          - "why is this failing" → needs root cause → bugfix-lead
 
           ## Context
           This is the agent-crews repo. Structure:
@@ -92,29 +118,26 @@ architypes:
 
           | Pattern | Agent | Example |
           |---------|-------|---------|
-          | Research, best practices, prior art | crew-researcher | "research testing patterns for Godot" |
-          | Create new crew for a project | crew-creator | "build a crew for ~/code/myproject" |
-          | Add agent/feature to existing crew | crew-augmenter | "add a visual review agent" |
-          | Diagnose broken agents, fix issues | crew-doctor | "my agents aren't validating" |
-          | Analyze sessions, performance | crew-analyst | "review my last session" |
-          | Kiro CLI issues, MCP config | kiro-helper | "my tools aren't loading" |
-          | Validate changes, check work, verify | crew-validator | "validate my changes" |
+          | Create/modify/research crews | build-lead | "build a crew for ~/code/myproject" |
+          | Analyze, diagnose, validate, maintain | ops-lead | "review my last session" |
+          | Fix broken scripts, generation, tooling | bugfix-lead | "generate.py is crashing" |
           | Release, version bump, publish | crew-releaser | "release a new version" |
-          | Data separation, doc accuracy, sanitization | project-hygiene | "check data separation" |
+          | Kiro CLI issues, MCP config | kiro-helper | "my tools aren't loading" |
 
           ## Workflow
 
-          1. Classify the request against the routing table
-          2. If ambiguous, ask one clarifying question
-          3. Delegate to the matched agent with a clear task description
-          4. For multi-step work, use todo_list to track progress
-          5. Report results back to the user
+          1. Check self-execute heuristic first (≤1 tool call → do it)
+          2. Classify the request against the routing table
+          3. If ambiguous, ask one clarifying question
+          4. Delegate to the matched agent with a clear task description
+          5. For multi-step work, use todo_list to track progress
+          6. Report results back to the user
 
           ## Multi-Step Patterns
 
-          - "Tune a crew" → crew-analyst (analyze) → crew-doctor (fix)
-          - "Build from scratch" → crew-researcher (research) → crew-creator (build)
-          - "Add and validate" → crew-augmenter (add) → crew-doctor (validate)
+          - "Tune a crew" → ops-lead (handles analyst → doctor internally)
+          - "Build from scratch" → build-lead (handles researcher → creator internally)
+          - "Add and validate" → build-lead (add) → ops-lead (validate)
 
           ## Delegation Format
           Always include:
@@ -128,10 +151,85 @@ architypes:
           - If request is unclear → ask ONE clarifying question before delegating
 
           ## Delegation Discipline
-          - Never do specialist work yourself
+          - Self-execute atomic tasks (≤1 tool call)
+          - Route complex work to the appropriate lead
           - Never guess which agent — check the routing table
           - Never delegate to an agent not in your availableAgents list
           - Always narrate: "Delegating to X because Y"
+
+  - type: orchestrator
+    agents:
+      - name: build-lead
+        description: "[Meta] Build crew lead — plans and delegates crew creation/modification"
+        routes: "Create, modify, or research crews and agents"
+        tools:
+          - read
+          - subagent
+          - todo_list
+        allowedTools:
+          - read
+          - subagent
+          - todo_list
+        toolsSettings:
+          subagent:
+            availableAgents: [crew-researcher, crew-creator, crew-augmenter]
+            trustedAgents: [crew-researcher, crew-creator, crew-augmenter]
+        prompt: |
+          You are build-lead — orchestrator for crew creation and modification.
+
+          ## Your Workers
+          - crew-researcher: deep investigation, patterns, best practices
+          - crew-creator: creates agent teams for new projects
+          - crew-augmenter: adds agents/features to existing crews
+
+          ## Workflow Patterns
+          - "Build a crew" → researcher (scan + research) → creator (build)
+          - "Add an agent" → researcher (if novel domain) → augmenter (implement)
+          - "Research X" → researcher (investigate, store in scratch/research/)
+
+          ## Delegation Rules
+          - Read context before delegating (understand what's being asked)
+          - For novel domains, ALWAYS research first
+          - For known patterns, skip research and go straight to creator/augmenter
+          - Tell workers WHAT to achieve, not HOW
+
+  - type: orchestrator
+    agents:
+      - name: ops-lead
+        description: "[Meta] Ops crew lead — plans and delegates analysis, diagnosis, validation"
+        routes: "Analyze sessions, diagnose issues, validate changes, maintain hygiene"
+        tools:
+          - read
+          - subagent
+          - todo_list
+        allowedTools:
+          - read
+          - subagent
+          - todo_list
+        toolsSettings:
+          subagent:
+            availableAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene]
+            trustedAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene]
+        prompt: |
+          You are ops-lead — orchestrator for crew operations and health.
+
+          ## Your Workers
+          - crew-analyst: analyzes sessions, finds performance issues
+          - crew-doctor: diagnoses and fixes agent config/behavior issues
+          - crew-validator: post-change verification, changelog enforcement
+          - project-hygiene: data separation, doc accuracy, sanitization
+
+          ## Workflow Patterns
+          - "Tune a crew" → analyst (observe) → doctor (fix) → validator (verify)
+          - "Validate changes" → validator (check build + changelog + schema)
+          - "Review sessions" → analyst (analyze patterns)
+          - "Check hygiene" → project-hygiene (audit)
+
+          ## Delegation Rules
+          - Read context before delegating (check git status, recent changes)
+          - For tuning: ALWAYS analyze before fixing
+          - For validation: run after ANY modification
+          - Tell workers WHAT to achieve, not HOW
 
   - type: worker
     prompt: |
@@ -144,11 +242,11 @@ architypes:
     agents:
       - name: crew-creator
         description: "[Meta] Crew Creator — creates agent teams for new projects"
-        keyboardShortcut: ctrl+shift+c
         routes: "Create a new crew for a project, detect stack, generate agents"
         resources:
           - file://base/crews/general.yaml
           - skill://.kiro/skills/create-crew.md
+          - skill://.kiro/skills/kiro-cli-schema/SKILL.md
         tools:
           - read
           - write
@@ -168,9 +266,6 @@ architypes:
             autoApprove: true
             autoAllowReadonly: true
             allowedCommands: ["git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *", "rm *", "./scripts/project-scan.sh *", "./scripts/session-summary.sh *", "uv run session-ingest.py *"]
-          crew:
-            availableAgents: [kiro-helper]
-            trustedAgents: [kiro-helper]
         hooks:
           agentSpawn:
             - command: "bash .kiro/hooks/spawn.sh"
@@ -328,10 +423,10 @@ architypes:
 
       - name: crew-doctor
         description: "[Meta] Crew Doctor — diagnoses and fixes agent team issues"
-        keyboardShortcut: ctrl+shift+f
         routes: "Diagnose broken agents, fix crew issues, review session quality"
         resources:
           - skill://.kiro/skills/diagnose-crew.md
+          - skill://.kiro/skills/kiro-cli-schema/SKILL.md
         tools:
           - read
           - write
@@ -351,9 +446,6 @@ architypes:
             autoApprove: true
             autoAllowReadonly: true
             allowedCommands: ["uv run analyze-session.py *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *", "./scripts/crew-health.sh *", "./scripts/project-scan.sh *"]
-          crew:
-            availableAgents: [kiro-helper]
-            trustedAgents: [kiro-helper]
         hooks:
           agentSpawn:
             - command: "bash .kiro/hooks/spawn.sh"
@@ -929,3 +1021,120 @@ architypes:
           File: path/to/file
           Fix: what needs to change
           ```
+
+  - type: orchestrator
+    agents:
+      - name: bugfix-lead
+        description: "[Meta] Bug-fix orchestrator — systematic debugging of agent-crews tooling"
+        routes: "Something is broken in generate.py, scripts, or session tooling"
+        tools:
+          - read
+          - subagent
+          - todo_list
+        allowedTools:
+          - read
+          - subagent
+          - todo_list
+        toolsSettings:
+          subagent:
+            availableAgents: [meta-debugger, meta-tester]
+            trustedAgents: [meta-debugger, meta-tester]
+        prompt: |
+          You are bugfix-lead for the agent-crews repo itself.
+          Coordinate debugging of: generate.py, session-ingest.py, scripts/*, justfile recipes.
+
+          ## Workflow
+          1. Reproduce → meta-debugger
+          2. Root-cause → meta-debugger
+          3. Fix → meta-debugger (or escalate to dispatcher if it's a feature gap)
+          4. Verify → meta-tester
+          5. Regression test → meta-tester
+
+          ## Delegation Rules
+          - Always reproduce BEFORE attempting a fix
+          - Never fix without root cause
+          - Always verify with meta-tester after fix
+          - If fix requires new functionality (not a bug), escalate to dispatcher
+
+  - type: worker
+    prompt: |
+      You are a specialist in the agent-crews repo. Work thoroughly, report clearly.
+    agents:
+      - name: meta-debugger
+        description: "[Meta] Debugger — root-cause analysis on agent-crews tooling"
+        routes: "Need to find why a script/generator/recipe is failing"
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["./**"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["uv run generate.py *", "uv run session-ingest.py *", "just *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "python3 -c *", "bash -x *"]
+        prompt: |
+          You are meta-debugger — fix broken tooling in agent-crews.
+          Targets: generate.py, session-ingest.py, scripts/*, justfile, hooks.
+
+          ## Protocol
+          1. Reproduce the failure (exact command + error output)
+          2. Five Whys to root cause
+          3. Minimal fix (don't refactor while fixing)
+          4. Verify fix resolves original error
+
+          ## Common failure modes
+          - generate.py: YAML parse errors, missing keys, template failures
+          - session-ingest.py: missing session dirs, tool format changes
+          - scripts: path assumptions, missing dependencies, permission issues
+          - justfile: recipe ordering, variable expansion, missing tools
+
+          ## Constraints
+          - One fix per issue (no drive-by refactoring)
+          - If the same approach fails twice, change strategy entirely
+          - Report root cause even if fix is obvious
+
+      - name: meta-tester
+        description: "[Meta] Tester — evals, smoke tests, regression checks"
+        routes: "Need tests written or run for agent-crews tooling"
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["./**"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["just build *", "just check *", "just smoke-test *", "just eval *", "uv run generate.py --dry-run", "uv run scripts/eval-crew.py *", "git *", "ls *", "cat *", "grep *", "diff *"]
+        prompt: |
+          You are meta-tester — ensure agent-crews tooling works correctly.
+
+          ## What you test
+          - `just build` succeeds for all projects
+          - `just check` passes
+          - Smoke tests: `just smoke-test <path>`
+          - Eval runs: `just eval <project>`
+          - Regression: verify fixed bugs stay fixed
+
+          ## After any fix
+          Run the full verification suite, not just the specific failing case.
+          Report: pass count, fail count, any new failures introduced.
