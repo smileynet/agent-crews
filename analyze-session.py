@@ -3,17 +3,19 @@
 # requires-python = ">=3.11"
 # dependencies = []
 # ///
-"""Analyze kiro-cli session transcripts for agent team improvement.
+"""Analyze session transcripts for agent team improvement.
 
 Usage:
-    uv run analyze-session.py                          # list recent sessions
-    uv run analyze-session.py <session-id>             # analyze specific session
-    uv run analyze-session.py --project <path>         # sessions for a project dir
-    uv run analyze-session.py <session-id> --transcript  # readable transcript
-    uv run analyze-session.py <session-id> --stats     # tool/agent statistics
-    uv run analyze-session.py <session-id> --validate  # check live testing compliance
-    uv run analyze-session.py <session-id> --compliance # crew behavioral rules check
-    uv run analyze-session.py <session-id> --antipatterns # detect measurable anti-patterns
+    uv run analyze-session.py                              # list recent sessions
+    uv run analyze-session.py <session-id>                 # analyze specific session
+    uv run analyze-session.py --project <path>             # sessions for a project dir
+    uv run analyze-session.py <session-id> --transcript    # readable transcript
+    uv run analyze-session.py <session-id> --stats         # tool/agent statistics
+    uv run analyze-session.py <session-id> --validate      # check live testing compliance
+    uv run analyze-session.py <session-id> --compliance    # crew behavioral rules check
+    uv run analyze-session.py <session-id> --antipatterns  # detect measurable anti-patterns
+    uv run analyze-session.py --normalized <file.jsonl>    # analyze normalized multi-tool data
+    uv run analyze-session.py --compare <project-path>     # cross-tool performance comparison
 """
 
 import json
@@ -471,6 +473,149 @@ def check_compliance(entries):
     print(f"   Subagent calls: {signals['subagent_calls']}")
 
 
+def analyze_normalized(filepath):
+    """Analyze pre-normalized JSONL from session-ingest.py."""
+    events = []
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+    if not events:
+        sys.exit("No events found in normalized file.")
+
+    sessions = set(e["session_id"] for e in events)
+    tools = Counter(e["tool"] for e in events)
+    user_msgs = [e for e in events if e["role"] == "user"]
+    tool_calls = [e for e in events if e["role"] == "assistant" and e.get("tool_name")]
+    tool_results = [e for e in events if e["role"] == "tool_result"]
+    tokens_in = sum(e.get("tokens_in") or 0 for e in events)
+    tokens_out = sum(e.get("tokens_out") or 0 for e in events)
+    total_tokens = tokens_in + tokens_out
+
+    # Tool usage
+    tool_usage = Counter(e["tool_name"] for e in tool_calls if e.get("tool_name"))
+
+    # Failure detection
+    failures = sum(1 for e in tool_results if e.get("tool_output") and "error" in (e["tool_output"] or "").lower())
+    failure_rate = failures / len(tool_results) if tool_results else 0
+
+    # Models
+    models = Counter(e["model"] for e in events if e.get("model"))
+
+    print(f"=== NORMALIZED ANALYSIS ===")
+    print(f"")
+    print(f"Sessions: {len(sessions)}")
+    print(f"Events: {len(events)}")
+    print(f"Sources: {dict(tools)}")
+    print(f"")
+    print(f"Tokens: {total_tokens:,} (in: {tokens_in:,}, out: {tokens_out:,})")
+    print(f"Tokens/session: {total_tokens // max(len(sessions), 1):,}")
+    print(f"")
+    print(f"User messages: {len(user_msgs)}")
+    print(f"Tool calls: {len(tool_calls)}")
+    print(f"Tool results: {len(tool_results)}")
+    print(f"Failure rate: {failure_rate:.1%}")
+    print(f"")
+    print(f"Top tools:")
+    for name, count in tool_usage.most_common(10):
+        print(f"  {name:<20} {count}")
+    print(f"")
+    print(f"Models:")
+    for model, count in models.most_common(5):
+        print(f"  {model:<30} {count}")
+
+
+def compare_tools(project_path):
+    """Cross-tool comparison for a project. Runs session-ingest and compares."""
+    import subprocess
+    resolved = str(Path(project_path).expanduser().resolve())
+    project_name = Path(resolved).name
+
+    # Run session-ingest to get data
+    result = subprocess.run(
+        ["uv", "run", "session-ingest.py", "--project", resolved, "--since", "30d", "--output", "jsonl"],
+        capture_output=True, text=True, timeout=60
+    )
+    if result.returncode != 0:
+        sys.exit(f"session-ingest failed: {result.stderr}")
+
+    events = []
+    for line in result.stdout.strip().split("\n"):
+        if line:
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+
+    if not events:
+        sys.exit(f"No sessions found for {project_name}")
+
+    # Group by tool
+    by_tool = {}
+    for e in events:
+        by_tool.setdefault(e["tool"], []).append(e)
+
+    print(f"=== CROSS-TOOL COMPARISON: {project_name} (last 30 days) ===")
+    print(f"")
+    print(f"{'Tool':<14}{'Sessions':<10}{'Tokens':<12}{'Tok/Sess':<12}{'Tools':<8}{'Failures':<10}{'Top Model'}")
+    print("-" * 85)
+
+    for tool_name in ["oh-my-pi", "codex", "kiro-cli", "claude-code", "opencode"]:
+        if tool_name not in by_tool:
+            continue
+        tool_events = by_tool[tool_name]
+        sessions = set(e["session_id"] for e in tool_events)
+        tokens = sum((e.get("tokens_in") or 0) + (e.get("tokens_out") or 0) for e in tool_events)
+        tok_per_sess = tokens // max(len(sessions), 1)
+        tool_calls = sum(1 for e in tool_events if e["role"] == "assistant" and e.get("tool_name"))
+        results = [e for e in tool_events if e["role"] == "tool_result"]
+        failures = sum(1 for e in results if e.get("tool_output") and "error" in (e["tool_output"] or "").lower())
+        fail_pct = f"{failures}/{len(results)}" if results else "0/0"
+        models = Counter(e["model"] for e in tool_events if e.get("model"))
+        top_model = models.most_common(1)[0][0] if models else "-"
+        # Truncate model name
+        top_model = top_model[:20] if len(top_model) > 20 else top_model
+
+        tok_str = f"{tokens // 1000}K" if tokens > 0 else "-"
+        tps_str = f"{tok_per_sess // 1000}K" if tok_per_sess > 0 else "-"
+
+        print(f"{tool_name:<14}{len(sessions):<10}{tok_str:<12}{tps_str:<12}{tool_calls:<8}{fail_pct:<10}{top_model}")
+
+    # Intent comparison
+    print(f"")
+    print(f"Intent by tool:")
+    intent_keywords = {
+        "bugs": ["error", "bug", "fix", "broken", "failing", "crash", "debug"],
+        "features": ["add", "implement", "create", "build", "new", "feature"],
+        "refactoring": ["refactor", "rename", "move", "extract", "restructure"],
+        "testing": ["test", "spec", "coverage", "assert"],
+        "research": ["research", "investigate", "compare", "analyze", "survey"],
+    }
+    for tool_name in ["oh-my-pi", "codex", "kiro-cli", "claude-code", "opencode"]:
+        if tool_name not in by_tool:
+            continue
+        user_msgs = [e["content"] for e in by_tool[tool_name] if e["role"] == "user" and e.get("content")]
+        intents = Counter()
+        for msg in user_msgs:
+            msg_lower = msg.lower()
+            matched = False
+            for intent, kws in intent_keywords.items():
+                if any(kw in msg_lower for kw in kws):
+                    intents[intent] += 1
+                    matched = True
+                    break
+            if not matched:
+                intents["other"] += 1
+        if intents:
+            top = ", ".join(f"{k}:{v}" for k, v in intents.most_common(3))
+            print(f"  {tool_name:<14}{top}")
+
+
 def main():
     args = sys.argv[1:]
 
@@ -480,6 +625,18 @@ def main():
 
     if args[0] == "--project":
         list_sessions(project_filter=args[1] if len(args) > 1 else None)
+        return
+
+    if args[0] == "--normalized":
+        if len(args) < 2:
+            sys.exit("Usage: analyze-session.py --normalized <file.jsonl>")
+        analyze_normalized(args[1])
+        return
+
+    if args[0] == "--compare":
+        if len(args) < 2:
+            sys.exit("Usage: analyze-session.py --compare <project-path>")
+        compare_tools(args[1])
         return
 
     session_id = args[0]

@@ -1,71 +1,59 @@
 # Session Analysis
 
-Understand how your agents actually perform by analyzing session transcripts.
+Agent Crews ingests session logs from 5 AI coding tools to make data-driven crew recommendations.
 
-## Why analyze sessions
+## Supported tools
 
-Agents don't always behave the way you designed them to. Session analysis reveals:
-- **Routing failures** — dispatcher sending work to the wrong agent
-- **Scope violations** — agents doing work outside their role
-- **Protocol gaps** — agents skipping verification, not committing, ignoring rules
-- **Efficiency issues** — over-researching, excessive tool calls, repeated failures
+| Tool | Location | Data available |
+|------|----------|---------------|
+| oh-my-pi | `~/.omp/agent/sessions/` | Tokens, model, duration, TTFT |
+| Codex | `~/.codex/sessions/` | Tokens, rate limits, git context |
+| kiro-cli | `~/.kiro/sessions/cli/` | Messages, tool calls |
+| Claude Code | `~/.claude/transcripts/` | Tool calls, results |
+| opencode | `~/.local/share/opencode/opencode.db` | Tokens, model, todos |
 
-## When to analyze
+## How it works
 
-- After a session that felt off (agent was slow, wrong, or unhelpful)
-- Periodically to check crew health (weekly or after major crew changes)
-- Before tuning — understand current behavior before changing it
-- After deploying crew updates — verify improvements landed
+1. `session-ingest.py` reads sessions from all tools and normalizes to a common format
+2. Intent classification categorizes user messages (features, bugs, research, etc.)
+3. Token usage, failure rates, and tool patterns are aggregated
+4. Crew recommendations are generated based on actual work patterns
 
-## Running analysis
+## Commands
 
 ```bash
-# List recent sessions
-uv run analyze-session.py
+# Ingest sessions for a project (writes to scratch/sessions/<project>/)
+just ingest <project>
 
-# Sessions for a specific project
-uv run analyze-session.py --project ~/code/my-project
+# Quick summary (tokens, intents, recommendations)
+./scripts/session-summary.sh ~/code/<project>
 
-# Analyze a specific session
-uv run analyze-session.py <session-id> --stats
+# Cross-tool comparison
+uv run analyze-session.py --compare ~/code/<project>
 
-# Get readable transcript
-uv run analyze-session.py <session-id> --transcript
-
-# Check behavioral compliance
-uv run analyze-session.py <session-id> --compliance
-
-# Detect anti-patterns
-uv run analyze-session.py <session-id> --antipatterns
+# Before/after a crew change
+./scripts/session-diff.sh ~/code/<project> <date>
 ```
 
-## What to look for
+## What it recommends
 
-### Tool usage patterns
+| Session signal | Recommendation |
+|----------------|---------------|
+| >30% bugs/testing intent | Add bug-fix crew |
+| >30% research/docs intent | Add research crew |
+| >20% infrastructure intent | Add infrastructure crew |
+| High tokens/session (>500K) | Enable task_tracking component |
+| Failure rate >15% | Enable sanity_gate component |
 
-| Pattern | Might mean |
-|---------|-----------|
-| Many reads, few writes | Agent over-researching, not acting |
-| High shell failure rate | Wrong commands or missing permissions |
-| Zero subagent calls from lead | Lead doing all work itself |
-| Excessive subagent calls | Over-delegating trivial tasks |
-| Many web searches | Missing local context in steering |
+## Integration with crew creation
 
-### Behavioral signals
+When you run `create a crew for ~/code/<project>`, the crew-creator automatically:
+1. Scans project files (stack, build tools, structure)
+2. Analyzes session history (intents, tokens, failures)
+3. Combines both signals to pick crews and configure components
 
-| Signal | Might mean |
-|--------|-----------|
-| Agent asks user what it could research | Missing "research first" rule |
-| Reviewer writes code | Role boundary violation |
-| Builder skips tests | Verification component not loading |
-| Agent repeats completed work | Context loss between turns |
+Session data takes priority over static file analysis — what you *do* matters more than what the project *is*.
 
-## The improvement loop
+## Tuning existing crews
 
-1. **Observe** — analyze sessions, identify patterns
-2. **Diagnose** — determine root cause (missing rule, wrong scope, bad routing)
-3. **Fix** — edit crew YAML or component
-4. **Regenerate** — `just build` + `just link`
-5. **Verify** — run the same task again, or run evals
-
-Use `@tune-crew` to have agents walk you through this loop.
+Use `@tune-crew` to run the full observe → diagnose → fix → validate loop. It uses session data to identify what's working and what isn't, then measures improvement after changes.
