@@ -7,6 +7,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- crew-validator agent for post-change verification (build, changelog, structure, drift, eval coverage)
+- crew-releaser agent for release pipeline orchestration (changelog curation, version bump, tag, publish)
+- `@release` prompt for guided release workflow
+- Changelog component: `standard` variant (verifier checks for entry on user-facing changes)
+- Changelog component: `pr-review` variant (draft generation + breaking change detection)
+- Changelog-discipline skill with entry quality rules and decision tests
+- High reliability design principle (ADR-006) with operational steering
+- Auto-chain pattern: crew changes automatically trigger crew-validator
+- Deployment setup: crew-creator scaffolds release tooling when changelog component enabled
+- Generator validates changelog prerequisites for projects with component enabled
+
 ## [0.1.0] - 2026-05-15
 
 ### Added
