@@ -163,10 +163,83 @@ def build_agent(workflow_cfg: dict, archetype_cfg: dict, agent_cfg: dict) -> dic
     return agent_json
 
 
+def resolve_extends(crew: dict, crew_path: Path) -> dict:
+    """Resolve extends: field by loading base crew and applying overrides."""
+    extends = crew.get("extends")
+    if not extends:
+        return crew
+
+    # Resolve base path relative to repo root
+    root = Path(__file__).parent
+    base_path = root / extends
+    if not base_path.exists():
+        print(f"  ⚠️  extends: '{extends}' not found (from {crew_path})", file=sys.stderr)
+        return crew
+
+    with open(base_path, encoding="utf-8") as f:
+        base = yaml.safe_load(f)
+
+    # Start with base, then apply overrides
+    remove_agents = set(crew.get("remove_agents", []))
+
+    # Override scope if specified, otherwise inherit
+    if "scope" in crew:
+        base["scope"] = crew["scope"]
+
+    # Override workflow-level fields if specified
+    for key in ("tools", "allowedTools", "toolsSettings", "resources", "hooks"):
+        if key in crew:
+            base[key] = crew[key]
+
+    # Process architypes: remove agents, add new ones, replace by name
+    override_agents = {}  # name -> agent_cfg (from extending crew)
+    override_architypes = []  # new architype blocks from extending crew
+    for archetype in crew.get("architypes", []):
+        for agent_cfg in archetype.get("agents", []):
+            override_agents[agent_cfg["name"]] = (archetype.get("type", "worker"), agent_cfg)
+        # Collect architype-level config for new agents
+        override_architypes.append(archetype)
+
+    # Filter base architypes: remove agents, replace by name
+    for archetype in base.get("architypes", []):
+        archetype["agents"] = [
+            a for a in archetype.get("agents", [])
+            if a["name"] not in remove_agents and a["name"] not in override_agents
+        ]
+
+    # Add override agents (replacements and new additions) to appropriate architype
+    for agent_name, (agent_type, agent_cfg) in override_agents.items():
+        # Find matching architype in base, or create one
+        placed = False
+        for archetype in base.get("architypes", []):
+            if archetype.get("type") == agent_type:
+                archetype["agents"].append(agent_cfg)
+                placed = True
+                break
+        if not placed:
+            # Create new architype block
+            base.setdefault("architypes", []).append({
+                "type": agent_type,
+                "agents": [agent_cfg],
+            })
+
+    # Remove empty architypes
+    base["architypes"] = [a for a in base.get("architypes", []) if a.get("agents")]
+
+    # Clean up extends-specific keys from result
+    base.pop("extends", None)
+    base.pop("remove_agents", None)
+
+    return base
+
+
 def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_crews=None):
     """Parse crew.yaml and generate agent JSON files."""
     with open(crew_path, encoding="utf-8") as f:
         crew = yaml.safe_load(f)
+
+    # Resolve inheritance if extends: is specified
+    crew = resolve_extends(crew, crew_path)
 
     # Workflow-level config (everything except architypes)
     workflow_cfg = {k: v for k, v in crew.items() if k != "architypes"}
@@ -569,16 +642,26 @@ def generate_all(dry_run: bool = False):
 
             # Sync only listed crews (or all if no crews: field)
             if proj_crews:
-                # Remove base crews not in the list
+                # Remove base crews not in the list (but keep extends: files)
                 all_base = {f.stem for f in base_crews.glob("*.yaml")}
                 for existing in dest_crews.glob("*.yaml"):
                     if existing.stem in all_base and existing.stem not in proj_crews:
+                        with open(existing, encoding="utf-8") as f:
+                            data = yaml.safe_load(f)
+                        if data and data.get("extends"):
+                            continue
                         existing.unlink()
-                # Copy only listed crews
+                # Copy only listed crews (skip if local has extends:)
                 for crew_name in proj_crews:
+                    dest = dest_crews / f"{crew_name}.yaml"
+                    if dest.exists():
+                        with open(dest, encoding="utf-8") as f:
+                            local_data = yaml.safe_load(f)
+                        if local_data and local_data.get("extends"):
+                            continue
                     src = base_crews / f"{crew_name}.yaml"
                     if src.exists():
-                        shutil.copy2(src, dest_crews / src.name)
+                        shutil.copy2(src, dest)
             else:
                 for f in base_crews.glob("*.yaml"):
                     shutil.copy2(f, dest_crews / f.name)
@@ -604,8 +687,9 @@ def generate_all(dry_run: bool = False):
         agents.extend(generate(cf, base_output, dry_run, sibling_crews=base_siblings))
     print(f"  -> {len(agents)} agents")
 
-    # Generate each example
-    for crew_file in sorted(examples.glob("*/.kiro/crew.yaml")):
+    # Generate each project (projects/ and examples/)
+    all_crew_files = sorted(list(examples.glob("*/.kiro/crew.yaml")) + list((root / "examples").glob("*/.kiro/crew.yaml")))
+    for crew_file in all_crew_files:
         print(f"\nGenerating: {crew_file}")
         kiro_dir = crew_file.parent
         proj = kiro_dir.parent.name

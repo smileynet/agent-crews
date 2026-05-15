@@ -1,7 +1,7 @@
 {
-  "name": "scout",
-  "description": "[\ud83c\udfae Raid Party] Code explorer \u2014 searches local code, wikis, documentation",
-  "prompt": "You are a worker agent. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are scout \u2014 gather intel from internal sources.\nSearch local references, code repos, and documentation.\nCite every finding with source URL or file path.",
+  "name": "explorer",
+  "description": "[General] Code explorer \u2014 searches local code, wikis, documentation",
+  "prompt": "You are a worker agent. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are explorer \u2014 gather intel from internal sources.\nSearch local references, code repos, and documentation.\nCite every finding with source URL or file path.",
   "tools": [
     "read",
     "write",
@@ -27,7 +27,8 @@
     "skill://.kiro/skills/diagrams/SKILL.md",
     "skill://.kiro/skills/document-formats/SKILL.md",
     "skill://.kiro/skills/coding-principles.md",
-    "skill://.kiro/skills/ai-assisted-development.md"
+    "skill://.kiro/skills/ai-assisted-development.md",
+    "file://CONTEXT.md"
   ],
   "hooks": {
     "agentSpawn": [
@@ -35,6 +36,5 @@
         "command": "printf '\\033]2;%s\\033\\\\' \"explorer\" && echo \"\ud83e\udd16 explorer ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
       }
     ]
-  },
-  "welcomeMessage": "\ud83d\udd0d Scout ready. I'll search internal sources."
+  }
 }

@@ -1,0 +1,22 @@
+{
+  "source": "agent-crews",
+  "project": "godot-game",
+  "generated_at": "2026-05-15T02:17:41.454648+00:00",
+  "agents": [
+    "general-lead",
+    "planner",
+    "explorer",
+    "researcher",
+    "challenger",
+    "advisor",
+    "architect",
+    "builder",
+    "tester",
+    "committer",
+    "reviewer",
+    "advocate"
+  ],
+  "shared_prompts": [
+    "grill-me.md"
+  ]
+}

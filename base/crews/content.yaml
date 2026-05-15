@@ -36,6 +36,7 @@ toolsSettings:
 
 resources:
   - file://.kiro/steering/**/*.md
+  - file://CONTEXT.md
 
 skills:
   - skill://.kiro/skills/presentation-writing/SKILL.md

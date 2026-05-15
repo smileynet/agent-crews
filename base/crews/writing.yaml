@@ -45,6 +45,7 @@ toolsSettings:
 
 resources:
   - file://.kiro/steering/**/*.md
+  - file://CONTEXT.md
 
 skills:
   - skill://.kiro/skills/diataxis-classification/SKILL.md

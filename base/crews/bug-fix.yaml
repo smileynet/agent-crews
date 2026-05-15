@@ -33,6 +33,7 @@ toolsSettings:
 resources:
   - file://.kiro/steering/**/*.md
   - skill://.kiro/skills/task-lifecycle.md
+  - file://CONTEXT.md
 
 hooks:
   agentSpawn:

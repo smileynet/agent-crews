@@ -13,12 +13,22 @@ link project:
     #!/usr/bin/env bash
     set -e
     TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['deployments']['{{project}}'])")
+    TARGET="${TARGET/#\~/$HOME}"
     if [ -z "$TARGET" ]; then echo "Project {{project}} not in fleet.local.yaml"; exit 1; fi
+    # Preserve memory if it exists
+    if [ -d "$TARGET/.kiro/memory" ]; then
+      cp -r "$TARGET/.kiro/memory" /tmp/.kiro-memory-{{project}}
+    fi
     rm -rf "$TARGET/.kiro"
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
       cmd //c mklink //d "$(cygpath -w "$TARGET/.kiro")" "$(cygpath -w "$(pwd)/projects/{{project}}/.kiro")"
     else
       ln -sf "$(pwd)/projects/{{project}}/.kiro" "$TARGET/.kiro"
+    fi
+    # Restore memory
+    if [ -d /tmp/.kiro-memory-{{project}} ]; then
+      mv /tmp/.kiro-memory-{{project}} "$TARGET/.kiro/memory"
+      echo "  ✔ memory preserved"
     fi
     echo "Linked: projects/{{project}}/.kiro → $TARGET/.kiro"
 

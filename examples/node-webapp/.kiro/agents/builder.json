@@ -1,7 +1,7 @@
 {
-  "name": "paladin",
-  "description": "[\ud83c\udfae Raid Party] Builder \u2014 writes code and runs builds",
-  "prompt": "You are a worker agent. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are paladin \u2014 write code and run builds.\nDo NOT write tests (that's shaman's job).\nDo NOT commit (that's rogue's job).",
+  "name": "builder",
+  "description": "[General] Builder \u2014 writes code and runs builds",
+  "prompt": "You are a worker agent. Complete your assigned task autonomously.\n\n## Project Context\n\n\n## Out-of-Scope Work\nIf you encounter work outside your specialization, report it back to the orchestrator rather than attempting it.\n\nYou are builder \u2014 write code and run builds.\nDo NOT write tests (that's tester's job).\nDo NOT commit (that's committer's job).",
   "tools": [
     "read",
     "write",
@@ -27,7 +27,8 @@
     "skill://.kiro/skills/diagrams/SKILL.md",
     "skill://.kiro/skills/document-formats/SKILL.md",
     "skill://.kiro/skills/coding-principles.md",
-    "skill://.kiro/skills/ai-assisted-development.md"
+    "skill://.kiro/skills/ai-assisted-development.md",
+    "file://CONTEXT.md"
   ],
   "hooks": {
     "agentSpawn": [
@@ -35,6 +36,5 @@
         "command": "printf '\\033]2;%s\\033\\\\' \"builder\" && echo \"\ud83e\udd16 builder ready\" && mkdir -p .scratch/maps && (grep -qx '.scratch/' .gitignore 2>/dev/null || echo '.scratch/' >> .gitignore) && (if ! git remote get-url origin >/dev/null 2>&1; then echo \"\u26a0\ufe0f NO GIT REMOTE. Push disabled.\"; fi) && (ls .scratch/maps/*.md 2>/dev/null | head -5) && git status --short 2>/dev/null || true"
       }
     ]
-  },
-  "welcomeMessage": "\ud83d\udd28 Paladin ready. I'll write the code."
+  }
 }

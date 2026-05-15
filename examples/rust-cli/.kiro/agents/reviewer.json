@@ -28,8 +28,8 @@
     "skill://.kiro/skills/document-formats/SKILL.md",
     "skill://.kiro/skills/coding-principles.md",
     "skill://.kiro/skills/ai-assisted-development.md",
-    "skill://.kiro/skills/code-review.md",
-    "skill://.kiro/skills/antipatterns.md"
+    "file://CONTEXT.md",
+    "skill://.kiro/skills/code-review.md"
   ],
   "hooks": {
     "agentSpawn": [
