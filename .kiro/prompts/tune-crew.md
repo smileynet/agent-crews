@@ -1,63 +1,62 @@
 ---
-description: "Analyze recent sessions, identify crew issues, and apply fixes — the full tuning loop"
+description: "Full tuning loop: analyze multi-tool sessions, identify crew issues, apply fixes, validate"
 ---
 
 # Tune Crew
 
-Run the observe → diagnose → fix → validate loop for a deployed crew.
+Observe → diagnose → fix → validate loop for a deployed crew.
 
 ## Steps
 
-1. **Analyze recent sessions** (2-3 most recent for the target project)
+1. **Gather multi-tool session data**
    ```bash
-   uv run analyze-session.py --project <name>
-   uv run analyze-session.py <session-id> --stats
+   ./scripts/session-summary.sh <project-path>
+   uv run analyze-session.py --compare <project-path>
    ```
-   Look for:
-   - Agent utilization (are orchestrators being used as general-purpose?)
-   - Cross-crew delegation (orchestrators spawning wrong crew's agents)
-   - Tool usage patterns (shell-heavy? missing tools?)
-   - Cheatsheet invocations (routing confusion signal)
-   - Secrets pasted in prompts
+   This gives you: tokens/session, failure rate, intent distribution, tool usage across ALL AI tools (oh-my-pi, codex, kiro-cli, claude-code, opencode).
 
-2. **Check structural invariants**
+2. **Check crew health**
    ```bash
-   python3 -c "..." # (see crew-structural-rules skill)
+   ./scripts/crew-health.sh <project-name>
    ```
+   Surfaces: dead agents, scope overlaps, missing routing, tool permission issues.
 
-3. **Check steering budget**
-   ```bash
-   wc -l base/steering/*.md | sort -rn
-   ```
-   Total should be < 250 lines.
+3. **Identify issues** — classify by type:
 
-4. **Identify fixes** — classify each issue:
-   - Scope violation → add redirect guidance to orchestrator prompt
-   - Tool misuse → fix archetype tool list in crew YAML
-   - Context waste → move content from steering to skill
-   - Missing routing → update crew-routing.md steering
-   - Behavioral gap → add/update steering file
+   | Signal | Issue | Fix |
+   |--------|-------|-----|
+   | High tokens/session (>500K) | Context waste | Move content from steering to skill, tighten prompts |
+   | Failure rate >15% | Tool misconfiguration | Fix allowedCommands, add missing tools |
+   | Orchestrator in top tool users | Role bleed | Strengthen "DO NOT implement" boundary |
+   | Intent mismatch (session vs crew) | Wrong crews deployed | Add/remove crews per decision matrix |
+   | Dead agents in health check | Routing gaps | Fix availableAgents in crew YAML |
+   | Same file read 3+ times | Context loss | Add to agent resources |
 
-5. **Apply fixes** — edit crew YAML, steering, or skills
+4. **Apply fixes** — edit crew YAML, steering, or fleet.yaml
 
-6. **Validate**
+5. **Validate**
    ```bash
    just build
-   just smoke-test <target-path>  # behavioral signal check
+   ./scripts/crew-health.sh <project-name>
    ```
 
-7. **Deploy**
+6. **Measure improvement**
    ```bash
-   just deploy <project> <target-path>
+   ./scripts/session-diff.sh <project-path> <date-of-change>
    ```
+   Confirms: tokens down, failures down, delegation up.
 
-## What to look for in sessions
+## Key Metrics (what to optimize)
 
-| Signal | Indicates | Fix |
-|--------|-----------|-----|
-| 18/20 sessions use `default` | Users don't know which agent to pick | Improve routing steering |
-| Orchestrator spawns wrong crew | Missing availableAgents scoping | Fix crew YAML + regenerate |
-| Cheatsheet invoked 3x | Routing confusion | Add crew-routing.md steering |
-| Secret pasted in prompt | No secret handling | Add to session-completion steering |
-| Worker spawns subagent | Tool list leak | Remove subagent from global tools |
-| Orchestrator runs shell | Tool list too broad | Restrict orchestrator archetype tools |
+| Metric | Target | How to measure |
+|--------|--------|----------------|
+| Tokens/session | <500K | session-summary.sh |
+| Failure rate | <10% | session-summary.sh |
+| Delegation ratio | >80% subagent calls from leads | analyze-session.py --stats |
+| Intent coverage | All top intents have matching crew | session-summary.sh vs fleet.yaml |
+
+## When NOT to tune
+
+- <5 sessions available (insufficient signal)
+- All metrics already healthy (tokens <500K, failures <10%)
+- Recent crew change (<3 sessions since last change)

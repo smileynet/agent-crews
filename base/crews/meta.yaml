@@ -165,7 +165,7 @@ architypes:
           shell:
             autoApprove: true
             autoAllowReadonly: true
-            allowedCommands: ["git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *", "rm *"]
+            allowedCommands: ["git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *", "rm *", "./scripts/project-scan.sh *", "./scripts/session-summary.sh *", "uv run session-ingest.py *"]
           crew:
             availableAgents: [kiro-helper]
             trustedAgents: [kiro-helper]
@@ -184,52 +184,43 @@ architypes:
 
           ## Workflow
 
-          ### 1. Read the Target Project
-          - Read README.md, package.json/Cargo.toml/pyproject.toml, directory structure
-          - Identify: language, framework, build tool, test runner, deploy target
-          - Note existing .kiro/ content (if any)
+          ### 1. Scan Project + Sessions
+          Run BOTH scripts (they're fast, <2s each):
+          ```
+          ./scripts/project-scan.sh <path>
+          ./scripts/session-summary.sh <path>
+          ```
+          These replace all manual file reading. They output: stack, build commands, structure, existing agents, session intent distribution, token usage, and crew recommendations.
 
-          ### 2. Detect Patterns
-          - What kind of work happens here? (web app, CLI, library, infra, game)
-          - What workflows exist? (PR flow, deploy pipeline, test suite)
-          - What would agents help with? (code review, testing, docs, deploy)
+          ### 2. Select Crews
+          Use the `recommendation` section from project-scan AND session-summary:
+          - general is ALWAYS included (mandatory)
+          - Add specialized crews only when signals exist (intent distribution, file patterns)
+          - Session intent > static file signals (what user DOES > what project IS)
+          - Start minimal: 2-3 crews max
 
-          ### 3. Select Base Crews
-          - Browse base/crews/ for relevant themed crews
-          - general.yaml is ALWAYS included (mandatory for all projects)
-          - Pick 2-4 themed crews that match the project's needs
-          - Adapt agent prompts to the specific stack
+          ### 3. Create Configuration
+          - Add entry to fleet.yaml with crews and verification commands (from scan output)
+          - Create projects/<project>/.kiro/crew.yaml
 
-          ### 4. Create Crew Configuration
-          - Create projects/<project>/.kiro/crew.yaml (or fleet.yaml for multi-crew)
-          - Reference base crews and add project-specific overrides
-          - Set appropriate tool permissions per agent
-
-          ### 5. Generate and Deploy
+          ### 4. Generate and Deploy
           - Run: just build
-          - Verify generated .kiro/agents/*.json are valid
-          - Verify generated .kiro/prompts/ files exist
+          - Verify: ls projects/<project>/.kiro/agents/
           - Run: just link <project>
 
-          ## Deploy Hygiene Checklist
-          - [ ] Every agent has a clear, non-overlapping scope
-          - [ ] Tool permissions are minimal (least privilege)
-          - [ ] Shell commands are explicitly allowlisted
-          - [ ] Write paths are scoped (no global write)
-          - [ ] general.yaml crew is included
-          - [ ] Welcome messages are actionable (show example commands)
-          - [ ] No personal project names in generated output
+          ## Decision Matrix (session signals → crews)
 
-          ## Token Efficiency Defaults
-          - Prompts under 800 tokens where possible
-          - No redundant context (use resources for shared info)
-          - Routing tables over prose for decision logic
-          - Examples over explanations for format
+          | Session Signal | Action |
+          |----------------|--------|
+          | >30% bugs/testing intent | Add bug-fix crew |
+          | >30% research/docs intent | Add research crew |
+          | >20% infrastructure intent | Add infrastructure crew |
+          | High tokens/session (>500K) | Enable task_tracking component |
+          | Failure rate >15% | Enable sanity_gate component |
+          | No session data | Fall back to static file signals only |
 
           ## Key Paths
           - Base crews: base/crews/
-          - Shared skills: shared/skills/
-          - Shared steering: shared/steering/
           - Project output: projects/<project>/.kiro/
           - Generator: just build
 
@@ -345,7 +336,7 @@ architypes:
           shell:
             autoApprove: true
             autoAllowReadonly: true
-            allowedCommands: ["uv run analyze-session.py *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *"]
+            allowedCommands: ["uv run analyze-session.py *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "just *", "python3 generate.py *", "uv run generate.py *", "mkdir *", "cp *", "./scripts/crew-health.sh *", "./scripts/project-scan.sh *"]
           crew:
             availableAgents: [kiro-helper]
             trustedAgents: [kiro-helper]
@@ -436,7 +427,7 @@ architypes:
           shell:
             autoApprove: true
             autoAllowReadonly: true
-            allowedCommands: ["uv run analyze-session.py *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "wc *", "jq *", "sort *", "uniq *"]
+            allowedCommands: ["uv run analyze-session.py *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "wc *", "jq *", "sort *", "uniq *", "./scripts/session-summary.sh *", "./scripts/session-diff.sh *", "./scripts/crew-health.sh *", "uv run session-ingest.py *"]
         prompt: |
           You are crew-analyst — you analyze Kiro sessions to find performance issues and recommend crew improvements.
 

@@ -97,6 +97,13 @@ See [Themed Crews Guide](docs/themed-crews-guide.md) for available themes and ma
 | Integration test | `just integration-test <target-path>` |
 | List sessions | `uv run analyze-session.py --project <name>` |
 | Analyze session | `uv run analyze-session.py <id> --stats` |
+| Ingest sessions (all tools) | `just ingest <project>` |
+| Ingest all projects | `just ingest-all` |
+| Project scan | `./scripts/project-scan.sh <path>` |
+| Session summary | `./scripts/session-summary.sh <path>` |
+| Crew health check | `./scripts/crew-health.sh <project>` |
+| Cross-tool comparison | `uv run analyze-session.py --compare <path>` |
+| Session diff (before/after) | `./scripts/session-diff.sh <path> <date>` |
 
 ## Post-Change Rule
 After ANY modification to crew.yaml or crews/*.yaml, ALWAYS run `just build` before considering the task complete. Generation is not optional — it's part of the change.

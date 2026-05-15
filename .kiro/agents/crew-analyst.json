@@ -39,7 +39,11 @@
         "wc *",
         "jq *",
         "sort *",
-        "uniq *"
+        "uniq *",
+        "./scripts/session-summary.sh *",
+        "./scripts/session-diff.sh *",
+        "./scripts/crew-health.sh *",
+        "uv run session-ingest.py *"
       ]
     }
   },

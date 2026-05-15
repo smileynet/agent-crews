@@ -39,6 +39,14 @@ Once deployed, use `@crew-sheet` in your project for a quick reference of availa
 
 Commit the deployed `.kiro/` directory to your project repo. The generated files are self-contained — no dependency on agent-crews at runtime. Skip this if you prefer to regenerate on demand.
 
+## Session-informed recommendations
+
+Agent Crews analyzes your session history across tools — oh-my-pi, Codex, kiro-cli, Claude Code, and opencode — to recommend the right crew for each project. Instead of guessing from file structure alone, it looks at what you actually do: which tasks you run, what fails, how many tokens you burn.
+
+The result: crews tailored to your real workflow, not just your tech stack.
+
+See [Session Analysis](docs/session-analysis.md) for details.
+
 ## How it works
 
 You define crews and configure behavior. The generator assembles everything into agents you can deploy anywhere — update once here, refresh crews across all your projects.

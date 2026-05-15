@@ -1,97 +1,65 @@
 ---
 name: create-crew
-description: Guide users through creating and deploying an agent crew to a new project. Ask relevant questions, help them make good choices about crews and configuration.
+description: Guide for creating and deploying an agent crew to a new project. Uses helper scripts to minimize manual analysis.
 ---
 
-# Create Crew — Advisory Guide
+# Create Crew
 
-## When a user wants to create a crew
+## Step 1: Scan project + sessions
 
-Ask:
-- What's the project path? (need to scan it)
-- What kind of work do you primarily do in this project? (features, bugs, infra, research, writing)
-- What's the build/test/lint setup? (or let me scan for it)
-- Any commands that should be off-limits? (deploy, destroy, start servers)
-
-## Step 1: Scan the project
-
-Read to understand:
+Run both in sequence:
 ```bash
-find <path> -maxdepth 3 -type f | grep -v .git | grep -v node_modules | sort
-cat <path>/README.md
-cat <path>/AGENTS.md 2>/dev/null
+./scripts/project-scan.sh <project-path>
+./scripts/session-summary.sh <project-path>
 ```
 
-Look for build system:
-- `.mise.toml`, `justfile`, `Makefile`, `package.json`, `pyproject.toml`, `Cargo.toml`, `cdk.json`
+These give you everything: stack, build commands, existing agents, session history, intent distribution, token usage, and crew recommendations.
 
-Check for existing agents:
-```bash
-find <path>/.kiro -type f 2>/dev/null
-```
+## Step 2: Choose crews
 
-## Step 2: Help choose crews
+Use signals from both scripts:
 
-Key considerations to surface:
-- General is ALWAYS included — it's the baseline
-- Only add specialized crews if the work genuinely benefits from domain-specific protocols
-- More crews = more agents = more context for the user to manage
-- Start minimal, add crews later if needed
+| Signal | Crew to add |
+|--------|-------------|
+| `primary_intent: bugs` or `testing` | bug-fix |
+| `primary_intent: infrastructure` | infrastructure |
+| `primary_intent: research` or `documentation` | research |
+| Heavy test suite (>10 test files) | bug-fix |
+| Terraform/CDK/Docker files | infrastructure |
+| High token usage + long sessions | consider task_tracking component |
+| High failure rate (>15%) | add sanity_gate component |
 
-| If they say... | Suggest |
-|---------------|---------|
-| "Mostly features and fixes" | Just general |
-| "Lots of bug hunting" | general + bug-fix |
-| "Heavy infrastructure work" | general + infrastructure |
-| "Research-heavy, lots of docs" | general + research |
-| "Brand new to this codebase" | general + onboarding (temporary) |
-| "Maintenance mode" | general + hygiene |
+General is ALWAYS included. Start minimal — add crews later if needed.
 
-## Step 3: Configure components
+## Step 3: Configure
 
-Ask:
-- What are your build/test/lint commands?
-- Do you want notifications? (toast, slack, discord)
-- Git workflow: commit-and-push (solo) or PR-based (team)?
-- Any theme preference? (or null for standard names)
-
-## Step 4: Add to fleet.yaml
-
+Build commands come from project-scan output. Add to fleet.yaml:
 ```yaml
 projects:
-  <project-name>:
-    crews: [general]          # add specialized as needed
+  <name>:
+    crews: [general, ...]  # from recommendation
     theme: null
     components:
       verification:
         checks:
-          build: "<build cmd>"
-          test: "<test cmd>"
-          lint: "<lint cmd>"
-      git:
-        variant: checkpoint   # or pr-based
+          build: "<from scan>"
+          test: "<from scan>"
+          lint: "<from scan>"
 ```
 
-## Step 5: Generate and deploy
+## Step 4: Generate and deploy
 
 ```bash
 just build
 just link <project-name>
 ```
 
-Verify agents appear:
-```bash
-ls <path>/.kiro/agents/
-```
+Verify: `ls projects/<name>/.kiro/agents/`
 
-## After deployment
+## Rules
 
-Surface: "Commit `.kiro/` so contributors get working agents without cloning agent-crews."
-
-## Common mistakes to prevent
-
-- Don't omit general crew (mandatory baseline)
-- Don't add every specialized crew "just in case" (start minimal)
-- Don't forget to set build/test/lint commands (agents need these for verification)
-- Don't set dangerous commands as allowed (deploy, destroy, rm -rf)
-- Don't forget `just build` after fleet.yaml changes
+- Never omit general crew
+- Don't add crews without signal (static files OR session history)
+- Always set build/test/lint from scan output
+- Run `just build` after any fleet.yaml change
+- If session data shows high token/session, enable task_tracking component
