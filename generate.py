@@ -29,7 +29,9 @@ except ImportError:
 
 def get_architypes(crew: dict) -> list:
     """Get architypes list, supporting both 'architypes' and 'archetypes' spellings."""
-    return crew.get("architypes") or crew.get("archetypes") or []
+    a = crew.get("architypes") or []
+    b = crew.get("archetypes") or []
+    return a + [x for x in b if x not in a] if a and b else a or b
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -222,8 +224,9 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
                 placed = True
                 break
         if not placed:
-            # Create new architype block
-            base.setdefault("architypes", []).append({
+            # Create new architype block — use whichever key the base already has
+            key = "architypes" if "architypes" in base else "archetypes" if "archetypes" in base else "architypes"
+            base.setdefault(key, []).append({
                 "type": agent_type,
                 "agents": [agent_cfg],
             })
@@ -1872,6 +1875,16 @@ def main():
 
     crew_path = Path(args[0]) if args else Path(".kiro/crew.yaml")
     if not crew_path.exists():
+        # Fallback: try resolving as a .crews/ project
+        if not args and Path(".crews/crew.yaml").exists():
+            try:
+                proj_dir = resolve_project(".")
+                # Re-enter main logic via the project path
+                sys.argv = [sys.argv[0], "."] + (["--dry-run"] if dry_run else [])
+                main()
+                return
+            except SystemExit:
+                pass
         sys.exit(f"Not found: {crew_path}")
 
     # Output dir is always agents/ next to the crew.yaml (or its parent .kiro/)
