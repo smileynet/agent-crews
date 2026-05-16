@@ -162,6 +162,7 @@ architypes:
           - Cite the doc/source that confirms your fix is the intended approach
 
       - name: verifier
+        shared: true
         description: "[Bug Fix] Verifier — runs test suite, checks for regressions"
         routes: "Fix applied, need verification that tests pass"
         resources:

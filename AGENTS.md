@@ -118,20 +118,27 @@ Every project deployment MUST include a `@crew-sheet` prompt:
 
 ## Agents (for this repo)
 
-| Agent | Shortcut | Purpose |
-|-------|----------|---------|
-| dispatcher | `ctrl+shift+d` | Orchestrator — routes to the correct agent based on intent |
-| crew-researcher | `/agent crew-researcher` | Deep investigation — patterns, prior art, best practices |
-| crew-creator | `ctrl+shift+c` | Build a crew for a new project |
-| crew-doctor | `ctrl+shift+f` | Diagnose and fix crew issues |
-| crew-augmenter | `/agent crew-augmenter` | Research + add new agents/features to existing crews |
-| kiro-helper | (subagent) | Kiro CLI schema lookups — delegated to by other agents |
-| crew-analyst | `/agent crew-analyst` | Analyze sessions, find protocol gaps, recommend crew improvements |
-| project-hygiene | `/agent project-hygiene` | Data separation, doc accuracy, sanitization auditing |
-| crew-validator | `/agent crew-validator` | Validate changes — build, changelog, structure, drift, eval coverage |
-| crew-releaser | `/agent crew-releaser` | Release pipeline — changelog curation, version bump, tag, publish |
+The dispatcher (`ctrl+shift+d`) is the entry point. It plans work, routes to crew leads, and self-executes simple commands. See `@crew-sheet` for the full roster.
 
-The `dispatcher` is the default entry point. It delegates to the specialist agents. Start with `/agent dispatcher` if unsure which agent to use.
+```
+Dispatcher (ctrl+shift+d) — plans, routes, self-executes atomic tasks
+├── build-lead → crew-researcher, crew-creator, crew-augmenter
+├── ops-lead → crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser
+├── bugfix-lead → meta-debugger, meta-tester
+└── Shared utilities: verifier, editor, kiro-helper (available to all leads)
+```
+
+| Agent | Role |
+|-------|------|
+| dispatcher | Plans work, routes to leads, self-executes simple tasks |
+| build-lead | Coordinates crew creation and modification |
+| ops-lead | Coordinates analysis, diagnosis, validation, releases |
+| bugfix-lead | Coordinates debugging of agent-crews tooling |
+| verifier | Independent verification before marking DONE |
+| editor | Prose review, style enforcement |
+| kiro-helper | CLI troubleshooting, MCP config |
+
+Best practice: work on crews from this repo (centralized improvements). Use the dispatcher — it knows which lead to route to.
 
 ## Prompts
 

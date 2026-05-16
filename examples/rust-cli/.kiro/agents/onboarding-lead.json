@@ -32,14 +32,18 @@
         "analyst",
         "auditor",
         "restorer",
-        "guide-writer"
+        "guide-writer",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "mapper",
         "analyst",
         "auditor",
         "restorer",
-        "guide-writer"
+        "guide-writer",
+        "verifier",
+        "editor"
       ]
     }
   }

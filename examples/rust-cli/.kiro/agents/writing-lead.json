@@ -32,14 +32,18 @@
         "doc-architect",
         "doc-writer",
         "tutorial-author",
-        "doc-verifier"
+        "doc-verifier",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "doc-auditor",
         "doc-architect",
         "doc-writer",
         "tutorial-author",
-        "doc-verifier"
+        "doc-verifier",
+        "verifier",
+        "editor"
       ]
     }
   }

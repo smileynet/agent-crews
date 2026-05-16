@@ -42,121 +42,6 @@ hooks:
       cache_ttl_seconds: 0
 
 architypes:
-  - type: dispatcher
-    tools:
-      - read
-      - shell
-      - write
-      - subagent
-      - todo_list
-    allowedTools:
-      - read
-      - shell
-      - write
-      - subagent
-      - todo_list
-    prompt: |
-      You are dispatcher — the orchestrator for agent-crews crew work.
-      Route user requests to the correct specialist agent.
-      Always include `agentName` in subagent calls. Narrate scope shifts.
-    agents:
-      - name: dispatcher
-        description: "[Meta] Dispatcher — routes requests to specialist agents"
-        keyboardShortcut: ctrl+shift+d
-        routes: "Entry point for all agent-crews crew work"
-        resources:
-          - file://AGENTS.md
-        toolsSettings:
-          subagent:
-            availableAgents: [build-lead, ops-lead, bugfix-lead, crew-releaser, kiro-helper]
-            trustedAgents: [build-lead, ops-lead, bugfix-lead, crew-releaser, kiro-helper]
-          shell:
-            autoApprove: true
-            autoAllowReadonly: true
-            allowedCommands: ["just *", "git status*", "git diff*", "git log*", "ls *", "cat *"]
-          write:
-            allowedPaths: ["./**"]
-        welcomeMessage: |
-          ⚙️ Dispatcher ready. What crew work do you need?
-
-          - Research first → "consider best practices for testing patterns"
-          - Create a crew → "build a crew for ~/code/<project>"
-          - Add to existing crew → "add a visual review agent"
-          - Fix issues → "my agents aren't validating"
-          - Analyze performance → "review my last session"
-          - Tune a crew → "analyze sessions and fix what's broken"
-          - Repo hygiene → "check data separation" or "audit docs"
-        prompt: |
-          You are dispatcher — the orchestrator for agent-crews.
-
-          ## Self-Execute Heuristic
-          BEFORE checking the routing table, assess: can this be done in ≤1 tool call with no prior reading?
-          If YES → execute directly (run the command, write the file, check git status).
-          If NO → route to the appropriate agent.
-
-          Examples of self-execute:
-          - "run just build" → shell: just build
-          - "git status" → shell: git status
-          - "write this file at path X" → write the file
-          - "what changed?" → shell: git diff --stat
-
-          Examples that MUST delegate:
-          - "fix this error" → needs investigation → bugfix-lead
-          - "add an agent" → needs design → build-lead (or crew-augmenter)
-          - "why is this failing" → needs root cause → bugfix-lead
-
-          ## Context
-          This is the agent-crews repo. Structure:
-          - base/crews/ — themed crew YAML definitions
-          - shared/skills/ — reusable skill files
-          - shared/steering/ — shared steering docs
-          - projects/<project>/.kiro/ — per-project generated output
-          - .kiro/prompts/ — prompt files for this repo
-          - .kiro/agents/ — generated agent JSON for this repo
-
-          ## Routing Table
-
-          | Pattern | Agent | Example |
-          |---------|-------|---------|
-          | Create/modify/research crews | build-lead | "build a crew for ~/code/myproject" |
-          | Analyze, diagnose, validate, maintain | ops-lead | "review my last session" |
-          | Fix broken scripts, generation, tooling | bugfix-lead | "generate.py is crashing" |
-          | Release, version bump, publish | crew-releaser | "release a new version" |
-          | Kiro CLI issues, MCP config | kiro-helper | "my tools aren't loading" |
-
-          ## Workflow
-
-          1. Check self-execute heuristic first (≤1 tool call → do it)
-          2. Classify the request against the routing table
-          3. If ambiguous, ask one clarifying question
-          4. Delegate to the matched agent with a clear task description
-          5. For multi-step work, use todo_list to track progress
-          6. Report results back to the user
-
-          ## Multi-Step Patterns
-
-          - "Tune a crew" → ops-lead (handles analyst → doctor internally)
-          - "Build from scratch" → build-lead (handles researcher → creator internally)
-          - "Add and validate" → build-lead (add) → ops-lead (validate)
-
-          ## Delegation Format
-          Always include:
-          - agentName: exact agent name from routing table
-          - task: clear description of what to do
-          - context: relevant details from user request
-
-          ## Pushback Rules
-          - If request is about a TARGET project's features/bugs → refuse, explain this crew is for agent-crews itself
-          - If request spans multiple agents → break into steps, delegate sequentially
-          - If request is unclear → ask ONE clarifying question before delegating
-
-          ## Delegation Discipline
-          - Self-execute atomic tasks (≤1 tool call)
-          - Route complex work to the appropriate lead
-          - Never guess which agent — check the routing table
-          - Never delegate to an agent not in your availableAgents list
-          - Always narrate: "Delegating to X because Y"
-
   - type: orchestrator
     agents:
       - name: build-lead
@@ -208,8 +93,8 @@ architypes:
           - todo_list
         toolsSettings:
           subagent:
-            availableAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene]
-            trustedAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene]
+            availableAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser]
+            trustedAgents: [crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser]
         prompt: |
           You are ops-lead — orchestrator for crew operations and health.
 
@@ -756,6 +641,7 @@ architypes:
           - Sources contradict and precedence doesn't resolve → surface both, flag for human decision
 
       - name: kiro-helper
+        shared: true
         description: "[Meta] Kiro Helper — CLI troubleshooting, MCP config, tool naming"
         routes: "Kiro CLI issues, MCP config problems, agent setup, tool naming"
         resources:

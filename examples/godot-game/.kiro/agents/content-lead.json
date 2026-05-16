@@ -32,14 +32,18 @@
         "content-researcher",
         "tutorial-writer",
         "content-reviewer",
-        "publisher"
+        "publisher",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "narrative-writer",
         "content-researcher",
         "tutorial-writer",
         "content-reviewer",
-        "publisher"
+        "publisher",
+        "verifier",
+        "editor"
       ]
     }
   }

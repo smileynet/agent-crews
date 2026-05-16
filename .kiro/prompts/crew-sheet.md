@@ -6,7 +6,6 @@ All available agents and crews for this project.
 
 | Agent | Role | Command |
 |-------|------|---------|
-| dispatcher | Dispatcher — routes requests to specialist agents | `/agent dispatcher` or `ctrl+shift+d` |
 | build-lead | Build crew lead — plans and delegates crew creation/modification | `/agent build-lead` |
 | ops-lead | Ops crew lead — plans and delegates analysis, diagnosis, validation | `/agent ops-lead` |
 | crew-creator | Crew Creator — creates agent teams for new projects | `/agent crew-creator` |

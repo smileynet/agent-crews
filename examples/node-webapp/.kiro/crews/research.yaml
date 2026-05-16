@@ -140,6 +140,7 @@ architypes:
           Flag anything you cannot verify.
 
       - name: editor
+        shared: true
         description: "[Research] Editor — formatting, cross-references, consistency"
         routes: "Document verified, need formatting and polish"
         prompt: |

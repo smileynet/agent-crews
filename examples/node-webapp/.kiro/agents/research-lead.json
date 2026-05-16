@@ -31,7 +31,8 @@
         "external-researcher",
         "writer",
         "fact-checker",
-        "editor"
+        "editor",
+        "verifier"
       ],
       "trustedAgents": [
         "outliner",
@@ -39,7 +40,8 @@
         "external-researcher",
         "writer",
         "fact-checker",
-        "editor"
+        "editor",
+        "verifier"
       ]
     }
   }

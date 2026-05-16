@@ -32,14 +32,18 @@
         "deps-checker",
         "structure-checker",
         "link-checker",
-        "fix-verifier"
+        "fix-verifier",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "doc-checker",
         "deps-checker",
         "structure-checker",
         "link-checker",
-        "fix-verifier"
+        "fix-verifier",
+        "verifier",
+        "editor"
       ]
     }
   }

@@ -806,9 +806,20 @@ def generate_all(dry_run: bool = False):
             prompts_dir.mkdir(parents=True, exist_ok=True)
             (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
 
+        # Synthesize dispatcher + shared agents + components
+        if not dry_run:
+            crew_sources = sorted(crews_dir.glob("*.yaml")) if full_mode else [crew_file]
+            shared_names = collect_shared_agents(crew_sources)
+            synthesize_dispatcher(crew_sources, shared_names, kiro_dir, dry_run=dry_run)
+
         # Generate component steering + subagents if fleet.yaml has this project
         if fleet and proj in fleet.get("projects", {}):
             generate_components_for_project(proj, kiro_dir, fleet, dry_run)
+
+        # Inject shared agents into all orchestrators (including dispatcher)
+        if not dry_run:
+            if shared_names:
+                inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
         # Write provenance marker
         if not dry_run:
@@ -867,9 +878,20 @@ def generate_all(dry_run: bool = False):
                 prompts_dir.mkdir(parents=True, exist_ok=True)
                 (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
 
-            # Generate components
+            # Synthesize dispatcher + shared agents + components
+            if not dry_run:
+                shared_names = collect_shared_agents(proj_crew_files)
+                dispatcher_cfg = proj_cfg.get("dispatcher", {})
+                synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
+
+            # Generate components (after dispatcher so injection covers it)
             if fleet and proj_name in fleet.get("projects", {}):
                 generate_components_for_project(proj_name, kiro_dir, fleet, dry_run)
+
+            # Inject shared agents into all orchestrators (including dispatcher)
+            if not dry_run:
+                if shared_names:
+                    inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
     # --- NEW: Generate from fleet.local.yaml projects with .crews/ ---
     fleet_local = load_fleet_local()
@@ -927,11 +949,20 @@ def generate_all(dry_run: bool = False):
         generate_vocabulary(kiro_dir, dry_run)
         sync_prompts_to_project(kiro_dir, root)
         generate_project_md_skeleton(kiro_dir)
-        # Components
+        # Synthesize dispatcher
+        if not dry_run:
+            shared_names = collect_shared_agents(proj_crew_files)
+            dispatcher_cfg = crew_cfg.get("dispatcher", {})
+            synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
+        # Components (after dispatcher so injection covers it)
         if fleet:
             # Build a synthetic fleet entry from .crews/crew.yaml
             synthetic_fleet = {'projects': {proj_name: crew_cfg}, 'defaults': fleet.get('defaults', {})}
             generate_components_for_project(proj_name, kiro_dir, synthetic_fleet, dry_run)
+        # Inject shared agents into all orchestrators (including dispatcher)
+        if not dry_run:
+            if shared_names:
+                inject_subagents_into_orchestrators(shared_names, kiro_dir)
         # Clean up: remove .kiro/crews/ (was only needed for generation)
         if not dry_run:
             crews_cleanup = kiro_dir / 'crews'
@@ -1322,6 +1353,8 @@ def generate_subagents(components: list[dict], kiro_dir: Path, dry_run: bool = F
             # Subagents intentionally get NO steering resources (fresh context)
 
             out_path = agents_dir / f"{sub['name']}.json"
+            if out_path.exists():
+                continue  # crew-defined version wins (richer)
             if not dry_run:
                 with open(out_path, "w", encoding="utf-8") as f:
                     json.dump(agent_json, f, indent=2)
@@ -1386,6 +1419,21 @@ def write_scripts_steering(deployed_scripts: list[dict], kiro_dir: Path):
     (steering_dir / "scripts.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def collect_shared_agents(crew_files: list[Path]) -> list[str]:
+    """Collect agent names marked shared: true across all crews."""
+    shared = []
+    for cf in crew_files:
+        try:
+            crew = yaml.safe_load(cf.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError):
+            continue
+        for archetype in (crew or {}).get("architypes", []):
+            for agent in archetype.get("agents", []):
+                if agent.get("shared"):
+                    shared.append(agent["name"])
+    return shared
+
+
 def inject_subagents_into_orchestrators(subagent_names: list[str], kiro_dir: Path):
     """Add component subagents to all orchestrator agents' availableAgents."""
     agents_dir = kiro_dir / "agents"
@@ -1417,6 +1465,158 @@ def inject_subagents_into_orchestrators(subagent_names: list[str], kiro_dir: Pat
             with open(agent_file, "w", encoding="utf-8") as f:
                 json.dump(agent, f, indent=2)
                 f.write("\n")
+
+
+def synthesize_dispatcher(
+    crew_files: list[Path],
+    shared_agents: list[str],
+    kiro_dir: Path,
+    dispatcher_config: dict = None,
+    dry_run: bool = False,
+) -> str:
+    """Auto-generate a project dispatcher from crew composition (ADR-008)."""
+    dispatcher_config = dispatcher_config or {}
+
+    # Collect leads (type: orchestrator agents) from all crews
+    leads = []
+    for cf in crew_files:
+        try:
+            crew = yaml.safe_load(cf.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError):
+            continue
+        for archetype in (crew or {}).get("architypes", []):
+            if archetype.get("type") != "orchestrator":
+                continue
+            for agent in archetype.get("agents", []):
+                leads.append({
+                    "name": agent["name"],
+                    "description": agent.get("description", ""),
+                    "routes": agent.get("routes", ""),
+                })
+
+    if not leads:
+        return ""
+
+    # Build routing table
+    routing_lines = ["| Crew Lead | Send work when... |",
+                     "|-----------|-------------------|"]
+    for lead in leads:
+        routing_lines.append(f"| {lead['name']} | {lead['routes']} |")
+    routing_table = "\n".join(routing_lines)
+
+    # Build shared utilities section
+    if shared_agents:
+        shared_lines = "\n".join(f"- {name}" for name in shared_agents)
+    else:
+        shared_lines = "(none configured)"
+
+    # Build prompt
+    prompt_suffix = dispatcher_config.get("prompt_suffix", "")
+    prompt = f"""You are dispatcher — the project orchestrator.
+
+## Self-Execute Heuristic
+BEFORE checking the routing table: can this be done in ≤1 tool call with no prior reading?
+If YES → execute directly (run command, write file, check status).
+If NO → plan and delegate.
+
+Examples of self-execute:
+- "run tests" → shell: run the test command
+- "git status" → shell: git status
+- "write this content to path" → write the file
+
+Everything else MUST be delegated to a crew lead.
+
+## Planning Protocol
+For any request that involves multiple steps:
+1. Review available crews and their capabilities
+2. Identify which leads are needed and in what sequence
+3. Build a task graph (what depends on what)
+4. Dispatch to leads in dependency order
+5. Track progress and report results
+
+Do NOT attempt multi-step work yourself. Your job is to PLAN and DELEGATE.
+Even if you could do it, a lead will do it better — they have specialized workers.
+
+## Routing Table
+
+{routing_table}
+
+## Shared Utilities
+Available to dispatch directly for one-shot tasks:
+{shared_lines}
+
+## Delegation Format
+Always include:
+- agentName: exact agent name
+- task: clear description of what to achieve
+- context: relevant details from user request
+
+## Rules
+- Atomic task (≤1 tool call) → self-execute
+- One-shot utility task → dispatch to shared utility directly
+- Everything else → dispatch to the appropriate crew lead
+- Multi-crew work → plan the sequence, dispatch leads in order
+- Never do specialist work yourself
+- Always narrate: "Delegating to X because Y"
+{prompt_suffix}"""
+
+    # Build welcome message
+    welcome_lines = ["🎯 Dispatcher ready. What are we working on?\n",
+                     "Available crews:"]
+    for lead in leads:
+        short_desc = lead["routes"][:60] if lead["routes"] else lead["description"][:60]
+        welcome_lines.append(f"- {short_desc} → {lead['name']}")
+    welcome_lines.append("")
+    if shared_agents:
+        welcome_lines.append(f"Utilities: {', '.join(shared_agents)}")
+        welcome_lines.append("")
+    welcome_lines.append("Or just tell me what to do — simple tasks I'll handle directly.")
+    welcome_message = "\n".join(welcome_lines)
+
+    # Build available agents list (leads + shared agents)
+    available = [l["name"] for l in leads] + shared_agents
+    shortcut = dispatcher_config.get("keyboard_shortcut", "ctrl+shift+d")
+
+    agent_json = {
+        "name": "dispatcher",
+        "description": "Project orchestrator — plans work, routes to crew leads, self-executes simple tasks",
+        "tools": ["read", "shell", "write", "subagent", "todo_list"],
+        "allowedTools": ["read", "shell", "write", "subagent", "todo_list"],
+        "toolsSettings": {
+            "shell": {
+                "autoApprove": True,
+                "autoAllowReadonly": True,
+            },
+            "write": {
+                "allowedPaths": ["./**"],
+            },
+            "subagent": {
+                "availableAgents": available,
+                "trustedAgents": available,
+            },
+        },
+        "prompt": prompt,
+        "welcomeMessage": welcome_message,
+        "keyboardShortcut": shortcut,
+    }
+
+    # Add resources
+    resources = []
+    agents_md = kiro_dir.parent / "AGENTS.md"
+    if agents_md.exists():
+        resources.append("file://AGENTS.md")
+    if resources:
+        agent_json["resources"] = resources
+
+    # Write
+    out_path = kiro_dir / "agents" / "dispatcher.json"
+    if not dry_run:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(agent_json, f, indent=2)
+            f.write("\n")
+
+    return "dispatcher"
 
 
 def generate_components_for_project(project_name: str, kiro_dir: Path, fleet: dict, dry_run: bool = False):
@@ -1673,9 +1873,19 @@ def main():
                     generate_vocabulary(kiro_dir, dry_run)
                     sync_prompts_to_project(kiro_dir, root)
                     generate_project_md_skeleton(kiro_dir)
+                    # Synthesize dispatcher + inject shared agents
+                    if not dry_run:
+                        shared_names = collect_shared_agents(proj_crew_files)
+                        dispatcher_cfg = crew_cfg.get("dispatcher", {})
+                        synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
+                    # Components (runs after dispatcher so injection covers it)
                     if fleet_cfg or crew_cfg.get('components'):
                         synthetic = {'projects': {proj_dir.name: crew_cfg}, 'defaults': fleet_cfg.get('defaults', {}) if fleet_cfg else {}}
                         generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
+                    # Inject shared agents into all orchestrators (including dispatcher)
+                    if not dry_run:
+                        if shared_names:
+                            inject_subagents_into_orchestrators(shared_names, kiro_dir)
                     # Clean up: remove .kiro/crews/ (was only needed for generation)
                     if not dry_run:
                         crews_cleanup = kiro_dir / 'crews'
@@ -1729,6 +1939,15 @@ def main():
             agents.extend(extra)
 
     print(f"Generated {len(agents)} agents: {', '.join(agents)}")
+
+    # Synthesize dispatcher + inject shared agents
+    if not dry_run:
+        kiro_dir = output_dir.parent
+        crew_sources = sorted(crews_dir.glob("*.yaml")) if full_mode else ([crew_path] + sibling_yamls)
+        shared_names = collect_shared_agents(crew_sources)
+        synthesize_dispatcher(crew_sources, shared_names, kiro_dir, dry_run=dry_run)
+        if shared_names:
+            inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
     if not dry_run:
         print(f"Output: {output_dir}/")

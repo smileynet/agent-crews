@@ -41,7 +41,9 @@
         "tester",
         "committer",
         "reviewer",
-        "advocate"
+        "advocate",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "planner",
@@ -54,7 +56,9 @@
         "tester",
         "committer",
         "reviewer",
-        "advocate"
+        "advocate",
+        "verifier",
+        "editor"
       ]
     }
   }

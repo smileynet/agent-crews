@@ -36,7 +36,8 @@
         "reproducer",
         "fixer",
         "verifier",
-        "documenter"
+        "documenter",
+        "editor"
       ],
       "trustedAgents": [
         "triager",
@@ -45,7 +46,8 @@
         "reproducer",
         "fixer",
         "verifier",
-        "documenter"
+        "documenter",
+        "editor"
       ]
     }
   }

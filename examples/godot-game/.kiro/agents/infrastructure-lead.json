@@ -33,7 +33,9 @@
         "provisioner",
         "monitor",
         "security-reviewer",
-        "cleanup"
+        "cleanup",
+        "verifier",
+        "editor"
       ],
       "trustedAgents": [
         "deploy-planner",
@@ -41,7 +43,9 @@
         "provisioner",
         "monitor",
         "security-reviewer",
-        "cleanup"
+        "cleanup",
+        "verifier",
+        "editor"
       ]
     }
   }
