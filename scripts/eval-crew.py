@@ -413,24 +413,49 @@ def main():
                 print(f"  - {r['name']} (score: {r['score']})")
     print(f"Duration: {total_duration:.0f}s")
 
-    # Write results file
-    results_dir = ROOT / "results"
-    results_dir.mkdir(exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
-    results_file = results_dir / f"eval-{PROJECT}-{timestamp}.json"
+    # Write results
+    results_dir = ROOT / "results" / "runs"
+    results_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    run_dir = results_dir / timestamp
+    run_dir.mkdir()
+
+    # Gather context
+    commit_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=str(ROOT)
+    ).stdout.strip()
+    branch = subprocess.run(
+        ["git", "branch", "--show-current"], capture_output=True, text=True, cwd=str(ROOT)
+    ).stdout.strip()
+    kiro_version = subprocess.run(
+        ["kiro-cli", "--version"], capture_output=True, text=True
+    ).stdout.strip()
+    fixture_sha = subprocess.run(
+        ["git", "hash-object", str(fixture_path)], capture_output=True, text=True, cwd=str(ROOT)
+    ).stdout.strip()
 
     crews = sorted(set(tag for e in evals for tag in e.get("tags", []) if "crew" in tag)) or ["meta"]
 
-    output_data = {
+    meta = {
         "project": PROJECT,
         "crews": crews,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "context": {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "commit": commit_sha,
+            "branch": branch,
+            "kiro_version": kiro_version,
+            "fixture_sha": fixture_sha,
+            "fixture_path": str(fixture_path.relative_to(ROOT)),
+        },
         "config": {
             "pass_threshold": args.threshold,
             "trials": args.trials,
             "judge_trials": args.judge_trials,
             "timeout": args.timeout,
+            "intent_only": args.intent_only,
             "isolation": True,
+            "filter_tag": args.tag,
+            "filter_name": args.name,
         },
         "duration_s": round(total_duration, 1),
         "summary": {
@@ -441,13 +466,22 @@ def main():
             "errors": len(errors),
             "avg_score": round(avg_score, 1),
         },
-        "results": results,
     }
 
-    with open(results_file, "w") as f:
-        json.dump(output_data, f, indent=2)
+    with open(run_dir / "meta.json", "w") as f:
+        json.dump(meta, f, indent=2)
         f.write("\n")
-    print(f"\nResults written to: {results_file}")
+
+    with open(run_dir / "scores.jsonl", "w") as f:
+        for r in results:
+            f.write(json.dumps(r) + "\n")
+
+    # Update latest symlink
+    latest = ROOT / "results" / "latest"
+    latest.unlink(missing_ok=True)
+    os.symlink(run_dir, latest)
+
+    print(f"\nResults written to: {run_dir}")
 
     sys.exit(1 if failed else 0)
 
