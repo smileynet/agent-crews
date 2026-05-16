@@ -12,7 +12,6 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Mark agents as `shared: true` to make them available to all crews in a project (verifier, editor, kiro-helper are shared by default)
 - Three-level agent hierarchy for the meta crew — dispatcher routes to leads (build-lead, ops-lead, bugfix-lead), leads coordinate workers
 - Bug-fix crew for this repo — systematic debugging of generate.py, scripts, and tooling with independent test verification
-- Dispatcher can execute simple commands directly (≤1 tool call) without routing overhead
 - Change-point markers track what changed after each build — use `session-diff --since-change <commit>` to measure impact
 - Crew bypass detection, workflow clustering, and agent distribution analysis (`analyze-session.py --bypass-report`, `--clusters`, `--agent-distribution`)
 - Session-informed crew recommendations — analyzes your history across oh-my-pi, Codex, kiro-cli, Claude Code, and opencode to pick crews based on what you actually do, not just your tech stack
@@ -27,6 +26,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 
 ### Changed
+- Dispatcher now delegates reliably — tool permissions enforce routing instead of relying on prompt suggestions alone. Simple file reads still work directly; everything else goes to the right specialist.
 - **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
 - **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
 - `.kiro/` is now purely kiro-native output (agents, prompts, steering) — no more agent-crews machinery mixed in
