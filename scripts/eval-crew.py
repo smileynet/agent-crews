@@ -17,6 +17,7 @@ Usage:
     uv run scripts/eval-crew.py --trials 3     # run each eval 3x, report pass^k (default)
     uv run scripts/eval-crew.py --trials 1     # single trial for fast iteration
     uv run scripts/eval-crew.py --judge-trials 3  # majority-vote judge scoring
+    uv run scripts/eval-crew.py --backfill latest  # re-run only failed/errored evals from last run
 """
 
 import argparse
@@ -107,44 +108,71 @@ def cleanup_isolated_env(tmpdir: Path) -> None:
 
 
 def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT_TIMEOUT, intent_only: bool = False) -> tuple[str, bool]:
-    """Invoke kiro-cli agent. Returns (output, success)."""
-    cmd = ["kiro-cli", "chat", "--no-interactive", "-a", "--wrap", "never"]
-    if agent:
-        cmd.extend(["--agent", agent])
-    cmd.append(prompt)
-    try:
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout,
-            cwd=os.path.expanduser(cwd)
-        )
-        output = strip_ansi(result.stdout + result.stderr)
-        if not output.strip():
-            return "", False
-        return output, True
-    except subprocess.TimeoutExpired as e:
-        if intent_only:
-            output = strip_ansi((e.stdout or "") + (e.stderr or ""))
+    """Invoke kiro-cli agent with retry. Returns (output, success).
+
+    Retry policy: 1 retry on empty/timeout (transient failures).
+    No retry on non-empty output (agent responded, even if poorly).
+    """
+    for attempt in range(2):
+        cmd = ["kiro-cli", "chat", "--no-interactive", "-a", "--wrap", "never"]
+        if agent:
+            cmd.extend(["--agent", agent])
+        cmd.append(prompt)
+        try:
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout,
+                cwd=os.path.expanduser(cwd)
+            )
+            output = strip_ansi(result.stdout + result.stderr)
             if output.strip():
                 return output, True
-        return "", False
-    except Exception as e:
-        return str(e), False
+            # Empty output — retry
+            if attempt == 0:
+                continue
+            return "", False
+        except subprocess.TimeoutExpired as e:
+            if intent_only:
+                output = strip_ansi((e.stdout or "") + (e.stderr or ""))
+                if output.strip():
+                    return output, True
+            # Timeout — retry
+            if attempt == 0:
+                continue
+            return "", False
+        except Exception as e:
+            return str(e), False
+    return "", False
 
 
 def invoke_judge(criteria: str, output: str, ideal: str | None = None) -> tuple[int | None, str]:
-    """Invoke judge (bare kiro-cli). Returns (score, reason)."""
+    """Invoke judge with retry. Returns (score, reason).
+
+    Retry policy: 1 retry on parse failure (judge gave unparseable output).
+    No retry on valid score (even if low).
+    """
     ideal_section = ""
     if ideal:
         ideal_section = f"## Reference (ideal response)\n{ideal}\nNote: The agent does not need to match this exactly. Use it as a reference for what correct behavior looks like."
 
     prompt = JUDGE_PROMPT.format(criteria=criteria, ideal_section=ideal_section, output=output)
     cmd = ["kiro-cli", "chat", "--no-interactive", "-a", "--wrap", "never", prompt]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        text = strip_ansi(result.stdout + result.stderr)
-        return parse_judge_response(text)
-    except Exception as e:
-        return None, f"Judge error: {e}"
+
+    for attempt in range(2):
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            text = strip_ansi(result.stdout + result.stderr)
+            score, reason = parse_judge_response(text)
+            if score is not None:
+                return score, reason
+            # Parse failure — retry
+            if attempt == 0:
+                continue
+            return None, f"Could not parse after 2 attempts: {text[:100]}"
+        except Exception as e:
+            if attempt == 0:
+                continue
+            return None, f"Judge error: {e}"
+    return None, "Judge failed after 2 attempts"
 
 
 def invoke_judge_majority(criteria: str, output: str, ideal: str | None, judge_trials: int) -> tuple[int | None, str]:
@@ -206,10 +234,8 @@ def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIME
     start = time.time()
 
     try:
-        # Invoke agent (with retry)
+        # Invoke agent (retry handled internally)
         output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
-        if not success:
-            output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
 
         if not success:
             duration = time.time() - start
@@ -314,6 +340,7 @@ def main():
     parser.add_argument("--intent-only", action="store_true", help="Check delegation intent only (short timeout)")
     parser.add_argument("--trials", type=int, default=3, help="Run each eval N times, report pass^k (default: 3)")
     parser.add_argument("--judge-trials", type=int, default=1, help="Judge each output N times, majority vote (default: 1)")
+    parser.add_argument("--backfill", type=str, metavar="RUN_DIR", help="Re-run only failed/errored evals from a previous run (path to run dir or 'latest')")
     args = parser.parse_args()
 
     if args.intent_only:
@@ -335,6 +362,41 @@ def main():
         evals = [e for e in evals if args.tag in e.get("tags", [])]
     if args.name:
         evals = [e for e in evals if e["name"] == args.name]
+
+    # Backfill: only re-run failed/errored evals from a previous run
+    if args.backfill:
+        backfill_path = Path(args.backfill)
+        if args.backfill == "latest":
+            backfill_path = ROOT / "results" / "latest"
+        if not backfill_path.exists():
+            print(f"Error: backfill path not found: {backfill_path}", file=sys.stderr)
+            sys.exit(2)
+        scores_file = backfill_path / "scores.jsonl"
+        if not scores_file.exists():
+            print(f"Error: no scores.jsonl in {backfill_path}", file=sys.stderr)
+            sys.exit(2)
+        # Find failed/errored eval names
+        needs_rerun = set()
+        with open(scores_file) as f:
+            for line in f:
+                r = json.loads(line)
+                if r["status"] == "error":
+                    needs_rerun.add(r["name"])
+                elif r["status"] == "evaluated":
+                    # Check if it failed its threshold
+                    ev_def = next((e for e in evals if e["name"] == r["name"]), None)
+                    if ev_def:
+                        threshold = ev_def.get("threshold", args.threshold)
+                        if r["score"] < threshold:
+                            needs_rerun.add(r["name"])
+                    # Also backfill pass^k failures
+                    if r.get("pass_k") is False:
+                        needs_rerun.add(r["name"])
+        evals = [e for e in evals if e["name"] in needs_rerun]
+        if not evals:
+            print("Backfill: all evals passed in previous run. Nothing to re-run.")
+            sys.exit(0)
+        print(f"Backfill: re-running {len(evals)} failed/errored evals from {backfill_path.name}\n")
 
     if not evals:
         print("No evals matched filters.", file=sys.stderr)
