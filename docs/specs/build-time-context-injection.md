@@ -1,6 +1,6 @@
 # Implementation Spec: Build-Time Context Injection
 
-**Status:** Draft v2  
+**Status:** Phase 1 complete, Phase 2 designed  
 **Date:** 2026-05-16  
 **Depends on:** ADR-010 (eval harness), ADR-001 (enforcement over suggestion)  
 **Supersedes:** Component Architecture Spec Section 3.3 (resource globs — never implemented)
@@ -40,10 +40,11 @@ These assumptions about kiro-cli behavior underpin all design decisions. Each ha
 Our agents operate with minimal context. Custom agents only receive what's explicitly in their `resources` field. Currently:
 
 - `file://AGENTS.md` (all agents) — always loaded
-- `file://.kiro/steering/vocabulary.md` (most agents) — always loaded
+- `file://.kiro/steering/vocabulary.md` (most agents) — always loaded, **redundant** (to be removed in Phase 2)
 - Agent-specific skills (some agents) — on-demand
+- Protocol skills (Phase 1, done) — verification, git, troubleshooting for workers; completion for orchestrators
 
-The 23 steering files (verification, git, troubleshooting, completion, etc.) are **invisible** to custom agents. Protocols must be delivered as skills (on-demand) or injected into prompts.
+The 23 steering files (verification, git, troubleshooting, completion, etc.) are **invisible** to custom agents unless delivered via skills or prompt injection.
 
 ## Design Principles
 
@@ -59,9 +60,9 @@ The 23 steering files (verification, git, troubleshooting, completion, etc.) are
 Source YAML (base/crews/*.yaml)
     ↓ generate.py
 Agent JSON (.kiro/agents/*.json)
-    ├── prompt: (injected routing tables, worker context, scope)
+    ├── prompt: (injected routing tables, worker tables, scope)
     ├── resources:
-    │   ├── file:// (always-loaded: AGENTS.md, vocabulary)
+    │   ├── file:// (always-loaded: AGENTS.md)
     │   └── skill:// (on-demand: protocols, reference material)
     └── tools: (enforced capabilities)
 ```
@@ -71,9 +72,11 @@ Agent JSON (.kiro/agents/*.json)
 | Archetype | Prompt (injected) | file:// (always) | skill:// (on-demand) |
 |-----------|-------------------|------------------|---------------------|
 | Dispatcher | Routing table, scope boundary | AGENTS.md | — |
-| Orchestrator | Worker table, routing table, scope, handoff | vocabulary.md | completion-protocol |
-| Worker | Scope & siblings, project commands | AGENTS.md, vocabulary.md | verification, git, troubleshooting |
+| Orchestrator | Worker table, routing table, scope, handoff | AGENTS.md | completion-protocol |
+| Worker | Scope & siblings, project commands | AGENTS.md | verification, git, troubleshooting |
 | Verifier/Editor | Minimal (fresh judgment) | — | — |
+
+**Note:** vocabulary.md removed (redundant with injected routing tables). AGENTS.md retained for all archetypes; intent to test removing from workers once baseline evals exist (Phase 4).
 
 ## Implementation
 
@@ -81,7 +84,7 @@ Agent JSON (.kiro/agents/*.json)
 
 Before implementing anything, validate platform assumptions with repeatable tests. All must pass before proceeding.
 
-### Phase 1: Protocol Skills
+### Phase 1: Protocol Skills ✅ DONE
 
 Convert steering docs into skills with proper frontmatter for on-demand loading.
 
@@ -93,13 +96,65 @@ Convert steering docs into skills with proper frontmatter for on-demand loading.
 **Orchestrator skills:**
 - `shared/skills/completion-protocol/SKILL.md` ← from steering/universal/completion.md
 
-**Generator change:** Add skills to agent resources based on archetype.
+**Generator change:** Skills injected into agent resources based on archetype (workers get operational protocols, orchestrators get completion protocol, dispatchers get nothing).
 
 ### Phase 2: Build-Time Injection (leads)
 
-- `inject_worker_context()` — auto-inject worker table into orchestrator prompts
-- Remove `read` from all orchestrator tool lists
-- Remove hand-written worker sections from lead prompts
+**Status:** Designed (grill session 2026-05-16)
+
+#### Decisions
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| D1 | Remove `read` from meta orchestrators (build-lead, ops-lead, bugfix-lead) | Conform to model — base crews already don't have it. Orchestrators route, they don't read. |
+| D2 | No context-gathering pattern for meta orchestrators | Simulated 6 use cases — explorer/researcher hop was redundant or impossible in every case. Workers read what they need. If ambiguous, ask the user. |
+| D3 | Replace hand-written `## Your Workers` and `## Workflow Patterns` with auto-injected table | Eliminates drift between toolsSettings.availableAgents and prompt. Generator knows name/description/routes. |
+| D4 | Keep `## Delegation Rules` in YAML (sequencing logic only) | "Research before augmenting" can't be derived from the worker table — it's orchestrator-specific sequencing. |
+| D5 | Add validation warning (not error) for orchestrators with `read` | Enforcement over suggestion, but soft — allows override for edge cases. |
+| D6 | Remove vocabulary.md generation entirely | Redundant — routing table injection already delivers same data to dispatchers/orchestrators. Workers never needed it. |
+| D7 | Keep AGENTS.md as `file://` for orchestrators and workers | Provides project-level intent that constrains delegation. Intent to test removing from workers once baseline evals exist (Phase 4). |
+| D8 | Verify crew-sheet still generates correctly after changes | crew-sheet uses description/name from YAML, not vocabulary.md or hand-written sections — should be unaffected but verify. |
+
+#### Implementation Steps
+
+1. **Remove `read` from meta orchestrators** — edit `base/crews/meta.yaml`: drop `read` from build-lead, ops-lead, bugfix-lead tools/allowedTools
+2. **Add validation warning** — `validate_hierarchy()` emits warning if orchestrator has `read` in tools
+3. **Inject worker table** — in the orchestrator injection block, auto-generate `## Your Workers` table from same-crew workers (columns: Agent, Role, Dispatch when...)
+4. **Strip hand-written worker sections** — remove `## Your Workers` and `## Workflow Patterns` from orchestrator prompts in meta.yaml; keep only `## Delegation Rules`
+5. **Update delegation instructions** — change "Read context before delegating" to "If the request is ambiguous, ask one clarifying question before routing"
+6. **Remove vocabulary.md generation** — delete `generate_vocabulary()`, remove all `file://.kiro/steering/vocabulary.md` references from crew YAMLs, delete generated vocabulary.md files
+7. **Verify crew-sheet** — confirm `just build` still produces correct crew-sheet after all changes
+8. **Document AGENTS.md intent** — note in this spec that AGENTS.md stays for orchestrators+workers, test removal from workers post-eval baseline
+
+#### Injected Worker Table Format
+
+```
+## Your Workers
+| Agent | Role | Dispatch when... |
+|-------|------|-------------------|
+| crew-researcher | Deep investigation — patterns, prior art, best practices | "Research...", "Investigate..." |
+| crew-creator | Creates agent teams for new projects | "Create a crew for..." |
+| crew-augmenter | Adds agents/features to existing crews | "Add an agent...", "Modify..." |
+```
+
+Source: `description` field (stripped of `[Crew]` prefix) for Role, `routes` field for Dispatch column.
+
+#### Orchestrator Prompt Structure (post-Phase 2)
+
+```
+1. Role sentence: "You are X — orchestrator for Y."
+2. ## Your Workers (auto-injected by generator)
+3. ## Delegation Rules (hand-written in YAML — sequencing constraints only)
+4. ## Routing Table (already auto-injected)
+5. ## Handoff Awareness (already auto-injected from sibling crews)
+6. ## Scope Boundary (already auto-injected from refuses)
+```
+
+#### What's NOT in scope
+- Resource trimming (Phase 4)
+- Removing `read` from base crew orchestrators (already done)
+- Refactoring generate.py into modules (follow-up task)
+- Adding explorer/context-gathering agent to meta crew (rejected — see D2)
 
 ### Phase 3: Build-Time Injection (workers)
 
@@ -278,9 +333,15 @@ echo "{\"kiro_version\": \"$KIRO_VERSION\", \"timestamp\": \"$TIMESTAMP\", \"pas
 
 ```
 Phase 0 (assumptions) → GATE for all other phases
-Phase 1 (skills)      → immediate value, no breaking changes  
-Phase 2 (leads)       → depends on Phase 1
+Phase 1 (skills)      ✅ DONE — protocol skills injected by archetype
+Phase 2 (leads)       → next: remove read, inject worker table, remove vocabulary.md
 Phase 3 (workers)     → independent of Phase 2
-Phase 4 (eval)        → after Phases 1-3 stabilize
-Phase 5 (dispatcher)  → trivial, do alongside Phase 2
+Phase 4 (eval)        → after Phases 1-3 stabilize; includes AGENTS.md removal test for workers
+Phase 5 (dispatcher)  → already partially done (scope boundary injection exists)
 ```
+
+## Follow-Up Tasks (out of scope for this spec)
+
+- Refactor generate.py into modules (build, inject, theme, fleet, components)
+- Rename CONTEXT.md concept: project domain glossary lives at repo root
+- Evaluate whether crew-sheet should include routing hints (currently just name/role/command)

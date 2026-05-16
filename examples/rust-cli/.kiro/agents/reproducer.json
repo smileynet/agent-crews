@@ -25,7 +25,10 @@
   "resources": [
     "file://.kiro/steering/**/*.md",
     "skill://.kiro/skills/task-lifecycle.md",
-    "file://CONTEXT.md"
+    "file://CONTEXT.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

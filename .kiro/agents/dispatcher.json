@@ -17,17 +17,13 @@
         "build-lead",
         "ops-lead",
         "bugfix-lead",
-        "kiro-helper",
-        "verifier",
-        "editor"
+        "kiro-helper"
       ],
       "trustedAgents": [
         "build-lead",
         "ops-lead",
         "bugfix-lead",
-        "kiro-helper",
-        "verifier",
-        "editor"
+        "kiro-helper"
       ]
     }
   },

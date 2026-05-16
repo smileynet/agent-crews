@@ -311,6 +311,20 @@ evals:
     tags: [orchestration, meta-crew]
     threshold: 4
 
+  - name: build-lead-no-self-read
+    agent: build-lead
+    input: "check what agents the general crew currently has"
+    criteria: |
+      PRIMARY: Delegates to a worker (crew-researcher or crew-augmenter) to read and report.
+      AUTOMATIC FAIL (score 1): Attempts to read the file itself, or says "let me check" without delegating.
+      Score 4: Delegates with clear task.
+      BONUS (score 5): Picks crew-researcher (read/report is investigation work).
+    ideal: |
+      Delegating to crew-researcher to read base/crews/general.yaml and report the current agent roster.
+      [invokes crew-researcher subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
   # ============================================================
   # EXECUTION QUALITY — workers produce correct output
   # Primary signal: agent follows its core protocol constraint

@@ -7,7 +7,6 @@ scope:
 
 resources:
   - file://AGENTS.md
-  - file://.kiro/steering/vocabulary.md
 
 hooks:
   agentSpawn:
@@ -21,11 +20,9 @@ architypes:
         description: "[Meta] Build crew lead — plans and delegates crew creation/modification"
         routes: "Create, modify, or research crews and agents"
         tools:
-          - read
           - subagent
           - todo_list
         allowedTools:
-          - read
           - subagent
           - todo_list
         toolsSettings:
@@ -35,18 +32,8 @@ architypes:
         prompt: |
           You are build-lead — orchestrator for crew creation and modification.
 
-          ## Your Workers
-          - crew-researcher: deep investigation, patterns, best practices
-          - crew-creator: creates agent teams for new projects
-          - crew-augmenter: adds agents/features to existing crews
-
-          ## Workflow Patterns
-          - "Build a crew" → researcher (scan + research) → creator (build)
-          - "Add an agent" → researcher (if novel domain) → augmenter (implement)
-          - "Research X" → researcher (investigate, store in scratch/research/)
-
           ## Delegation Rules
-          - Read context before delegating (understand what's being asked)
+          - If the request is ambiguous, ask one clarifying question before routing
           - For novel domains, ALWAYS research first
           - For known patterns, skip research and go straight to creator/augmenter
           - Tell workers WHAT to achieve, not HOW
@@ -57,11 +44,9 @@ architypes:
         description: "[Meta] Ops crew lead — plans and delegates analysis, diagnosis, validation"
         routes: "Analyze sessions, diagnose issues, validate changes, maintain hygiene"
         tools:
-          - read
           - subagent
           - todo_list
         allowedTools:
-          - read
           - subagent
           - todo_list
         toolsSettings:
@@ -71,20 +56,8 @@ architypes:
         prompt: |
           You are ops-lead — orchestrator for crew operations and health.
 
-          ## Your Workers
-          - crew-analyst: analyzes sessions, finds performance issues
-          - crew-doctor: diagnoses and fixes agent config/behavior issues
-          - crew-validator: post-change verification, changelog enforcement
-          - project-hygiene: data separation, doc accuracy, sanitization
-
-          ## Workflow Patterns
-          - "Tune a crew" → analyst (observe) → doctor (fix) → validator (verify)
-          - "Validate changes" → validator (check build + changelog + schema)
-          - "Review sessions" → analyst (analyze patterns)
-          - "Check hygiene" → project-hygiene (audit)
-
           ## Delegation Rules
-          - Read context before delegating (check git status, recent changes)
+          - If the request is ambiguous, ask one clarifying question before routing
           - For tuning: ALWAYS analyze before fixing
           - For validation: run after ANY modification
           - Tell workers WHAT to achieve, not HOW
@@ -901,11 +874,9 @@ architypes:
         description: "[Meta] Bug-fix orchestrator — systematic debugging of agent-crews tooling"
         routes: "Something is broken in generate.py, scripts, or session tooling"
         tools:
-          - read
           - subagent
           - todo_list
         allowedTools:
-          - read
           - subagent
           - todo_list
         toolsSettings:

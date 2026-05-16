@@ -46,9 +46,11 @@
   },
   "resources": [
     "file://AGENTS.md",
-    "file://.kiro/steering/vocabulary.md",
     "skill://.kiro/skills/diagnose-crew.md",
-    "skill://.kiro/skills/kiro-cli-schema/SKILL.md"
+    "skill://.kiro/skills/kiro-cli-schema/SKILL.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

@@ -28,7 +28,10 @@
     "skill://.kiro/skills/document-formats/SKILL.md",
     "skill://.kiro/skills/coding-principles.md",
     "skill://.kiro/skills/ai-assisted-development.md",
-    "file://CONTEXT.md"
+    "file://CONTEXT.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

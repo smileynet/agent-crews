@@ -8,6 +8,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Protocol skills delivered on-demand to agents — verification, git, and troubleshooting protocols for workers; completion protocol for orchestrators
+- Orchestrators get an auto-generated worker table showing who they can delegate to and when — no more hand-maintained lists that drift
+- Validation warning when an orchestrator has `read` tool (should delegate reading to workers)
+- `@grill-with-docs` prompt — design interrogation that updates CONTEXT.md glossary and ADRs inline as decisions crystallize
+- Domain glossary at CONTEXT.md — canonical terms for the project (crew, archetype, dispatcher, etc.)
 - Every project gets a dispatcher automatically — routes to your crew leads, plans multi-step work, and handles simple commands directly
 - Mark agents as `shared: true` to make them available to all crews in a project (verifier, editor, kiro-helper are shared by default)
 - Three-level agent hierarchy for the meta crew — dispatcher routes to leads (build-lead, ops-lead, bugfix-lead), leads coordinate workers
@@ -26,6 +31,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 
 ### Changed
+- Orchestrators are pure routers — they delegate all work including file reading, using the injected worker table and delegation rules to decide who gets what
 - Dispatcher now delegates reliably — tool permissions enforce routing instead of relying on prompt suggestions alone. Simple file reads still work directly; everything else goes to the right specialist.
 - **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
 - **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
@@ -35,6 +41,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
 
 ### Removed
+- `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context
 - `fleet.yaml` — replaced by per-project `.crews/crew.yaml`
 - Centralized eval files in `tests/` — each project owns its own evals now
 

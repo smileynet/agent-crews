@@ -48,8 +48,10 @@
   },
   "resources": [
     "file://AGENTS.md",
-    "file://.kiro/steering/vocabulary.md",
-    "skill://shared/skills/eval-criteria/SKILL.md"
+    "skill://shared/skills/eval-criteria/SKILL.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

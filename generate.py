@@ -282,6 +282,23 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                         sub["trustedAgents"] = crew_workers
                 # Dispatchers keep their explicitly-defined availableAgents
 
+                # Auto-inject worker table for non-dispatcher orchestrators
+                if not is_dispatcher:
+                    import re as _re
+                    worker_lines = ["\n\n## Your Workers\n",
+                                    "| Agent | Role | Dispatch when... |",
+                                    "|-------|------|-------------------|"]
+                    for arch2 in get_architypes(crew):
+                        if arch2.get("type") in ("orchestrator", "dispatcher"):
+                            continue
+                        for a in arch2.get("agents", []):
+                            desc = a.get("description", "")
+                            role = _re.sub(r"^\[[\w\s-]+\]\s*", "", desc)
+                            routes = a.get("routes", "")
+                            worker_lines.append(f"| {a['name']} | {role} | {routes} |")
+                    if len(worker_lines) > 3:
+                        agent_json["prompt"] = agent_json.get("prompt", "") + "\n".join(worker_lines)
+
                 # Auto-inject routing table from routes: fields
                 routing_lines = ["\n\n## Routing Table\n",
                                  "| Agent | Send work when... |",
@@ -593,55 +610,6 @@ def validate_changelog_prerequisites(fleet: dict):
             print(f"  ⚠️  {proj_name}: changelog component enabled but no CHANGELOG.md (run crew-creator to scaffold)", file=sys.stderr)
 
 
-def generate_vocabulary(kiro_dir: Path, dry_run: bool = False):
-    """Generate project-specific vocabulary.md from assigned crew YAMLs."""
-    crews_dir = kiro_dir / "crews"
-    if not crews_dir.is_dir():
-        return
-    crew_files = sorted(crews_dir.glob("*.yaml"))
-    if not crew_files:
-        return
-
-    # Collect scope data from each crew
-    crews = []
-    for cf in crew_files:
-        with open(cf, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        if not data:
-            continue
-        scope = data.get("scope", {}) or {}
-        crews.append({
-            "workflow": data.get("workflow", cf.stem),
-            "handles": scope.get("handles", []),
-            "refuses": scope.get("refuses", []),
-        })
-
-    # Build vocabulary table
-    lines = [
-        "---",
-        "inclusion: always",
-        "---",
-        "",
-        "# Vocabulary",
-        "",
-        "Canonical intent keywords for this project's crews. Use these exact terms in routing and scope decisions.",
-        "",
-        "| Keyword | Crew | Role |",
-        "|---------|------|------|",
-    ]
-    for crew in crews:
-        for h in crew["handles"]:
-            lines.append(f"| {h} | {crew['workflow']} | handles |")
-    for crew in crews:
-        for r in crew["refuses"]:
-            lines.append(f"| {r} | {crew['workflow']} | refuses |")
-
-    lines.append("")
-
-    if not dry_run:
-        dest = kiro_dir / "steering"
-        dest.mkdir(parents=True, exist_ok=True)
-        (dest / "vocabulary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def validate_hierarchy(crew_path: Path, crew: dict):
@@ -687,6 +655,10 @@ def validate_hierarchy(crew_path: Path, crew: dict):
                 if bad_targets:
                     errors.append(f"{name}: orchestrator dispatches to orchestrator(s) {bad_targets} (must only target workers)")
 
+            # Rule 3 (warning): Orchestrators should not have read
+            if atype == "orchestrator" and "read" in tools:
+                print(f"  ⚠️  {crew_path.name}: {name} has 'read' tool (orchestrators should delegate reading to workers)", file=sys.stderr)
+
     if errors:
         print(f"\n❌ Hierarchy violation in {crew_path.name}:", file=sys.stderr)
         for e in errors:
@@ -711,7 +683,7 @@ def generate_all(dry_run: bool = False):
         if has_custom_crews(kiro_dir):
             print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
             sync_steering_to_project(kiro_dir, root)
-            generate_vocabulary(kiro_dir, dry_run)
+
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
         else:
@@ -763,7 +735,7 @@ def generate_all(dry_run: bool = False):
 
             # Sync steering based on persona
             sync_steering_to_project(kiro_dir, root)
-            generate_vocabulary(kiro_dir, dry_run)
+
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
 
@@ -966,7 +938,6 @@ def generate_all(dry_run: bool = False):
             (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
         # Sync steering
         sync_steering_to_project(kiro_dir, root)
-        generate_vocabulary(kiro_dir, dry_run)
         sync_prompts_to_project(kiro_dir, root)
         generate_project_md_skeleton(kiro_dir)
         # Synthesize dispatcher
@@ -1873,7 +1844,7 @@ def main():
                         prompts_dir.mkdir(parents=True, exist_ok=True)
                         (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
                     sync_steering_to_project(kiro_dir, root)
-                    generate_vocabulary(kiro_dir, dry_run)
+        
                     sync_prompts_to_project(kiro_dir, root)
                     generate_project_md_skeleton(kiro_dir)
                     # Synthesize dispatcher + inject shared agents

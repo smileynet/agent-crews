@@ -26,7 +26,10 @@
     "file://.kiro/steering/**/*.md",
     "file://CONTEXT.md",
     "skill://.kiro/skills/code-review.md",
-    "skill://.kiro/skills/coding-principles.md"
+    "skill://.kiro/skills/coding-principles.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
