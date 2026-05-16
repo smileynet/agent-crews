@@ -14,7 +14,8 @@ Usage:
     uv run scripts/eval-crew.py --verbose      # show full output
     uv run scripts/eval-crew.py --timeout 180  # longer timeout
     uv run scripts/eval-crew.py --intent-only  # check delegation intent only (30s timeout)
-    uv run scripts/eval-crew.py --trials 3     # run each eval 3x, report pass^k
+    uv run scripts/eval-crew.py --trials 3     # run each eval 3x, report pass^k (default)
+    uv run scripts/eval-crew.py --trials 1     # single trial for fast iteration
     uv run scripts/eval-crew.py --judge-trials 3  # majority-vote judge scoring
 """
 
@@ -311,7 +312,7 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Show full agent output")
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Agent timeout in seconds (default: 120)")
     parser.add_argument("--intent-only", action="store_true", help="Check delegation intent only (short timeout)")
-    parser.add_argument("--trials", type=int, default=1, help="Run each eval N times, report pass^k (default: 1)")
+    parser.add_argument("--trials", type=int, default=3, help="Run each eval N times, report pass^k (default: 3)")
     parser.add_argument("--judge-trials", type=int, default=1, help="Judge each output N times, majority vote (default: 1)")
     args = parser.parse_args()
 
