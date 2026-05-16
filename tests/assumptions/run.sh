@@ -82,11 +82,23 @@ EOF
 cat > "$WORKDIR/.kiro/agents/skill-agent.json" << 'EOF'
 {
   "name": "skill-agent",
-  "description": "Test agent with skill resource",
+  "description": "Test agent with skill resource (no read tool)",
   "tools": [],
   "allowedTools": [],
   "resources": ["skill://.kiro/skills/flamingo-facts/SKILL.md"],
   "prompt": "You are a test agent. Answer questions using your available knowledge and skills. Be precise and literal. If asked to quote a secret phrase, do so exactly."
+}
+EOF
+
+# T3b: Agent with skill + read tool (simulates real worker)
+cat > "$WORKDIR/.kiro/agents/skill-reader-agent.json" << 'EOF'
+{
+  "name": "skill-reader-agent",
+  "description": "Test agent with skill resource and read tool",
+  "tools": ["read"],
+  "allowedTools": ["read"],
+  "resources": ["skill://.kiro/skills/flamingo-facts/SKILL.md"],
+  "prompt": "You are a test agent. Answer questions using your available skills. Quote any secret phrases exactly."
 }
 EOF
 
@@ -204,6 +216,13 @@ run_test "T3-skill-not-loaded" "skill-agent" \
     "What is 2+2? Answer with just the number." \
     "NONE" \
     "6V8R3"
+
+# T3b: skill:// DOES load when triggered by relevant query (requires read tool)
+echo "T3b: skill:// loads when triggered (A8 — requires read tool)"
+run_test "T3b-skill-triggered" "skill-reader-agent" \
+    "Tell me about flamingos. Quote any secret phrases from your flamingo knowledge." \
+    "6V8R3" \
+    "NONE"
 
 # T4: Subagent gets own context, not parent's
 echo "T4: Subagent isolation (A5)"
