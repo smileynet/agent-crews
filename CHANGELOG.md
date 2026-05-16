@@ -37,6 +37,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Removed
 - `fleet.yaml` — replaced by per-project `.crews/crew.yaml`
 - Centralized eval files in `tests/` — each project owns its own evals now
+
 ## [0.2.0] - 2026-05-15
 
 ### Added
