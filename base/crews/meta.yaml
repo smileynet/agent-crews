@@ -216,6 +216,8 @@ architypes:
       - name: crew-augmenter
         description: "[Meta] Crew Augmenter — adds agents/features to existing crews"
         routes: "Add new agent, modify existing crew, implement new feature in a crew"
+        resources:
+          - skill://shared/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write
@@ -305,6 +307,10 @@ architypes:
           After making changes, report what was modified and remind:
           "Changes complete. Running crew-validator to verify."
           The dispatcher will auto-chain to crew-validator.
+
+          ## Writing Evals
+          When adding or modifying evals in .crews/evals.yaml, follow the eval-criteria skill.
+          Key rules: one primary signal per eval, explicit automatic-fail condition, countable criteria, ideal on routing/execution evals.
 
       - name: crew-doctor
         description: "[Meta] Crew Doctor — diagnoses and fixes agent team issues"
@@ -699,6 +705,7 @@ architypes:
         routes: "Validate changes, check work, verify changelog, schema validation, drift detection"
         resources:
           - skill://shared/skills/changelog-discipline/SKILL.md
+          - skill://shared/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write
@@ -758,6 +765,13 @@ architypes:
           When behavioral changes detected (prompt modifications, routing changes):
           - Flag which evals may be affected
           - Recommend re-running relevant smoke tests
+
+          ### 6. Eval Quality
+          When evals are added or modified, check against the eval-criteria skill:
+          - Each eval has PRIMARY signal and AUTOMATIC FAIL condition
+          - Criteria are countable/observable, not subjective
+          - Routing and execution evals have ideal responses
+          - Threshold matches criticality (4=correctness, 3=quality)
 
           ## Workflow
           1. Identify what changed (git diff, git status)
@@ -992,6 +1006,8 @@ architypes:
       - name: meta-tester
         description: "[Meta] Tester — evals, smoke tests, regression checks"
         routes: "Need tests written or run for agent-crews tooling"
+        resources:
+          - skill://shared/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write
@@ -1024,3 +1040,7 @@ architypes:
           ## After any fix
           Run the full verification suite, not just the specific failing case.
           Report: pass count, fail count, any new failures introduced.
+
+          ## Eval Quality
+          When writing new evals, follow the eval-criteria skill.
+          When reviewing eval results, flag evals with inconsistent scores across runs (sign of ambiguous criteria).
