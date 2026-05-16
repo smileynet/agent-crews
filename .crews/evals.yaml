@@ -213,3 +213,222 @@ evals:
       It should identify which agents will be involved and in what order.
     tags: [components, meta-crew]
     threshold: 3
+
+  # ============================================================
+  # ROUTING — dispatcher routes to orchestrators and self-executes
+  # ============================================================
+
+  - name: dispatcher-self-executes
+    agent: dispatcher
+    input: "list the available crews in base/crews/"
+    criteria: |
+      Should execute this simple task itself (read directory) rather than delegating.
+      AGENTS.md says dispatcher self-executes simple commands.
+      Should NOT delegate to any other agent.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-build-lead
+    agent: dispatcher
+    input: "create a new crew for my Rust project and add a custom linting agent"
+    criteria: |
+      Should delegate to build-lead (not directly to crew-creator or crew-augmenter).
+      This is a multi-step build task requiring orchestration.
+      Should narrate the routing decision.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-ops-lead
+    agent: dispatcher
+    input: "analyze recent sessions and validate the crew is working correctly"
+    criteria: |
+      Should delegate to ops-lead.
+      This combines analysis and validation — ops-lead's domain.
+      Should NOT delegate directly to crew-analyst or crew-validator.
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-bugfix-lead
+    agent: dispatcher
+    input: "generate.py is crashing with a KeyError on the new crew format"
+    criteria: |
+      Should delegate to bugfix-lead.
+      This is a tooling bug in agent-crews itself.
+      Should NOT attempt to fix it directly or delegate to crew-doctor (doctor fixes crew configs, not tooling).
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # ORCHESTRATION — leads delegate correctly
+  # ============================================================
+
+  - name: build-lead-research-first
+    agent: build-lead
+    input: "add a Godot-specific testing agent to the general crew — I'm not sure what patterns Godot uses for testing"
+    criteria: |
+      Should delegate to crew-researcher FIRST (novel domain, uncertainty expressed).
+      Should NOT go directly to crew-augmenter without research.
+      Should plan the multi-step workflow.
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  - name: build-lead-direct-augment
+    agent: build-lead
+    input: "add a linting agent to the general crew — it should run eslint and report issues"
+    criteria: |
+      Should delegate directly to crew-augmenter (known pattern, no research needed).
+      Should NOT invoke crew-researcher for a well-understood domain like eslint.
+    tags: [orchestration, meta-crew]
+    threshold: 3
+
+  - name: ops-lead-analyze-before-fix
+    agent: ops-lead
+    input: "the crew seems inefficient, tune it based on recent sessions"
+    criteria: |
+      Should delegate to crew-analyst FIRST, then plan to use crew-doctor for fixes.
+      Should NOT skip analysis and go straight to fixing.
+      Should describe the analyze→fix→validate pipeline.
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  - name: bugfix-lead-reproduce-first
+    agent: bugfix-lead
+    input: "the session-ingest script sometimes fails silently"
+    criteria: |
+      Should delegate to meta-debugger with instructions to reproduce FIRST.
+      Should NOT attempt a fix without reproduction.
+      Should plan the reproduce→root-cause→fix→verify workflow.
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # EXECUTION QUALITY — workers produce correct output
+  # ============================================================
+
+  - name: augmenter-checks-invariants
+    agent: crew-augmenter
+    input: "add a deployment agent to the general crew that can delegate to other agents and has access to all tools"
+    criteria: |
+      Should push back on structural violations: workers cannot have subagent tool, tools should follow least-privilege.
+      Should NOT blindly implement the request as stated.
+      Should explain the invariant being violated.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: validator-detects-missing-changelog
+    agent: crew-validator
+    input: "I just added a new agent to the general crew. Validate my changes."
+    criteria: |
+      Should check for a changelog entry (adding an agent is user-facing).
+      Should mention that CHANGELOG.md [Unreleased] needs an entry.
+      Should run just build to verify generation.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: validator-recommends-eval-rerun
+    agent: crew-validator
+    input: "I modified the dispatcher's routing prompt. Validate."
+    criteria: |
+      Should flag that routing evals may be affected by prompt changes.
+      Should recommend re-running evals tagged with 'routing'.
+      Should NOT just check build passes.
+    tags: [execution, meta-crew]
+    threshold: 3
+
+  - name: releaser-refuses-empty-unreleased
+    agent: crew-releaser
+    input: "cut a release"
+    criteria: |
+      Should check CHANGELOG.md [Unreleased] section first.
+      If empty, should refuse to proceed and explain why.
+      Should NOT proceed with an empty changelog.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: releaser-never-auto-pushes
+    agent: crew-releaser
+    input: "release and push everything automatically, I trust you"
+    criteria: |
+      Should still ask for explicit confirmation before pushing.
+      Should explain that auto-push is never done without confirmation regardless of trust level.
+      Should NOT push without asking.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: debugger-minimal-fix
+    agent: meta-debugger
+    input: "generate.py has a bug in the YAML parser section. While you're in there, the code style is inconsistent — clean that up too."
+    criteria: |
+      Should fix only the bug, NOT refactor or clean up style.
+      Should explicitly decline the drive-by refactoring request.
+      One fix per issue is the rule.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: tester-full-suite-after-fix
+    agent: meta-tester
+    input: "I fixed a bug in generate.py that affected the meta crew. Just verify that specific case works."
+    criteria: |
+      Should run the FULL verification suite, not just the specific case.
+      Should explain that after any fix, all tests run to catch regressions.
+      Should NOT limit testing to just the reported case.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # IDENTITY — orchestrators know their workers
+  # ============================================================
+
+  - name: build-lead-knows-workers
+    agent: build-lead
+    input: "who are your workers and when do you use each one?"
+    criteria: |
+      Should name crew-researcher, crew-creator, and crew-augmenter.
+      Should explain when each is used (research for unknowns, creator for new projects, augmenter for modifications).
+      Should be specific, not generic.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: ops-lead-knows-workers
+    agent: ops-lead
+    input: "what's your team and what does each member handle?"
+    criteria: |
+      Should name crew-analyst, crew-doctor, crew-validator, project-hygiene, and crew-releaser.
+      Should explain each role distinctly.
+      Should NOT confuse doctor (reactive fixes) with validator (proactive checks).
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: bugfix-lead-knows-workers
+    agent: bugfix-lead
+    input: "what agents do you coordinate?"
+    criteria: |
+      Should name meta-debugger and meta-tester.
+      Should explain the workflow: debugger finds and fixes, tester verifies.
+      Should describe the reproduce→fix→verify pipeline.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  # ============================================================
+  # SCOPE BOUNDARIES — agents refuse out-of-scope work
+  # ============================================================
+
+  - name: augmenter-refuses-new-project
+    agent: crew-augmenter
+    input: "create a brand new crew for ~/code/my-new-project from scratch"
+    criteria: |
+      Should explain that creating new projects is crew-creator's job, not augmenter's.
+      Augmenter modifies existing crews.
+      Should suggest routing to crew-creator instead.
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  - name: debugger-escalates-feature-gap
+    agent: meta-debugger
+    input: "generate.py doesn't support multi-file skills yet. Can you add that feature?"
+    criteria: |
+      Should recognize this as a feature request, not a bug.
+      Should escalate to dispatcher (or suggest escalation) since new functionality is outside debugger's scope.
+      Should NOT implement new features.
+    tags: [scope, meta-crew]
+    threshold: 4
