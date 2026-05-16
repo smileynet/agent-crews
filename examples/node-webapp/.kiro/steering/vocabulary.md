@@ -45,6 +45,11 @@ Canonical intent keywords for this project's crews. Use these exact terms in rou
 | documentation | research | handles |
 | analysis | research | handles |
 | knowledge-capture | research | handles |
+| rust-development | rust | handles |
+| linting | rust | handles |
+| formatting | rust | handles |
+| clippy | rust | handles |
+| cargo | rust | handles |
 | writing | writing | handles |
 | editing | writing | handles |
 | documentation | writing | handles |
@@ -82,6 +87,9 @@ Canonical intent keywords for this project's crews. Use these exact terms in rou
 | bugs | research | refuses |
 | infrastructure | research | refuses |
 | deployment | research | refuses |
+| infrastructure | rust | refuses |
+| research | rust | refuses |
+| documentation | rust | refuses |
 | implementation | writing | refuses |
 | bugs | writing | refuses |
 | infrastructure | writing | refuses |
