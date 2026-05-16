@@ -68,6 +68,56 @@ cat > "$WORKDIR/.kiro/agents/file-resource-agent.json" << 'EOF'
 }
 EOF
 
+# T3: Agent with skill:// resource (on-demand)
+mkdir -p "$WORKDIR/.kiro/skills/flamingo-facts"
+cat > "$WORKDIR/.kiro/skills/flamingo-facts/SKILL.md" << 'EOF'
+---
+name: flamingo-facts
+description: Facts about flamingos. Use when asked about flamingos, pink birds, or wading birds.
+---
+# Flamingo Facts
+The flamingo skill secret is: FLAMINGO_SKILL_6V8R3
+Flamingos are pink because of carotenoid pigments in their diet.
+EOF
+cat > "$WORKDIR/.kiro/agents/skill-agent.json" << 'EOF'
+{
+  "name": "skill-agent",
+  "description": "Test agent with skill resource",
+  "tools": [],
+  "allowedTools": [],
+  "resources": ["skill://.kiro/skills/flamingo-facts/SKILL.md"],
+  "prompt": "You are a test agent. Answer questions using your available knowledge and skills. Be precise and literal. If asked to quote a secret phrase, do so exactly."
+}
+EOF
+
+# T4: Parent + child agents for subagent isolation test
+cat > "$WORKDIR/.kiro/agents/parent-agent.json" << 'EOF'
+{
+  "name": "parent-agent",
+  "description": "Parent agent that delegates to child",
+  "tools": ["subagent"],
+  "allowedTools": ["subagent"],
+  "resources": ["file://context-files/parent-canary.md"],
+  "toolsSettings": {
+    "crew": {
+      "availableAgents": ["child-agent"],
+      "trustedAgents": ["child-agent"]
+    }
+  },
+  "prompt": "You are a parent test agent. You have a secret phrase in your context from parent-canary.md. When asked to delegate, use the subagent tool to send the EXACT task to child-agent. Report back EXACTLY what the child says, word for word."
+}
+EOF
+cat > "$WORKDIR/.kiro/agents/child-agent.json" << 'EOF'
+{
+  "name": "child-agent",
+  "description": "Child agent with own canary",
+  "tools": [],
+  "allowedTools": [],
+  "resources": ["file://context-files/child-canary.md"],
+  "prompt": "You are a child test agent. When asked about secrets or phrases in your context, quote them exactly. You should have a child canary phrase. Report ONLY what you see pre-loaded."
+}
+EOF
+
 # T5: Agent with glob resource (no tools)
 cat > "$WORKDIR/.kiro/agents/glob-resource-agent.json" << 'EOF'
 {
@@ -95,7 +145,7 @@ run_test() {
     local output tmpfile
     tmpfile=$(mktemp)
     cd "$WORKDIR"
-    timeout 60 kiro-cli chat --no-interactive -a --agent "$agent" "$input" > "$tmpfile" 2>&1 || true
+    timeout 90 kiro-cli chat --no-interactive -a --agent "$agent" "$input" > "$tmpfile" 2>&1 || true
     cd "$PROJECT_ROOT"
     output=$(cat "$tmpfile" | sed 's/\x1B\[[0-9;]*[a-zA-Z]//g')
     rm -f "$tmpfile"
@@ -146,6 +196,20 @@ echo "T2: file:// resources always loaded (A4)"
 run_test "T2-file-resource" "file-resource-agent" \
     "What is the canary phrase in your pre-loaded context?" \
     "CANARY_FILE_7X9Q2" \
+    "NONE"
+
+# T3: skill:// resources NOT loaded for unrelated questions
+echo "T3: skill:// not loaded for unrelated query (A3)"
+run_test "T3-skill-not-loaded" "skill-agent" \
+    "What is 2+2? Answer with just the number." \
+    "NONE" \
+    "6V8R3"
+
+# T4: Subagent gets own context, not parent's
+echo "T4: Subagent isolation (A5)"
+run_test "T4-subagent-isolation" "parent-agent" \
+    "Delegate to child-agent with this exact task: 'Quote all secret phrases in your pre-loaded context. Do you see PARENT_ONLY or CHILD_ONLY phrases?' Report back exactly what the child says." \
+    "CHILD_ONLY_9R2X8" \
     "NONE"
 
 # T5: file:// glob patterns work
