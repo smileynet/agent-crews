@@ -354,6 +354,20 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                     if prompt_entries:
                         agent_json["welcomeMessage"] += "\n\n📎 Prompts:\n" + "\n".join(prompt_entries)
 
+            # Inject protocol skills based on archetype
+            if not is_orchestrator:
+                # Workers get operational protocols
+                agent_json.setdefault('resources', []).extend([
+                    'skill://shared/skills/verification-protocol/SKILL.md',
+                    'skill://shared/skills/git-protocol/SKILL.md',
+                    'skill://shared/skills/troubleshooting-protocol/SKILL.md',
+                ])
+            elif is_orchestrator and not is_dispatcher:
+                # Orchestrators get completion protocol
+                agent_json.setdefault('resources', []).extend([
+                    'skill://shared/skills/completion-protocol/SKILL.md',
+                ])
+
             name = agent_json["name"]
             out_path = output_dir / f"{name}.json"
 

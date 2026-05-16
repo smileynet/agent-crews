@@ -32,7 +32,8 @@
   },
   "resources": [
     "file://AGENTS.md",
-    "file://.kiro/steering/vocabulary.md"
+    "file://.kiro/steering/vocabulary.md",
+    "skill://shared/skills/completion-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

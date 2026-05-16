@@ -50,7 +50,10 @@
     "file://.kiro/steering/vocabulary.md",
     "file://base/crews/general.yaml",
     "skill://.kiro/skills/create-crew.md",
-    "skill://.kiro/skills/kiro-cli-schema/SKILL.md"
+    "skill://.kiro/skills/kiro-cli-schema/SKILL.md",
+    "skill://shared/skills/verification-protocol/SKILL.md",
+    "skill://shared/skills/git-protocol/SKILL.md",
+    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
