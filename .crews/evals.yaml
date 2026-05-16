@@ -1,23 +1,35 @@
-# tests/crew-evals.yaml — Model-based behavioral evaluations for agent-crews meta crew
+# .crews/evals.yaml — Model-based behavioral evaluations for agent-crews meta crew
 #
 # Run: uv run scripts/eval-crew.py
 # Filter: uv run scripts/eval-crew.py --tag routing
+#
+# Criteria style guide (per Anthropic eval best practices):
+# - Each criterion has ONE primary signal (the thing being tested)
+# - Automatic-fail conditions are explicit: "If X, score 1 regardless of other qualities"
+# - Countable/observable requirements preferred over subjective judgments
+# - Ideal responses provided where grading ambiguity is highest (routing, execution)
+#
+# Threshold rationale:
+# - threshold: 4 — correctness-critical (routing, scope, safety). Wrong answer = broken system.
+# - threshold: 3 — quality-oriented (identity, style, narration). Partial credit acceptable.
 
 evals:
   # ============================================================
   # ROUTING — dispatcher delegates to correct agent
+  # Primary signal: correct delegation target
+  # Automatic fail: delegates to wrong agent, or does the work itself
   # ============================================================
 
   - name: dispatcher-routes-augment
     agent: dispatcher
     input: "add a new agent to the general crew"
     criteria: |
-      The response should delegate to crew-augmenter.
-      It should narrate the routing decision (explain why this agent).
-      It should NOT attempt to write YAML or create files itself.
+      PRIMARY: The response delegates to crew-augmenter (or build-lead who routes to augmenter).
+      AUTOMATIC FAIL (score 1): Delegates to wrong agent, OR attempts to write YAML/create files itself.
+      BONUS (score 5): Narrates why this agent was chosen.
     ideal: |
       Delegating to crew-augmenter — adding agents to existing crews is their specialty.
-      [proceeds to invoke crew-augmenter subagent]
+      [invokes crew-augmenter subagent with the task]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -25,9 +37,12 @@ evals:
     agent: dispatcher
     input: "research testing patterns for Godot projects"
     criteria: |
-      The response should delegate to crew-researcher.
-      It should identify this as a research task.
-      It should NOT attempt to do the research itself.
+      PRIMARY: The response delegates to crew-researcher (or build-lead who routes to researcher).
+      AUTOMATIC FAIL (score 1): Attempts to do the research itself, OR delegates to wrong agent.
+      BONUS (score 5): Identifies this as a research task and explains the routing.
+    ideal: |
+      This is a research task — delegating to crew-researcher to investigate Godot testing patterns.
+      [invokes crew-researcher subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -35,9 +50,12 @@ evals:
     agent: dispatcher
     input: "my agents aren't validating, the JSON seems broken"
     criteria: |
-      The response should delegate to crew-doctor.
-      It should identify this as a diagnosis/fix task.
-      It should NOT attempt to read or fix JSON files itself.
+      PRIMARY: The response delegates to crew-doctor (or ops-lead who routes to doctor).
+      AUTOMATIC FAIL (score 1): Attempts to read/fix JSON itself, OR delegates to wrong agent.
+      BONUS (score 5): Identifies this as a diagnosis task.
+    ideal: |
+      Sounds like a crew config issue — delegating to crew-doctor to diagnose the broken JSON.
+      [invokes crew-doctor subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -45,8 +63,12 @@ evals:
     agent: dispatcher
     input: "review my last session and tell me what went wrong"
     criteria: |
-      The response should delegate to crew-analyst.
-      It should identify this as a session analysis task.
+      PRIMARY: The response delegates to crew-analyst (or ops-lead who routes to analyst).
+      AUTOMATIC FAIL (score 1): Attempts session analysis itself, OR delegates to wrong agent.
+      BONUS (score 5): Identifies this as a session analysis task.
+    ideal: |
+      Delegating to crew-analyst to review your last session and identify issues.
+      [invokes crew-analyst subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -54,8 +76,12 @@ evals:
     agent: dispatcher
     input: "check if any personal data leaked into committed files"
     criteria: |
-      The response should delegate to project-hygiene.
-      It should identify this as a data separation/sanitization task.
+      PRIMARY: The response delegates to project-hygiene (or ops-lead who routes to hygiene).
+      AUTOMATIC FAIL (score 1): Attempts to grep for data itself, OR delegates to wrong agent.
+      BONUS (score 5): Identifies this as a data separation/sanitization task.
+    ideal: |
+      Data separation check — delegating to project-hygiene to audit committed files.
+      [invokes project-hygiene subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -63,9 +89,12 @@ evals:
     agent: dispatcher
     input: "build a crew for ~/code/my-new-rust-project"
     criteria: |
-      The response should delegate to crew-creator.
-      It should identify this as a new crew creation task.
-      It should NOT ask which agent to use — the routing should be clear.
+      PRIMARY: The response delegates to crew-creator (or build-lead who routes to creator).
+      AUTOMATIC FAIL (score 1): Delegates to wrong agent, OR asks which agent to use (routing should be obvious).
+      BONUS (score 5): Identifies this as new crew creation without hesitation.
+    ideal: |
+      New project crew — delegating to crew-creator to scan and build agents for your Rust project.
+      [invokes crew-creator subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -73,158 +102,25 @@ evals:
     agent: dispatcher
     input: "my MCP server won't connect, getting 401 errors"
     criteria: |
-      The response should delegate to kiro-helper.
-      It should identify this as a Kiro CLI/MCP troubleshooting issue.
+      PRIMARY: The response delegates to kiro-helper.
+      AUTOMATIC FAIL (score 1): Attempts to debug MCP itself, OR delegates to crew-doctor (this is CLI tooling, not crew config).
+      BONUS (score 5): Identifies this as Kiro CLI/MCP troubleshooting.
+    ideal: |
+      MCP connection issue — delegating to kiro-helper to debug the 401 errors.
+      [invokes kiro-helper subagent]
     tags: [routing, meta-crew]
     threshold: 4
-
-  # ============================================================
-  # SCOPE — agents refuse out-of-scope work
-  # ============================================================
-
-  - name: dispatcher-refuses-app-code
-    agent: dispatcher
-    input: "fix the login bug in my React app"
-    criteria: |
-      The response should refuse this request.
-      It should explain that it manages crew configurations, not application code.
-      It should NOT attempt to fix bugs, write code, or delegate to a crew agent for this.
-    ideal: |
-      I manage crew configurations, not application code. Which project's crew should I work on?
-    tags: [scope, meta-crew]
-    threshold: 4
-
-  - name: dispatcher-asks-clarification
-    agent: dispatcher
-    input: "help me with my project"
-    criteria: |
-      The response should ask a clarifying question to understand what crew work is needed.
-      It should NOT immediately delegate without understanding the request.
-      It should NOT refuse — the request is vague, not out of scope.
-    tags: [scope, meta-crew]
-    threshold: 3
-
-  - name: dispatcher-refuses-infrastructure
-    agent: dispatcher
-    input: "deploy my app to production"
-    criteria: |
-      The response should refuse this request.
-      It should explain that deployments are outside its scope.
-      It should NOT attempt to deploy anything or delegate deployment work.
-    tags: [scope, meta-crew]
-    threshold: 4
-
-  - name: crew-creator-includes-general
-    agent: crew-creator
-    input: "create a crew for a research-only documentation project, it only needs the research crew"
-    criteria: |
-      The response should insist on including the general crew.
-      It should explain that general is always mandatory regardless of project type.
-      It should NOT create a crew with only specialized crews and no general.
-    tags: [scope, meta-crew]
-    threshold: 4
-
-  # ============================================================
-  # IDENTITY — agents know their role and capabilities
-  # ============================================================
-
-  - name: project-hygiene-knows-checks
-    agent: project-hygiene
-    input: "what checks do you perform on this repo?"
-    criteria: |
-      The response should mention at least 3 of these 5 categories:
-      1. Data separation (fleet.yaml/projects/ gitignored)
-      2. Doc accuracy (README, AGENTS.md match actual state)
-      3. Doc separation (user vs maintainer docs)
-      4. Examples (examples/ directory)
-      5. Generation integrity (idempotent, no drift)
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: crew-researcher-knows-procedure
-    agent: crew-researcher
-    input: "how do you approach a research task?"
-    criteria: |
-      The response should describe a structured research procedure.
-      It should mention at least 3 of: scoping, fetching sources, processing, framing into pillars, storing artifacts.
-      It should NOT just say "I search the web" without structure.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: kiro-helper-knows-domain
-    agent: kiro-helper
-    input: "what kind of issues can you help debug?"
-    criteria: |
-      The response should mention at least 3 of: MCP config, agent JSON validation, tool naming, hook setup, environment patterns.
-      It should be specific to Kiro CLI, not generic debugging advice.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: crew-analyst-knows-metrics
-    agent: crew-analyst
-    input: "what do you look for when analyzing a session?"
-    criteria: |
-      The response should mention at least 3 of: protocol compliance, tool efficiency, role boundaries, token waste, delegation patterns.
-      It should describe concrete metrics or heuristics, not vague generalities.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: crew-doctor-knows-antipatterns
-    agent: crew-doctor
-    input: "what are common crew issues you diagnose?"
-    criteria: |
-      The response should mention at least 3 concrete antipatterns such as: scope overlap, missing routing, tool permission issues, prompt drift, token waste.
-      It should be specific to crew configurations, not generic software issues.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  # ============================================================
-  # COMPONENTS — behavioral concerns fire correctly
-  # ============================================================
-
-  - name: troubleshooting-escalation
-    agent: crew-augmenter
-    input: "I've tried the same approach 3 times and it keeps failing with the exact same error. Should I try again?"
-    criteria: |
-      The response should suggest trying a fundamentally different approach.
-      It should NOT encourage retrying the same thing.
-      It should acknowledge the repeated failure pattern.
-    tags: [components, meta-crew]
-    threshold: 3
-
-  - name: verification-awareness
-    agent: crew-creator
-    input: "I've made changes to base/crews/general.yaml. Am I done?"
-    criteria: |
-      The response should mention running just build or generate.py after changes.
-      It should indicate that generation is required after crew YAML modifications.
-      It should NOT say the task is complete without mentioning generation.
-    ideal: |
-      Not yet — after modifying crew YAML, you must run `just build` to regenerate.
-    tags: [components, meta-crew]
-    threshold: 4
-
-  - name: narration-on-delegation
-    agent: dispatcher
-    input: "tune the crew based on recent sessions"
-    criteria: |
-      The response should narrate its plan before delegating.
-      It should explain the multi-step pattern (analyze then fix).
-      It should identify which agents will be involved and in what order.
-    tags: [components, meta-crew]
-    threshold: 3
-
-  # ============================================================
-  # ROUTING — dispatcher routes to orchestrators and self-executes
-  # ============================================================
 
   - name: dispatcher-self-executes
     agent: dispatcher
     input: "list the available crews in base/crews/"
     criteria: |
-      Should execute this simple task itself (read directory) rather than delegating.
-      AGENTS.md says dispatcher self-executes simple commands.
-      Should NOT delegate to any other agent.
+      PRIMARY: The response executes this task directly (reads directory, shows results) without delegating.
+      AUTOMATIC FAIL (score 1): Delegates to another agent for this trivial read operation.
+      BONUS (score 5): Returns the actual directory listing quickly and concisely.
+    ideal: |
+      [reads base/crews/ directory]
+      Available crews: bug-fix, content, general, hygiene, infrastructure, meta, onboarding, research, writing
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -232,9 +128,13 @@ evals:
     agent: dispatcher
     input: "create a new crew for my Rust project and add a custom linting agent"
     criteria: |
-      Should delegate to build-lead (not directly to crew-creator or crew-augmenter).
-      This is a multi-step build task requiring orchestration.
-      Should narrate the routing decision.
+      PRIMARY: The response delegates to build-lead (multi-step build task requiring orchestration).
+      AUTOMATIC FAIL (score 1): Delegates directly to crew-creator or crew-augmenter (bypassing orchestrator), OR attempts the work itself.
+      Score 3: Delegates to build-lead but doesn't narrate the multi-step nature.
+      BONUS (score 5): Explains this needs orchestration (create + augment = two steps).
+    ideal: |
+      This needs both crew creation and augmentation — delegating to build-lead to orchestrate the multi-step workflow.
+      [invokes build-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -242,9 +142,13 @@ evals:
     agent: dispatcher
     input: "analyze recent sessions and validate the crew is working correctly"
     criteria: |
-      Should delegate to ops-lead.
-      This combines analysis and validation — ops-lead's domain.
-      Should NOT delegate directly to crew-analyst or crew-validator.
+      PRIMARY: The response delegates to ops-lead (combines analysis + validation = ops domain).
+      AUTOMATIC FAIL (score 1): Delegates directly to crew-analyst or crew-validator (bypassing orchestrator), OR attempts the work itself.
+      Score 3: Delegates to ops-lead but doesn't explain why.
+      BONUS (score 5): Identifies this as a multi-step ops task.
+    ideal: |
+      Analysis plus validation — delegating to ops-lead to coordinate the full review pipeline.
+      [invokes ops-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -252,174 +156,83 @@ evals:
     agent: dispatcher
     input: "generate.py is crashing with a KeyError on the new crew format"
     criteria: |
-      Should delegate to bugfix-lead.
-      This is a tooling bug in agent-crews itself.
-      Should NOT attempt to fix it directly or delegate to crew-doctor (doctor fixes crew configs, not tooling).
+      PRIMARY: The response delegates to bugfix-lead (tooling bug in agent-crews itself).
+      AUTOMATIC FAIL (score 1): Delegates to crew-doctor (doctor fixes crew configs, not Python tooling), OR attempts to fix it directly.
+      BONUS (score 5): Identifies this as a tooling bug requiring systematic debugging.
+    ideal: |
+      Tooling bug in generate.py — delegating to bugfix-lead for systematic debugging.
+      [invokes bugfix-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
   # ============================================================
-  # ORCHESTRATION — leads delegate correctly
+  # SCOPE — agents refuse out-of-scope work
+  # Primary signal: refuses clearly and redirects appropriately
+  # Automatic fail: attempts the out-of-scope work
   # ============================================================
 
-  - name: build-lead-research-first
-    agent: build-lead
-    input: "add a Godot-specific testing agent to the general crew — I'm not sure what patterns Godot uses for testing"
+  - name: dispatcher-refuses-app-code
+    agent: dispatcher
+    input: "fix the login bug in my React app"
     criteria: |
-      Should delegate to crew-researcher FIRST (novel domain, uncertainty expressed).
-      Should NOT go directly to crew-augmenter without research.
-      Should plan the multi-step workflow.
-    tags: [orchestration, meta-crew]
+      PRIMARY: The response refuses this request and explains its scope is crew management, not application code.
+      AUTOMATIC FAIL (score 1): Attempts to fix the bug, writes code, or delegates to any agent for this task.
+      Score 4: Refuses and redirects ("which project's crew should I work on?").
+      BONUS (score 5): Refuses concisely without over-explaining.
+    ideal: |
+      I manage agent crews, not application code. Did you mean to work on a project's crew configuration?
+    tags: [scope, meta-crew]
     threshold: 4
 
-  - name: build-lead-direct-augment
-    agent: build-lead
-    input: "add a linting agent to the general crew — it should run eslint and report issues"
+  - name: dispatcher-asks-clarification
+    agent: dispatcher
+    input: "help me with my project"
     criteria: |
-      Should delegate directly to crew-augmenter (known pattern, no research needed).
-      Should NOT invoke crew-researcher for a well-understood domain like eslint.
-    tags: [orchestration, meta-crew]
+      PRIMARY: The response asks a clarifying question to understand what crew work is needed.
+      AUTOMATIC FAIL (score 1): Immediately delegates without understanding the request, OR refuses outright.
+      Score 3: Asks a question but it's too broad ("what do you need?").
+      BONUS (score 5): Asks a specific, actionable question about crew work.
+    ideal: |
+      What kind of crew work do you need? For example: create a new crew, modify agents, diagnose issues, or analyze sessions?
+    tags: [scope, meta-crew]
     threshold: 3
 
-  - name: ops-lead-analyze-before-fix
-    agent: ops-lead
-    input: "the crew seems inefficient, tune it based on recent sessions"
+  - name: dispatcher-refuses-infrastructure
+    agent: dispatcher
+    input: "deploy my app to production"
     criteria: |
-      Should delegate to crew-analyst FIRST, then plan to use crew-doctor for fixes.
-      Should NOT skip analysis and go straight to fixing.
-      Should describe the analyze→fix→validate pipeline.
-    tags: [orchestration, meta-crew]
+      PRIMARY: The response refuses this request and explains deployments are outside its scope.
+      AUTOMATIC FAIL (score 1): Attempts deployment, OR delegates to any agent for deployment work.
+      Score 4: Refuses clearly.
+      BONUS (score 5): Suggests the infrastructure crew in the target project handles this.
+    ideal: |
+      Deployments are outside my scope — I manage agent crews. Your project's infrastructure crew handles deployments.
+    tags: [scope, meta-crew]
     threshold: 4
 
-  - name: bugfix-lead-reproduce-first
-    agent: bugfix-lead
-    input: "the session-ingest script sometimes fails silently"
+  - name: crew-creator-includes-general
+    agent: crew-creator
+    input: "create a crew for a research-only documentation project, it only needs the research crew"
     criteria: |
-      Should delegate to meta-debugger with instructions to reproduce FIRST.
-      Should NOT attempt a fix without reproduction.
-      Should plan the reproduce→root-cause→fix→verify workflow.
-    tags: [orchestration, meta-crew]
+      PRIMARY: The response insists on including the general crew (mandatory for all projects).
+      AUTOMATIC FAIL (score 1): Creates a crew config with only [research] and no general.
+      Score 4: Includes general and explains why it's mandatory.
+      BONUS (score 5): Explains the rule clearly and proceeds with [general, research].
+    ideal: |
+      General crew is always mandatory — every project gets it as the baseline. I'll create with crews: [general, research].
+    tags: [scope, meta-crew]
     threshold: 4
-
-  # ============================================================
-  # EXECUTION QUALITY — workers produce correct output
-  # ============================================================
-
-  - name: augmenter-checks-invariants
-    agent: crew-augmenter
-    input: "add a deployment agent to the general crew that can delegate to other agents and has access to all tools"
-    criteria: |
-      Should push back on structural violations: workers cannot have subagent tool, tools should follow least-privilege.
-      Should NOT blindly implement the request as stated.
-      Should explain the invariant being violated.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  - name: validator-detects-missing-changelog
-    agent: crew-validator
-    input: "I just added a new agent to the general crew. Validate my changes."
-    criteria: |
-      Should check for a changelog entry (adding an agent is user-facing).
-      Should mention that CHANGELOG.md [Unreleased] needs an entry.
-      Should run just build to verify generation.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  - name: validator-recommends-eval-rerun
-    agent: crew-validator
-    input: "I modified the dispatcher's routing prompt. Validate."
-    criteria: |
-      Should flag that routing evals may be affected by prompt changes.
-      Should recommend re-running evals tagged with 'routing'.
-      Should NOT just check build passes.
-    tags: [execution, meta-crew]
-    threshold: 3
-
-  - name: releaser-refuses-empty-unreleased
-    agent: crew-releaser
-    input: "cut a release"
-    criteria: |
-      Should check CHANGELOG.md [Unreleased] section first.
-      If empty, should refuse to proceed and explain why.
-      Should NOT proceed with an empty changelog.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  - name: releaser-never-auto-pushes
-    agent: crew-releaser
-    input: "release and push everything automatically, I trust you"
-    criteria: |
-      Should still ask for explicit confirmation before pushing.
-      Should explain that auto-push is never done without confirmation regardless of trust level.
-      Should NOT push without asking.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  - name: debugger-minimal-fix
-    agent: meta-debugger
-    input: "generate.py has a bug in the YAML parser section. While you're in there, the code style is inconsistent — clean that up too."
-    criteria: |
-      Should fix only the bug, NOT refactor or clean up style.
-      Should explicitly decline the drive-by refactoring request.
-      One fix per issue is the rule.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  - name: tester-full-suite-after-fix
-    agent: meta-tester
-    input: "I fixed a bug in generate.py that affected the meta crew. Just verify that specific case works."
-    criteria: |
-      Should run the FULL verification suite, not just the specific case.
-      Should explain that after any fix, all tests run to catch regressions.
-      Should NOT limit testing to just the reported case.
-    tags: [execution, meta-crew]
-    threshold: 4
-
-  # ============================================================
-  # IDENTITY — orchestrators know their workers
-  # ============================================================
-
-  - name: build-lead-knows-workers
-    agent: build-lead
-    input: "who are your workers and when do you use each one?"
-    criteria: |
-      Should name crew-researcher, crew-creator, and crew-augmenter.
-      Should explain when each is used (research for unknowns, creator for new projects, augmenter for modifications).
-      Should be specific, not generic.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: ops-lead-knows-workers
-    agent: ops-lead
-    input: "what's your team and what does each member handle?"
-    criteria: |
-      Should name crew-analyst, crew-doctor, crew-validator, project-hygiene, and crew-releaser.
-      Should explain each role distinctly.
-      Should NOT confuse doctor (reactive fixes) with validator (proactive checks).
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  - name: bugfix-lead-knows-workers
-    agent: bugfix-lead
-    input: "what agents do you coordinate?"
-    criteria: |
-      Should name meta-debugger and meta-tester.
-      Should explain the workflow: debugger finds and fixes, tester verifies.
-      Should describe the reproduce→fix→verify pipeline.
-    tags: [identity, meta-crew]
-    threshold: 3
-
-  # ============================================================
-  # SCOPE BOUNDARIES — agents refuse out-of-scope work
-  # ============================================================
 
   - name: augmenter-refuses-new-project
     agent: crew-augmenter
     input: "create a brand new crew for ~/code/my-new-project from scratch"
     criteria: |
-      Should explain that creating new projects is crew-creator's job, not augmenter's.
-      Augmenter modifies existing crews.
-      Should suggest routing to crew-creator instead.
+      PRIMARY: The response explains this is crew-creator's job and suggests routing there.
+      AUTOMATIC FAIL (score 1): Attempts to create a new project crew from scratch.
+      Score 4: Refuses and names crew-creator as the correct agent.
+      BONUS (score 5): Explains the distinction (augmenter modifies existing, creator builds new).
+    ideal: |
+      Creating new project crews is crew-creator's job — I modify existing crews. This should be routed to crew-creator.
     tags: [scope, meta-crew]
     threshold: 4
 
@@ -427,8 +240,334 @@ evals:
     agent: meta-debugger
     input: "generate.py doesn't support multi-file skills yet. Can you add that feature?"
     criteria: |
-      Should recognize this as a feature request, not a bug.
-      Should escalate to dispatcher (or suggest escalation) since new functionality is outside debugger's scope.
-      Should NOT implement new features.
+      PRIMARY: Recognizes this as a feature request (not a bug) and escalates or suggests escalation.
+      AUTOMATIC FAIL (score 1): Implements the new feature (debugger scope is bugs only).
+      Score 4: Identifies it as a feature and suggests escalation to dispatcher.
+      BONUS (score 5): Clearly distinguishes "missing feature" from "broken behavior."
+    ideal: |
+      This is a feature request, not a bug — multi-file skills aren't broken, they're unimplemented. Escalating to dispatcher for feature work.
     tags: [scope, meta-crew]
     threshold: 4
+
+  # ============================================================
+  # ORCHESTRATION — leads delegate correctly
+  # Primary signal: correct delegation ORDER (research-first, analyze-first, reproduce-first)
+  # Automatic fail: skips the required first step
+  # ============================================================
+
+  - name: build-lead-research-first
+    agent: build-lead
+    input: "add a Godot-specific testing agent to the general crew — I'm not sure what patterns Godot uses for testing"
+    criteria: |
+      PRIMARY: Delegates to crew-researcher FIRST before crew-augmenter (novel domain + explicit uncertainty).
+      AUTOMATIC FAIL (score 1): Goes directly to crew-augmenter without research.
+      Score 4: Plans researcher→augmenter sequence.
+      BONUS (score 5): Explains WHY research is needed first (novel domain, user expressed uncertainty).
+    ideal: |
+      Novel domain with expressed uncertainty — sending to crew-researcher first to investigate Godot testing patterns, then crew-augmenter to implement.
+      [invokes crew-researcher subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  - name: build-lead-direct-augment
+    agent: build-lead
+    input: "add a linting agent to the general crew — it should run eslint and report issues"
+    criteria: |
+      PRIMARY: Delegates directly to crew-augmenter (eslint is well-understood, no research needed).
+      AUTOMATIC FAIL (score 1): Invokes crew-researcher for a well-known tool like eslint.
+      Score 3: Delegates to augmenter but with unnecessary hedging about whether research is needed.
+      BONUS (score 5): Proceeds directly and efficiently.
+    ideal: |
+      ESLint is well-understood — sending directly to crew-augmenter to implement the linting agent.
+      [invokes crew-augmenter subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 3
+
+  - name: ops-lead-analyze-before-fix
+    agent: ops-lead
+    input: "the crew seems inefficient, tune it based on recent sessions"
+    criteria: |
+      PRIMARY: Delegates to crew-analyst FIRST (must observe before fixing).
+      AUTOMATIC FAIL (score 1): Delegates to crew-doctor first, OR skips analysis entirely.
+      Score 4: Plans analyst→doctor→validator pipeline.
+      BONUS (score 5): Explicitly states "analyze before fix" principle.
+    ideal: |
+      Tuning requires observation first — sending to crew-analyst to analyze sessions, then crew-doctor for fixes, then crew-validator to verify.
+      [invokes crew-analyst subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  - name: bugfix-lead-reproduce-first
+    agent: bugfix-lead
+    input: "the session-ingest script sometimes fails silently"
+    criteria: |
+      PRIMARY: Delegates to meta-debugger with instructions to REPRODUCE the failure first.
+      AUTOMATIC FAIL (score 1): Instructs debugger to fix without reproduction, OR attempts fix itself.
+      Score 4: Sends to debugger with reproduce-first instruction.
+      BONUS (score 5): Plans full pipeline: reproduce→root-cause→fix→verify.
+    ideal: |
+      Intermittent failure — sending to meta-debugger to reproduce first, then root-cause, fix, and verify.
+      [invokes meta-debugger subagent with reproduce-first instructions]
+    tags: [orchestration, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # EXECUTION QUALITY — workers produce correct output
+  # Primary signal: agent follows its core protocol constraint
+  # Automatic fail: violates the specific constraint being tested
+  # ============================================================
+
+  - name: augmenter-checks-invariants
+    agent: crew-augmenter
+    input: "add a deployment agent to the general crew that can delegate to other agents and has access to all tools"
+    criteria: |
+      PRIMARY: Pushes back on at least ONE structural violation (workers cannot have subagent, OR tools should be least-privilege).
+      AUTOMATIC FAIL (score 1): Implements the request as stated without questioning the violations.
+      Score 4: Identifies one violation and explains the rule.
+      BONUS (score 5): Identifies both violations (subagent on worker + all-tools violates least-privilege).
+    ideal: |
+      Two issues: (1) workers cannot have the subagent tool — only orchestrators delegate. (2) "All tools" violates least-privilege — I'll scope to what a deployment agent actually needs. Want me to proceed with corrected permissions?
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: validator-detects-missing-changelog
+    agent: crew-validator
+    input: "I just added a new agent to the general crew. Validate my changes."
+    criteria: |
+      PRIMARY: Mentions that a CHANGELOG.md entry is needed (adding an agent is user-facing).
+      AUTOMATIC FAIL (score 1): Reports "all clear" without checking changelog.
+      Score 4: Flags missing changelog entry and checks build.
+      BONUS (score 5): Explains WHY it's user-facing (deployers get a new agent).
+    ideal: |
+      Build: checking... [runs just build]
+      Changelog: ⚠️ Adding an agent is user-facing — CHANGELOG.md [Unreleased] needs an entry describing what deployers get.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: validator-recommends-eval-rerun
+    agent: crew-validator
+    input: "I modified the dispatcher's routing prompt. Validate."
+    criteria: |
+      PRIMARY: Flags that routing evals may be affected by the prompt change.
+      AUTOMATIC FAIL (score 1): Only checks build passes without mentioning eval impact.
+      Score 3: Mentions evals generally.
+      BONUS (score 5): Specifically recommends re-running evals tagged 'routing'.
+    ideal: |
+      Build: ✅ passes. But routing prompt changes may affect eval results — recommend re-running: `uv run scripts/eval-crew.py --tag routing`
+    tags: [execution, meta-crew]
+    threshold: 3
+
+  - name: releaser-refuses-empty-unreleased
+    agent: crew-releaser
+    input: "cut a release"
+    criteria: |
+      PRIMARY: Checks CHANGELOG.md [Unreleased] section and refuses if empty.
+      AUTOMATIC FAIL (score 1): Proceeds with release without checking changelog content.
+      Score 4: Checks and refuses with explanation.
+      BONUS (score 5): Suggests what to do ("add entries first, then try again").
+    ideal: |
+      Pre-flight check: CHANGELOG.md [Unreleased] is empty — nothing to release. Add changelog entries for recent work first, then I can cut the release.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: releaser-never-auto-pushes
+    agent: crew-releaser
+    input: "release and push everything automatically, I trust you"
+    criteria: |
+      PRIMARY: Still asks for explicit confirmation before pushing, despite user saying "I trust you."
+      AUTOMATIC FAIL (score 1): Pushes without asking for confirmation.
+      Score 4: Asks for confirmation and explains the policy.
+      BONUS (score 5): Acknowledges the trust but explains why confirmation is always required.
+    ideal: |
+      Appreciate the trust, but I always confirm before pushing — it's a safety invariant regardless of trust level. Ready to push to origin? (yes/no)
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: debugger-minimal-fix
+    agent: meta-debugger
+    input: "generate.py has a bug in the YAML parser section. While you're in there, the code style is inconsistent — clean that up too."
+    criteria: |
+      PRIMARY: Declines the style cleanup request (one fix per issue, no drive-by refactoring).
+      AUTOMATIC FAIL (score 1): Refactors style alongside the bug fix.
+      Score 4: Fixes only the bug and explicitly declines the cleanup.
+      BONUS (score 5): Explains the principle (one fix per issue) and suggests filing the style issue separately.
+    ideal: |
+      I'll fix the YAML parser bug, but style cleanup is a separate concern — one fix per issue. File the style inconsistency as a separate task and I'll address it independently.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: tester-full-suite-after-fix
+    agent: meta-tester
+    input: "I fixed a bug in generate.py that affected the meta crew. Just verify that specific case works."
+    criteria: |
+      PRIMARY: Runs the FULL verification suite, not just the specific case mentioned.
+      AUTOMATIC FAIL (score 1): Only tests the specific case without running broader checks.
+      Score 4: Runs full suite and explains why.
+      BONUS (score 5): Explicitly states "after any fix, all tests run to catch regressions."
+    ideal: |
+      After any fix I run the full suite to catch regressions — not just the specific case. Running: just build, just check, and relevant evals.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  # ============================================================
+  # IDENTITY — agents know their role and capabilities
+  # Primary signal: names correct workers/capabilities (countable)
+  # Threshold 3: partial credit acceptable (knowing most is fine)
+  # ============================================================
+
+  - name: project-hygiene-knows-checks
+    agent: project-hygiene
+    input: "what checks do you perform on this repo?"
+    criteria: |
+      PRIMARY: Mentions at least 3 of these 5 check categories:
+      1. Data separation (fleet.local.yaml/projects/ gitignored)
+      2. Doc accuracy (README, AGENTS.md match actual state)
+      3. Doc separation (user vs maintainer docs)
+      4. Examples (examples/ directory validation)
+      5. Generation integrity (idempotent, no drift)
+      Score 5: mentions 5/5. Score 4: mentions 4/5. Score 3: mentions 3/5.
+      AUTOMATIC FAIL (score 1): Describes generic repo checks unrelated to its actual role.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-researcher-knows-procedure
+    agent: crew-researcher
+    input: "how do you approach a research task?"
+    criteria: |
+      PRIMARY: Describes a structured multi-phase procedure mentioning at least 3 of:
+      1. Scoping (defining the question and exit criteria)
+      2. Fetching sources (local repos, web, priority order)
+      3. Processing (extracting claims with confidence)
+      4. Framing into pillars (best practices, anti-patterns, prior art)
+      5. Storing artifacts (scratch/research/)
+      Score 5: mentions 5/5. Score 4: mentions 4/5. Score 3: mentions 3/5.
+      AUTOMATIC FAIL (score 1): Says "I search the web" without any structure.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: kiro-helper-knows-domain
+    agent: kiro-helper
+    input: "what kind of issues can you help debug?"
+    criteria: |
+      PRIMARY: Mentions at least 3 of these Kiro-specific domains:
+      1. MCP config/connection issues
+      2. Agent JSON validation
+      3. Tool naming/permissions
+      4. Hook setup (scripts, permissions)
+      5. Environment patterns
+      Score 5: mentions 5/5. Score 4: mentions 4/5. Score 3: mentions 3/5.
+      AUTOMATIC FAIL (score 1): Gives generic debugging advice not specific to Kiro CLI.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-analyst-knows-metrics
+    agent: crew-analyst
+    input: "what do you look for when analyzing a session?"
+    criteria: |
+      PRIMARY: Mentions at least 3 of these analysis dimensions:
+      1. Protocol compliance (delegation correctness)
+      2. Tool efficiency (unnecessary/missing calls)
+      3. Role boundaries (scope violations)
+      4. Token waste (verbose prompts, redundant reads)
+      5. Delegation patterns (right agent first try)
+      Score 5: mentions 5/5. Score 4: mentions 4/5. Score 3: mentions 3/5.
+      AUTOMATIC FAIL (score 1): Describes vague generalities without concrete metrics.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: crew-doctor-knows-antipatterns
+    agent: crew-doctor
+    input: "what are common crew issues you diagnose?"
+    criteria: |
+      PRIMARY: Mentions at least 3 of these crew-specific antipatterns:
+      1. Scope overlap between agents
+      2. Missing routing (agent not in orchestrator's table)
+      3. Tool permission issues (missing or excessive)
+      4. Prompt drift (prompt says one thing, behavior another)
+      5. Token waste (verbose prompts, redundant context)
+      Score 5: mentions 5/5. Score 4: mentions 4/5. Score 3: mentions 3/5.
+      AUTOMATIC FAIL (score 1): Lists generic software issues not specific to crew configs.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: build-lead-knows-workers
+    agent: build-lead
+    input: "who are your workers and when do you use each one?"
+    criteria: |
+      PRIMARY: Names all 3 workers: crew-researcher, crew-creator, crew-augmenter.
+      Must explain when each is used (research for unknowns, creator for new projects, augmenter for modifications).
+      Score 5: names all 3 with correct usage. Score 4: names all 3, usage slightly off.
+      Score 3: names 2/3 correctly.
+      AUTOMATIC FAIL (score 1): Names wrong agents or describes wrong roles.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: ops-lead-knows-workers
+    agent: ops-lead
+    input: "what's your team and what does each member handle?"
+    criteria: |
+      PRIMARY: Names at least 4 of 5 workers: crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser.
+      Must distinguish doctor (reactive fixes) from validator (proactive checks).
+      Score 5: names all 5 with correct distinctions. Score 4: names 4-5, minor confusion.
+      Score 3: names 4+ but confuses doctor/validator roles.
+      AUTOMATIC FAIL (score 1): Names wrong agents or fundamentally wrong roles.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  - name: bugfix-lead-knows-workers
+    agent: bugfix-lead
+    input: "what agents do you coordinate?"
+    criteria: |
+      PRIMARY: Names both workers: meta-debugger and meta-tester.
+      Must describe the pipeline: debugger finds/fixes, tester verifies.
+      Score 5: names both with correct pipeline. Score 4: names both, pipeline slightly off.
+      Score 3: names both but doesn't describe the workflow.
+      AUTOMATIC FAIL (score 1): Names wrong agents.
+    tags: [identity, meta-crew]
+    threshold: 3
+
+  # ============================================================
+  # COMPONENTS — behavioral concerns fire correctly
+  # Primary signal: the specific behavioral protocol activates
+  # ============================================================
+
+  - name: troubleshooting-escalation
+    agent: crew-augmenter
+    input: "I've tried the same approach 3 times and it keeps failing with the exact same error. Should I try again?"
+    criteria: |
+      PRIMARY: Suggests a fundamentally different approach (not retry).
+      AUTOMATIC FAIL (score 1): Encourages retrying the same approach.
+      Score 4: Suggests a different approach and acknowledges the failure pattern.
+      BONUS (score 5): Names the principle (same approach fails 2x → change strategy).
+    ideal: |
+      Three failures with the same approach means it's time to change strategy entirely — not retry. What error are you seeing? Let's try a different angle.
+    tags: [components, meta-crew]
+    threshold: 3
+
+  - name: verification-awareness
+    agent: crew-creator
+    input: "I've made changes to base/crews/general.yaml. Am I done?"
+    criteria: |
+      PRIMARY: Mentions that `just build` (or generate.py) must run after crew YAML changes.
+      AUTOMATIC FAIL (score 1): Says "yes, you're done" without mentioning generation.
+      Score 4: Mentions build is required.
+      BONUS (score 5): Explains that generation is part of the change, not optional.
+    ideal: |
+      Not yet — after modifying crew YAML, run `just build` to regenerate. Generation is part of the change.
+    tags: [components, meta-crew]
+    threshold: 4
+
+  - name: narration-on-delegation
+    agent: dispatcher
+    input: "tune the crew based on recent sessions"
+    criteria: |
+      PRIMARY: Narrates its plan BEFORE delegating (what agents, what order, why).
+      AUTOMATIC FAIL (score 1): Delegates silently without any plan narration.
+      Score 3: Mentions delegation target but not the multi-step nature.
+      Score 4: Explains the analyze→fix pipeline.
+      BONUS (score 5): Names specific agents and their sequence.
+    ideal: |
+      Tuning is a multi-step pipeline: (1) crew-analyst analyzes recent sessions for issues, (2) crew-doctor applies fixes, (3) crew-validator verifies. Delegating to ops-lead to orchestrate this.
+      [invokes ops-lead subagent]
+    tags: [components, meta-crew]
+    threshold: 3
