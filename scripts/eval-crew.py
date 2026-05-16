@@ -12,17 +12,22 @@ Usage:
     uv run scripts/eval-crew.py --threshold 4  # override pass threshold
     uv run scripts/eval-crew.py --dry-run      # show what would run
     uv run scripts/eval-crew.py --verbose      # show full output
-    uv run scripts/eval-crew.py --timeout 600   # longer timeout
-    uv run scripts/eval-crew.py --intent-only    # check delegation intent only (30s timeout)
+    uv run scripts/eval-crew.py --timeout 180  # longer timeout
+    uv run scripts/eval-crew.py --intent-only  # check delegation intent only (30s timeout)
+    uv run scripts/eval-crew.py --trials 3     # run each eval 3x, report pass^k
+    uv run scripts/eval-crew.py --judge-trials 3  # majority-vote judge scoring
 """
 
 import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -44,8 +49,13 @@ def discover_fixture() -> Path:
 
 
 DEFAULT_THRESHOLD = 3
-DEFAULT_TIMEOUT = 300
+DEFAULT_TIMEOUT = 120
 PROJECT = "agent-crews"
+
+# Directories to symlink into isolated environment (read-only context)
+SYMLINK_DIRS = [".kiro", "base", "shared", ".crews"]
+# Files to symlink (read-only)
+SYMLINK_FILES = ["AGENTS.md", "CHANGELOG.md", "justfile"]
 
 JUDGE_PROMPT = """You are evaluating an AI agent from a multi-agent crew system. Agents have specific roles: orchestrators route work to specialists, workers execute tasks within their scope.
 
@@ -76,6 +86,25 @@ def strip_ansi(text: str) -> str:
     return re.sub(r'\x1B\[[0-9;]*[a-zA-Z]', '', text)
 
 
+def create_isolated_env() -> Path:
+    """Create a temp directory with symlinked read-only context."""
+    tmpdir = Path(tempfile.mkdtemp(prefix="eval-crew-"))
+    for d in SYMLINK_DIRS:
+        src = ROOT / d
+        if src.exists():
+            os.symlink(src, tmpdir / d)
+    for f in SYMLINK_FILES:
+        src = ROOT / f
+        if src.exists():
+            os.symlink(src, tmpdir / f)
+    return tmpdir
+
+
+def cleanup_isolated_env(tmpdir: Path) -> None:
+    """Remove temp directory."""
+    shutil.rmtree(tmpdir, ignore_errors=True)
+
+
 def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT_TIMEOUT, intent_only: bool = False) -> tuple[str, bool]:
     """Invoke kiro-cli agent. Returns (output, success)."""
     cmd = ["kiro-cli", "chat", "--no-interactive", "-a", "--wrap", "never"]
@@ -92,7 +121,6 @@ def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT
             return "", False
         return output, True
     except subprocess.TimeoutExpired as e:
-        # In intent-only mode, partial output is fine — we just want the first response
         if intent_only:
             output = strip_ansi((e.stdout or "") + (e.stderr or ""))
             if output.strip():
@@ -118,6 +146,26 @@ def invoke_judge(criteria: str, output: str, ideal: str | None = None) -> tuple[
         return None, f"Judge error: {e}"
 
 
+def invoke_judge_majority(criteria: str, output: str, ideal: str | None, judge_trials: int) -> tuple[int | None, str]:
+    """Run judge multiple times and return majority-vote score."""
+    scores = []
+    reasons = []
+    for _ in range(judge_trials):
+        score, reason = invoke_judge(criteria, output, ideal)
+        if score is not None:
+            scores.append(score)
+            reasons.append(reason)
+    if not scores:
+        return None, "All judge trials failed"
+    # Majority vote (most common score)
+    majority_score = Counter(scores).most_common(1)[0][0]
+    # Use reason from first trial that matched majority
+    majority_reason = next((r for s, r in zip(scores, reasons) if s == majority_score), reasons[0])
+    if judge_trials > 1:
+        majority_reason = f"[{len(scores)}/{judge_trials} judges, votes: {dict(Counter(scores))}] {majority_reason}"
+    return majority_score, majority_reason
+
+
 def parse_judge_response(text: str) -> tuple[int | None, str]:
     """Parse SCORE: N and REASON: ... from judge output."""
     score = None
@@ -133,7 +181,6 @@ def parse_judge_response(text: str) -> tuple[int | None, str]:
         elif line.upper().startswith("REASON:"):
             reason = line.split(":", 1)[1].strip()
     if score is None:
-        # Try to find a bare number
         numbers = re.findall(r'\b([1-5])\b', text)
         if numbers:
             score = int(numbers[0])
@@ -141,77 +188,133 @@ def parse_judge_response(text: str) -> tuple[int | None, str]:
     return score, reason
 
 
-def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIMEOUT) -> dict:
-    """Run a single eval. Returns result dict."""
+def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIMEOUT,
+             intent_only: bool = False, judge_trials: int = 1) -> dict:
+    """Run a single eval trial. Returns result dict."""
     name = ev["name"]
     agent = ev["agent"]
     input_text = ev["input"]
     criteria = ev["criteria"]
     ideal = ev.get("ideal")
-    cwd = ev.get("cwd", ".")
     timeout = ev.get("timeout", global_timeout)
+
+    # Create isolated environment
+    tmpdir = create_isolated_env()
+    cwd = str(tmpdir)
 
     start = time.time()
 
-    # Invoke agent (with retry)
-    intent_only = ev.get("intent_only", False) or getattr(run_eval, '_intent_only', False)
-    output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
-    if not success:
+    try:
+        # Invoke agent (with retry)
         output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
+        if not success:
+            output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
 
-    if not success:
+        if not success:
+            duration = time.time() - start
+            return {
+                "name": name,
+                "score": None,
+                "status": "error",
+                "error": "timeout" if not output else "empty",
+                "reason": f"Agent failed on both attempts ({duration:.0f}s)",
+                "duration_s": round(duration, 1),
+            }
+
+        if verbose:
+            print(f"\n  --- Agent output ({name}) ---")
+            print(f"  {output[:500]}")
+            print(f"  ---")
+
+        # Invoke judge (with majority vote if judge_trials > 1)
+        if judge_trials > 1:
+            score, reason = invoke_judge_majority(criteria, output, ideal, judge_trials)
+        else:
+            score, reason = invoke_judge(criteria, output, ideal)
+
         duration = time.time() - start
+
+        if score is None:
+            return {
+                "name": name,
+                "score": None,
+                "status": "error",
+                "error": "judge_parse",
+                "reason": f"Could not parse judge response: {reason[:100]}",
+                "duration_s": round(duration, 1),
+            }
+
         return {
             "name": name,
-            "score": None,
-            "status": "error",
-            "error": "timeout" if not output else "empty",
-            "reason": f"Agent failed on both attempts ({duration:.0f}s)",
+            "score": score,
+            "status": "evaluated",
+            "reason": reason,
             "duration_s": round(duration, 1),
         }
+    finally:
+        cleanup_isolated_env(tmpdir)
 
-    if verbose:
-        print(f"\n  --- Agent output ({name}) ---")
-        print(f"  {output[:500]}")
-        print(f"  ---")
 
-    # Invoke judge
-    score, reason = invoke_judge(criteria, output, ideal)
+def run_eval_with_trials(ev: dict, trials: int, **kwargs) -> dict:
+    """Run an eval N times and report pass^k."""
+    if trials == 1:
+        return run_eval(ev, **kwargs)
 
-    duration = time.time() - start
+    threshold = ev.get("threshold", DEFAULT_THRESHOLD)
+    trial_results = []
+    for t in range(trials):
+        result = run_eval(ev, **kwargs)
+        trial_results.append(result)
 
-    if score is None:
+    # Aggregate
+    scores = [r["score"] for r in trial_results if r["score"] is not None]
+    errors = [r for r in trial_results if r["status"] == "error"]
+    total_duration = sum(r["duration_s"] for r in trial_results)
+
+    if not scores:
         return {
-            "name": name,
+            "name": ev["name"],
             "score": None,
             "status": "error",
-            "error": "judge_parse",
-            "reason": f"Could not parse judge response: {reason[:100]}",
-            "duration_s": round(duration, 1),
+            "error": "all_trials_failed",
+            "reason": f"All {trials} trials failed",
+            "duration_s": round(total_duration, 1),
+            "trials": trials,
         }
 
+    passes = sum(1 for s in scores if s >= threshold)
+    all_passed = passes == len(scores)
+    avg_score = sum(scores) / len(scores)
+    min_score = min(scores)
+
+    # pass^k: did ALL trials pass?
     return {
-        "name": name,
-        "score": score,
+        "name": ev["name"],
+        "score": min_score,  # Conservative: report worst score
+        "avg_score": round(avg_score, 1),
         "status": "evaluated",
-        "reason": reason,
-        "duration_s": round(duration, 1),
+        "reason": f"pass^{trials}: {passes}/{len(scores)} passed (scores: {scores})",
+        "pass_k": all_passed,
+        "trials": trials,
+        "trial_scores": scores,
+        "duration_s": round(total_duration, 1),
     }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Model-based crew evaluation")
-    parser.add_argument("--fixture", default=None, help="Path to eval YAML (default: .crews/evals.yaml or tests/crew-evals.yaml)")
+    parser.add_argument("--fixture", default=None, help="Path to eval YAML")
     parser.add_argument("--tag", help="Filter evals by tag")
     parser.add_argument("--name", help="Run single eval by name")
     parser.add_argument("--threshold", type=int, default=DEFAULT_THRESHOLD, help="Pass threshold (default: 3)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would run")
     parser.add_argument("--verbose", action="store_true", help="Show full agent output")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Agent timeout in seconds (default: 300)")
-    parser.add_argument("--intent-only", action="store_true", help="Check delegation intent only (short timeout, judge first response)")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Agent timeout in seconds (default: 120)")
+    parser.add_argument("--intent-only", action="store_true", help="Check delegation intent only (short timeout)")
+    parser.add_argument("--trials", type=int, default=1, help="Run each eval N times, report pass^k (default: 1)")
+    parser.add_argument("--judge-trials", type=int, default=1, help="Judge each output N times, majority vote (default: 1)")
     args = parser.parse_args()
 
-    # Intent-only mode: short timeout, we only care about the first response
     if args.intent_only:
         args.timeout = min(args.timeout, 30)
 
@@ -243,18 +346,26 @@ def main():
             tags = ", ".join(ev.get("tags", []))
             print(f"  {ev['name']:40} agent={ev['agent']:20} threshold={threshold} [{tags}]")
         print(f"\n{len(evals)} evals would run.")
+        if args.trials > 1:
+            print(f"Trials: {args.trials} (pass^k reporting)")
+        if args.judge_trials > 1:
+            print(f"Judge trials: {args.judge_trials} (majority vote)")
+        print(f"Isolation: all evals run in mktemp environment")
         return
 
     # Run evals
-    print(f"Running {len(evals)} evals...\n")
+    trial_label = f" x{args.trials} trials" if args.trials > 1 else ""
+    judge_label = f", {args.judge_trials}-vote judge" if args.judge_trials > 1 else ""
+    print(f"Running {len(evals)} evals{trial_label}{judge_label} (isolated)...\n")
     results = []
     start_time = time.time()
 
-    # Set intent_only flag for run_eval to pick up
-    run_eval._intent_only = args.intent_only
-
     for ev in evals:
-        result = run_eval(ev, verbose=args.verbose, global_timeout=args.timeout)
+        result = run_eval_with_trials(
+            ev, trials=args.trials,
+            verbose=args.verbose, global_timeout=args.timeout,
+            intent_only=args.intent_only, judge_trials=args.judge_trials,
+        )
         results.append(result)
 
         # Print result
@@ -262,6 +373,10 @@ def main():
         score = result["score"]
         if score is None:
             print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
+        elif args.trials > 1:
+            passed = result.get("pass_k", False)
+            marker = f"\033[32m{'✓' if passed else '✗'}\033[0m" if passed else f"\033[31m✗\033[0m"
+            print(f"[ {marker} ] {result['name']}: {result['reason']}")
         else:
             passed = score >= threshold
             marker = f"\033[32m{score}\033[0m" if passed else f"\033[31m{score}\033[0m"
@@ -271,18 +386,30 @@ def main():
     total_duration = time.time() - start_time
     evaluated = [r for r in results if r["status"] == "evaluated"]
     errors = [r for r in results if r["status"] == "error"]
-    passed = [r for r in evaluated if r["score"] >= (next((e.get("threshold", args.threshold) for e in evals if e["name"] == r["name"]), args.threshold))]
-    failed = [r for r in evaluated if r not in passed]
-    avg_score = sum(r["score"] for r in evaluated) / len(evaluated) if evaluated else 0
 
-    print(f"\n---")
-    print(f"Results: {len(passed)}/{len(evaluated)} passed (threshold: \u2265{args.threshold}), avg score: {avg_score:.1f}")
+    if args.trials > 1:
+        passed = [r for r in evaluated if r.get("pass_k", False)]
+        failed = [r for r in evaluated if not r.get("pass_k", False)]
+        avg_score = sum(r.get("avg_score", r["score"]) for r in evaluated) / len(evaluated) if evaluated else 0
+        print(f"\n---")
+        print(f"Results: {len(passed)}/{len(evaluated)} pass^{args.trials} (all trials ≥ threshold)")
+        print(f"Avg score: {avg_score:.1f}")
+    else:
+        passed = [r for r in evaluated if r["score"] >= (next((e.get("threshold", args.threshold) for e in evals if e["name"] == r["name"]), args.threshold))]
+        failed = [r for r in evaluated if r not in passed]
+        avg_score = sum(r["score"] for r in evaluated) / len(evaluated) if evaluated else 0
+        print(f"\n---")
+        print(f"Results: {len(passed)}/{len(evaluated)} passed (threshold: ≥{args.threshold}), avg score: {avg_score:.1f}")
+
     if errors:
         print(f"Errors: {len(errors)} (not scored)")
     if failed:
         print(f"Failed:")
         for r in failed:
-            print(f"  - {r['name']} (score: {r['score']})")
+            if args.trials > 1:
+                print(f"  - {r['name']} ({r['reason']})")
+            else:
+                print(f"  - {r['name']} (score: {r['score']})")
     print(f"Duration: {total_duration:.0f}s")
 
     # Write results file
@@ -291,14 +418,19 @@ def main():
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%S")
     results_file = results_dir / f"eval-{PROJECT}-{timestamp}.json"
 
-    # Determine crews from fixture
     crews = sorted(set(tag for e in evals for tag in e.get("tags", []) if "crew" in tag)) or ["meta"]
 
     output_data = {
         "project": PROJECT,
         "crews": crews,
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "pass_threshold": args.threshold,
+        "config": {
+            "pass_threshold": args.threshold,
+            "trials": args.trials,
+            "judge_trials": args.judge_trials,
+            "timeout": args.timeout,
+            "isolation": True,
+        },
         "duration_s": round(total_duration, 1),
         "summary": {
             "total": len(results),
@@ -316,7 +448,6 @@ def main():
         f.write("\n")
     print(f"\nResults written to: {results_file}")
 
-    # Exit code
     sys.exit(1 if failed else 0)
 
 
