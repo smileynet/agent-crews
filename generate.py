@@ -27,6 +27,11 @@ except ImportError:
     sys.exit("pyyaml required: pip install pyyaml")
 
 
+def get_architypes(crew: dict) -> list:
+    """Get architypes list, supporting both 'architypes' and 'archetypes' spellings."""
+    return crew.get("architypes") or crew.get("archetypes") or []
+
+
 def deep_merge(base: dict, override: dict) -> dict:
     """Deep merge override into base. Arrays are concatenated and deduped."""
     result = base.copy()
@@ -194,14 +199,14 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
     # Process architypes: remove agents, add new ones, replace by name
     override_agents = {}  # name -> agent_cfg (from extending crew)
     override_architypes = []  # new architype blocks from extending crew
-    for archetype in crew.get("architypes", []):
+    for archetype in get_architypes(crew):
         for agent_cfg in archetype.get("agents", []):
             override_agents[agent_cfg["name"]] = (archetype.get("type", "worker"), agent_cfg)
         # Collect architype-level config for new agents
         override_architypes.append(archetype)
 
     # Filter base architypes: remove agents, replace by name
-    for archetype in base.get("architypes", []):
+    for archetype in get_architypes(base):
         archetype["agents"] = [
             a for a in archetype.get("agents", [])
             if a["name"] not in remove_agents and a["name"] not in override_agents
@@ -211,7 +216,7 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
     for agent_name, (agent_type, agent_cfg) in override_agents.items():
         # Find matching architype in base, or create one
         placed = False
-        for archetype in base.get("architypes", []):
+        for archetype in get_architypes(base):
             if archetype.get("type") == agent_type:
                 archetype["agents"].append(agent_cfg)
                 placed = True
@@ -224,7 +229,8 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
             })
 
     # Remove empty architypes
-    base["architypes"] = [a for a in base.get("architypes", []) if a.get("agents")]
+    archetypes_key = "architypes" if "architypes" in base else "archetypes"
+    base[archetypes_key] = [a for a in get_architypes(base) if a.get("agents")]
 
     # Clean up extends-specific keys from result
     base.pop("extends", None)
@@ -244,17 +250,17 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
     validate_hierarchy(crew_path, crew)
 
     # Workflow-level config (everything except architypes)
-    workflow_cfg = {k: v for k, v in crew.items() if k != "architypes"}
+    workflow_cfg = {k: v for k, v in crew.items() if k not in ("architypes", "archetypes")}
 
     agents_generated = []
 
     # Collect all agent names in this crew for subagent scoping
     crew_agent_names = []
-    for archetype in crew.get("architypes", []):
+    for archetype in get_architypes(crew):
         for agent_cfg in archetype.get("agents", []):
             crew_agent_names.append(agent_cfg["name"])
 
-    for archetype in crew.get("architypes", []):
+    for archetype in get_architypes(crew):
         # Archetype-level config (everything except agents and type)
         archetype_cfg = {k: v for k, v in archetype.items() if k not in ("agents", "type")}
         is_orchestrator = archetype.get("type") in ("orchestrator", "dispatcher")
@@ -280,7 +286,7 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                 routing_lines = ["\n\n## Routing Table\n",
                                  "| Agent | Send work when... |",
                                  "|-------|-------------------|"]
-                for arch2 in crew.get("architypes", []):
+                for arch2 in get_architypes(crew):
                     for a in arch2.get("agents", []):
                         routes = a.get("routes", "")
                         if routes and a["name"] != agent_json["name"]:
@@ -497,7 +503,7 @@ def build_sibling_map(crew_files: list[Path]) -> list[dict]:
         description = scope.get("description", "")
         # Find orchestrator: first agent in first archetype with type == "orchestrator"
         lead = None
-        for arch in data.get("architypes", []):
+        for arch in get_architypes(data):
             if arch.get("type") == "orchestrator" and arch.get("agents"):
                 lead = arch["agents"][0]["name"]
                 break
@@ -630,7 +636,7 @@ def validate_hierarchy(crew_path: Path, crew: dict):
     worker_names = set()
     dispatcher_names = set()
 
-    for archetype in crew.get("architypes", []):
+    for archetype in get_architypes(crew):
         atype = archetype.get("type", "worker")
         for agent_cfg in archetype.get("agents", []):
             name = agent_cfg["name"]
@@ -643,7 +649,7 @@ def validate_hierarchy(crew_path: Path, crew: dict):
 
     errors = []
 
-    for archetype in crew.get("architypes", []):
+    for archetype in get_architypes(crew):
         atype = archetype.get("type", "worker")
         for agent_cfg in archetype.get("agents", []):
             name = agent_cfg["name"]
@@ -1098,7 +1104,7 @@ def generate_routing_table(crews_dir: Path) -> str:
         with open(crew_file, encoding="utf-8") as f:
             crew = yaml.safe_load(f)
         crew_name = crew.get("workflow", crew_file.stem)
-        for archetype in crew.get("architypes", []):
+        for archetype in get_architypes(crew):
             for agent in archetype.get("agents", []):
                 routes = agent.get("routes", "")
                 if routes:
@@ -1133,7 +1139,7 @@ def generate_crew_sheet(crews_dir: Path, theme: dict | None = None) -> str:
         lines.append("| Agent | Role | Command |")
         lines.append("|-------|------|---------|")
 
-        for archetype in crew.get("architypes", []):
+        for archetype in get_architypes(crew):
             for agent in archetype.get("agents", []):
                 generic_name = agent["name"]
                 display_name = name_map.get(generic_name, generic_name)
@@ -1427,7 +1433,7 @@ def collect_shared_agents(crew_files: list[Path]) -> list[str]:
             crew = yaml.safe_load(cf.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError):
             continue
-        for archetype in (crew or {}).get("architypes", []):
+        for archetype in get_architypes(crew or {}):
             for agent in archetype.get("agents", []):
                 if agent.get("shared"):
                     shared.append(agent["name"])
@@ -1484,7 +1490,7 @@ def synthesize_dispatcher(
             crew = yaml.safe_load(cf.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError):
             continue
-        for archetype in (crew or {}).get("architypes", []):
+        for archetype in get_architypes(crew or {}):
             if archetype.get("type") != "orchestrator":
                 continue
             for agent in archetype.get("agents", []):
@@ -1516,24 +1522,16 @@ def synthesize_dispatcher(
 
 ## Routing Decision (MANDATORY — before ANY tool call)
 
-Classify the request FIRST. Do not read files or run commands to "understand" the request.
+Classify the request FIRST. Do not read files to "understand" the request before routing.
 
-| Request type | Action | Examples |
-|-------------|--------|----------|
-| Atomic (≤1 tool call, no reading needed) | Self-execute | "git status", "list base/crews/", "run tests" |
-| Needs investigation, creation, or fixing | DELEGATE to crew lead | "fix X", "create Y", "analyze Z", "add agent" |
-| Unclear | Ask one clarifying question | "help me with my project" |
+| Request type | Action |
+|-------------|--------|
+| Simple read (list a directory, show a known file) | Self-execute with read tool |
+| Needs investigation, creation, modification, or diagnosis | DELEGATE to crew lead |
+| Unclear | Ask one clarifying question |
 
-⚠️ THE TRAP: Reading files to "understand the problem" commits you to self-execution.
-If the request mentions fixing, creating, analyzing, diagnosing, or researching → DELEGATE IMMEDIATELY.
-Do not read a single file first. The specialist has better tools and context for that.
-
-## Planning Protocol
-For multi-step or ambiguous requests:
-1. State what is being asked (one sentence)
-2. Identify which lead owns this work (check routing table)
-3. Delegate with clear task description
-4. If multiple leads needed, plan the sequence first
+You have only: read, subagent, todo_list. You CANNOT write, execute commands, search, or grep.
+Any task requiring those capabilities MUST be delegated.
 
 ## Routing Table
 
@@ -1550,12 +1548,12 @@ Always include:
 - context: relevant details from user request
 
 ## Rules
-- Atomic task (≤1 tool call, answer obvious) → self-execute
+- Simple read (file you know the path to) → answer directly
 - Everything else → DELEGATE to the appropriate crew lead
-- Multi-crew work → plan the sequence, dispatch leads in order
-- Never do specialist work yourself — even if you could
+- Multi-crew work → plan the sequence with todo_list, dispatch leads in order
+- Never investigate a problem yourself — you lack the tools for it
 - Always narrate: "Delegating to X because Y"
-- When in doubt → DELEGATE (false delegation is cheap, false self-execution wastes tokens)
+- When in doubt → DELEGATE (false delegation is cheap, false self-execution fails)
 {prompt_suffix}"""
 
     # Build welcome message
@@ -1577,17 +1575,10 @@ Always include:
 
     agent_json = {
         "name": "dispatcher",
-        "description": "Project orchestrator — plans work, routes to crew leads, self-executes simple tasks",
-        "tools": ["read", "shell", "write", "subagent", "todo_list"],
-        "allowedTools": ["read", "shell", "write", "subagent", "todo_list"],
+        "description": "Project orchestrator — plans work, routes to crew leads, reads context",
+        "tools": ["read", "subagent", "todo_list"],
+        "allowedTools": ["read", "subagent", "todo_list"],
         "toolsSettings": {
-            "shell": {
-                "autoApprove": True,
-                "autoAllowReadonly": True,
-            },
-            "write": {
-                "allowedPaths": ["./**"],
-            },
             "subagent": {
                 "availableAgents": available,
                 "trustedAgents": available,

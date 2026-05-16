@@ -5,33 +5,6 @@ scope:
   handles: [crew-creation, crew-augmentation, crew-diagnosis, session-analysis, crew-research, kiro-troubleshooting, repo-hygiene]
   refuses: [target-project-features, target-project-bugs, infrastructure, deployments]
 
-tools:
-  - read
-  - write
-  - shell
-  - glob
-  - grep
-  - web_search
-  - web_fetch
-  - code
-
-allowedTools:
-  - read
-  - write
-  - shell
-  - glob
-  - grep
-  - web_search
-  - web_fetch
-  - code
-
-toolsSettings:
-  fs_write:
-    allowedPaths:
-      - "./**"
-  execute_bash:
-    autoAllowReadonly: true
-
 resources:
   - file://AGENTS.md
   - file://.kiro/steering/vocabulary.md

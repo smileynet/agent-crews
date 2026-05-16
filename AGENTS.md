@@ -54,7 +54,7 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 
 | Depth | Archetype | Role | Tools |
 |-------|-----------|------|-------|
-| 0 | `dispatcher` | Routes by intent to the right crew | `subagent`, `read` |
+| 0 | `dispatcher` | Routes by intent to the right crew | `subagent`, `read`, `todo_list` |
 | 1 | `orchestrator` | Plans and delegates within one crew | `subagent`, `read`, `todo_list` |
 | 2 | `worker` | Executes tasks, produces artifacts | `read`, `write`, `shell` |
 
@@ -121,7 +121,7 @@ Every project deployment MUST include a `@crew-sheet` prompt:
 The dispatcher (`ctrl+shift+d`) is the entry point. It plans work, routes to crew leads, and self-executes simple commands. See `@crew-sheet` for the full roster.
 
 ```
-Dispatcher (ctrl+shift+d) — plans, routes, self-executes atomic tasks
+Dispatcher (ctrl+shift+d) — plans, routes, reads context for routing
 ├── build-lead → crew-researcher, crew-creator, crew-augmenter
 ├── ops-lead → crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser
 ├── bugfix-lead → meta-debugger, meta-tester
@@ -130,7 +130,7 @@ Dispatcher (ctrl+shift+d) — plans, routes, self-executes atomic tasks
 
 | Agent | Role |
 |-------|------|
-| dispatcher | Plans work, routes to leads, self-executes simple tasks |
+| dispatcher | Plans work, routes to leads, reads context for routing decisions |
 | build-lead | Coordinates crew creation and modification |
 | ops-lead | Coordinates analysis, diagnosis, validation, releases |
 | bugfix-lead | Coordinates debugging of agent-crews tooling |
