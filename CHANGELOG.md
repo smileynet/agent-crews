@@ -8,6 +8,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Every project gets a dispatcher automatically — routes to your crew leads, plans multi-step work, and handles simple commands directly
+- Mark agents as `shared: true` to make them available to all crews in a project (verifier, editor, kiro-helper are shared by default)
 - Three-level agent hierarchy for the meta crew — dispatcher routes to leads (build-lead, ops-lead, bugfix-lead), leads coordinate workers
 - Bug-fix crew for this repo — systematic debugging of generate.py, scripts, and tooling with independent test verification
 - Dispatcher can execute simple commands directly (≤1 tool call) without routing overhead
@@ -25,6 +27,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 
 ### Changed
+- **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
 - **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
 - `.kiro/` is now purely kiro-native output (agents, prompts, steering) — no more agent-crews machinery mixed in
 - `just build <project>` generates directly in your project (no intermediate staging for normal workflow)
