@@ -89,7 +89,11 @@ def strip_ansi(text: str) -> str:
 
 
 def create_isolated_env() -> Path:
-    """Create a temp directory with symlinked read-only context."""
+    """Create a temp directory with symlinked read-only context and minimal git state.
+
+    Symlinks provide read-only access to crew config and agent definitions.
+    A bare git init provides enough state for agents that run git commands.
+    """
     tmpdir = Path(tempfile.mkdtemp(prefix="eval-crew-"))
     for d in SYMLINK_DIRS:
         src = ROOT / d
@@ -99,6 +103,17 @@ def create_isolated_env() -> Path:
         src = ROOT / f
         if src.exists():
             os.symlink(src, tmpdir / f)
+    # Initialize minimal git repo so agents running git commands don't error
+    subprocess.run(
+        ["git", "init", "--quiet"], cwd=str(tmpdir),
+        capture_output=True, timeout=5
+    )
+    subprocess.run(
+        ["git", "commit", "--allow-empty", "-m", "eval baseline", "--quiet"],
+        cwd=str(tmpdir), capture_output=True, timeout=5,
+        env={**os.environ, "GIT_AUTHOR_NAME": "eval", "GIT_AUTHOR_EMAIL": "eval@test",
+             "GIT_COMMITTER_NAME": "eval", "GIT_COMMITTER_EMAIL": "eval@test"}
+    )
     return tmpdir
 
 
@@ -132,7 +147,9 @@ def invoke_agent(agent: str, prompt: str, cwd: str = ".", timeout: int = DEFAULT
             return "", False
         except subprocess.TimeoutExpired as e:
             if intent_only:
-                output = strip_ansi((e.stdout or "") + (e.stderr or ""))
+                stdout = (e.stdout or b"").decode(errors="replace") if isinstance(e.stdout, bytes) else (e.stdout or "")
+                stderr = (e.stderr or b"").decode(errors="replace") if isinstance(e.stderr, bytes) else (e.stderr or "")
+                output = strip_ansi(stdout + stderr)
                 if output.strip():
                     return output, True
             # Timeout — retry
