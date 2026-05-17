@@ -156,6 +156,10 @@ ingest-all:
 
 # ─── Testing ────────────────────────────────────────────────────────────
 
+# Run unit + e2e tests
+test:
+    uv run --with pytest --with pyyaml pytest tests/ -v
+
 # Run behavioral smoke tests
 smoke-test target:
     ./scripts/smoke-test.sh {{target}}
