@@ -1,46 +1,51 @@
 # Handoff — 2026-05-16
 
 ## What was being worked on
-Build-time context injection (Phases 1+2), meta crew restructure into 3 files, eval harness improvements, and prep for generate.py modularization.
+generate.py modularization — extracting the 1997-line monolith into `_lib/` modules.
 
 ## Current state
-- Phases 1+2: ✅ Done and committed
-- Meta crew split (crew-builder/maintenance/tooling): ✅ Done
-- Eval harness (parallel, fixtures, intent_only, majority-pass): ✅ Done
-- 7 eval fixes committed but NOT re-run yet — baseline is stale (28/46 pre-fix)
-- Ruff lint clean + pre-commit config: ✅ Done
-- generate.py modularization: spec written (`docs/specs/generate-modularization.md`), NOT started
+- Modularization: ✅ Done (9 extraction commits, all pushed)
+- generate.py: 209 lines (entry point only)
+- _lib/: 9 modules, 1769 lines total
+- `just build --all` passes for all projects
+- Pre-modularization tag exists for rollback if needed
+
+## Module structure
+```
+generate.py          209 lines  Entry point: argparse + dispatch
+_lib/__init__.py      33 lines  get_architypes, deep_merge (shared utilities)
+_lib/types.py         53 lines  TypedDict definitions
+_lib/validate.py     130 lines  Hierarchy validation, coverage checks
+_lib/theme.py        107 lines  Theme overlay system
+_lib/sync.py          96 lines  Steering/skills/prompts sync
+_lib/utils.py        150 lines  Routing table, crew sheet, sibling map
+_lib/components.py   252 lines  Component system + inject_subagents
+_lib/build.py        326 lines  build_agent, resolve_extends, generate
+_lib/inject.py       162 lines  synthesize_dispatcher
+_lib/fleet.py        460 lines  generate_all, fleet config, health checks
+```
 
 ## Key decisions made
-- Orchestrators have no `read` — pure routers with auto-injected worker tables
-- Pass criterion: majority (2/3) not all (3/3)
-- Modularization: `_lib/` at repo root, TypedDict, structural+idempotency tests, mypy, big-bang extraction in one session
-- Lint monolith first, then extract (done — lint is clean)
+- `get_architypes` and `deep_merge` in `_lib/__init__.py` (used by all modules)
+- All modules use `Path(__file__).parent.parent` for repo root
+- `inject_subagents_into_orchestrators` lives in components.py (called from generate_components_for_project)
+- No circular imports — dependency flows: validate/theme/sync → utils → components → build → inject → fleet
 
-## Files modified
-- `generate.py` — injection, dispatcher prompt, skill sync, lint fixes
-- `base/crews/crew-builder.yaml`, `crew-maintenance.yaml`, `crew-tooling.yaml` — new (meta.yaml deleted)
-- `scripts/eval-crew.py` — parallel, fixtures, intent_only, majority-pass, lint
-- `.crews/evals.yaml` — 46 evals with fixtures, intent_only, rewritten cases
-- `AGENTS.md`, `CONTEXT.md`, `CHANGELOG.md`, `docs/specs/build-time-context-injection.md`
-- `docs/specs/generate-modularization.md` — full spec with grill decisions
-- `ruff.toml`, `.pre-commit-config.yaml`, `.mise.toml` — quality gates
-- `shared/prompts/handoff.md`, `read-handoff.md`, `grill-with-docs.md`
-- `shared/skills/{verification,git,troubleshooting,completion}-protocol/SKILL.md`
+## What was NOT done (from spec)
+- Phase D: Testing (unit tests for validate, build, idempotency)
+- mypy configuration and type annotations on function signatures
+- Eval re-run (baseline still stale at 28/46 pre-fix)
 
 ## Next steps
-1. `just eval` — re-run evals to confirm 7 fixes improved baseline (expect ~35-40/46)
-2. Start generate.py modularization per `docs/specs/generate-modularization.md`:
-   - `git tag -m "pre-modularization" pre-modularization`
-   - `mkdir -p _lib && touch _lib/__init__.py`
-   - Extract in order: validate → theme → sync → utils → components → build → inject → fleet
-   - `just build --all` after each extraction commit
-3. Add `_lib/types.py` with TypedDict (CrewConfig, AgentJSON, FleetConfig)
-4. Add `tests/` with structural assertions + idempotency test
+1. Run evals: `just eval` to confirm baseline improved (expect ~35-40/46)
+2. Add `tests/test_validate.py` — hierarchy validation unit tests
+3. Add `tests/test_idempotency.py` — run build twice, diff output
+4. Add mypy.ini with permissive settings, type public signatures
+5. Consider: fleet.py is 460 lines (largest module) — could split generate_all into smaller functions
 
 ## Context the next session needs
-- `get_architypes()` is used everywhere — it supports both `architypes` and `archetypes` spellings
-- `rust.yaml` uses `archetypes` (different from all other crew files using `architypes`)
-- Shared skills sync to `.kiro/skills/` during build — all references now resolve
-- The `synthesize_dispatcher()` function at line ~1500 builds shared_lines with routing hints from crew files
-- `validate_hierarchy()` at line ~650 depends on `get_architypes()` — extract together or import it
+- `_lib/fleet.py` imports from all other _lib modules (it's the orchestrator)
+- `_lib/components.py` has a deferred import: `from _lib import deep_merge` inside resolve_component_config
+- The `## ─── Theme Overlay System ───` comment was removed (was just a section marker)
+- `load_fleet_local()` reads fleet.local.yaml (gitignored, per-machine project registry)
+- `resolve_project()` handles both `.` (cwd) and named projects from fleet.local.yaml
