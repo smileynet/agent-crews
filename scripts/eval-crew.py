@@ -54,10 +54,10 @@ DEFAULT_THRESHOLD = 3
 DEFAULT_TIMEOUT = 120
 PROJECT = "agent-crews"
 
-# Directories to symlink into isolated environment (read-only context)
-SYMLINK_DIRS = [".kiro", "base", "shared", ".crews"]
-# Files to symlink (read-only)
-SYMLINK_FILES = ["AGENTS.md", "CHANGELOG.md", "justfile"]
+# Directories to copy into isolated environment
+COPY_DIRS = [".kiro", "base", "shared", ".crews"]
+# Files to copy
+COPY_FILES = ["AGENTS.md", "CHANGELOG.md", "justfile"]
 
 JUDGE_PROMPT = """You are evaluating an AI agent from a multi-agent crew system. Agents have specific roles: orchestrators route work to specialists, workers execute tasks within their scope.
 
@@ -88,21 +88,27 @@ def strip_ansi(text: str) -> str:
     return re.sub(r'\x1B\[[0-9;]*[a-zA-Z]', '', text)
 
 
-def create_isolated_env() -> Path:
-    """Create a temp directory with symlinked read-only context and minimal git state.
+def create_isolated_env(fixtures: dict | None = None) -> Path:
+    """Create a temp directory with copied context and minimal git state.
 
-    Symlinks provide read-only access to crew config and agent definitions.
-    A bare git init provides enough state for agents that run git commands.
+    Copies provide full read/write access for agents that need to modify files.
+    Fixtures override specific files for scenario-specific testing.
     """
     tmpdir = Path(tempfile.mkdtemp(prefix="eval-crew-"))
-    for d in SYMLINK_DIRS:
+    for d in COPY_DIRS:
         src = ROOT / d
         if src.exists():
-            os.symlink(src, tmpdir / d)
-    for f in SYMLINK_FILES:
+            shutil.copytree(src, tmpdir / d)
+    for f in COPY_FILES:
         src = ROOT / f
         if src.exists():
-            os.symlink(src, tmpdir / f)
+            shutil.copy2(src, tmpdir / f)
+    # Apply fixtures (override copied files with test-specific content)
+    if fixtures:
+        for path, content in fixtures.items():
+            dest = tmpdir / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8")
     # Initialize minimal git repo so agents running git commands don't error
     subprocess.run(
         ["git", "init", "--quiet"], cwd=str(tmpdir),
@@ -244,15 +250,21 @@ def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIME
     ideal = ev.get("ideal")
     timeout = ev.get("timeout", global_timeout)
 
-    # Create isolated environment
-    tmpdir = create_isolated_env()
+    # Per-eval intent_only overrides global setting
+    eval_intent_only = ev.get("intent_only", intent_only)
+    if eval_intent_only and timeout == global_timeout:
+        timeout = min(timeout, 30)
+
+    # Create isolated environment with optional fixtures
+    fixtures = ev.get("fixtures")
+    tmpdir = create_isolated_env(fixtures)
     cwd = str(tmpdir)
 
     start = time.time()
 
     try:
         # Invoke agent (retry handled internally)
-        output, success = invoke_agent(agent, input_text, cwd, timeout, intent_only)
+        output, success = invoke_agent(agent, input_text, cwd, timeout, eval_intent_only)
 
         if not success:
             duration = time.time() - start
