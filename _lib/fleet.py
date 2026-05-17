@@ -9,15 +9,18 @@ from pathlib import Path
 
 import yaml
 
-from _lib import deep_merge, get_architypes
+from _lib import deep_merge
 from _lib.build import generate
 from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
 from _lib.inject import synthesize_dispatcher
 from _lib.sync import get_project_persona, sync_prompts_to_project, sync_skills_to_project, sync_steering_to_project
 from _lib.theme import apply_theme_to_agents, load_theme
 from _lib.utils import (
-    build_sibling_map, collect_shared_agents, generate_crew_sheet,
-    generate_project_md_skeleton, has_custom_crews,
+    build_sibling_map,
+    collect_shared_agents,
+    generate_crew_sheet,
+    generate_project_md_skeleton,
+    has_custom_crews,
 )
 from _lib.validate import validate_changelog_prerequisites, validate_coverage
 
@@ -413,9 +416,8 @@ def check_health():
             line_lower = line.lower()
             for cmd in allowed:
                 cmd_base = cmd.rstrip(" *").lower()
-                if len(cmd_base) <= 3:
-                    if not re.search(r'(?:run\s+|`|^\s*-\s*)' + re.escape(cmd_base) + r'(?:\s|`|$)', line_lower):
-                        continue
+                if len(cmd_base) <= 3 and not re.search(r'(?:run\s+|`|^\s*-\s*)' + re.escape(cmd_base) + r'(?:\s|`|$)', line_lower):
+                    continue
                 if cmd_base and cmd_base in line_lower:
                     warnings.append((cmd, line.strip()))
                     break

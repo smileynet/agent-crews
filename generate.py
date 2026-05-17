@@ -27,14 +27,20 @@ except ImportError:
 from _lib.build import generate
 from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
 from _lib.fleet import (
-    check_health, generate_all, load_fleet_config, resolve_project,
-    sync_prompts, sync_steering,
+    check_health,
+    generate_all,
+    load_fleet_config,
+    resolve_project,
+    sync_prompts,
+    sync_steering,
 )
 from _lib.inject import synthesize_dispatcher
 from _lib.sync import sync_prompts_to_project, sync_skills_to_project, sync_steering_to_project
 from _lib.theme import apply_theme_to_agents, load_theme
 from _lib.utils import (
-    build_sibling_map, collect_shared_agents, generate_crew_sheet,
+    build_sibling_map,
+    collect_shared_agents,
+    generate_crew_sheet,
     generate_project_md_skeleton,
 )
 
