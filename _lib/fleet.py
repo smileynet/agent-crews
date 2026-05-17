@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -25,156 +26,251 @@ from _lib.utils import (
 from _lib.validate import validate_changelog_prerequisites, validate_coverage
 
 
+def build_single_project(
+    proj_dir: Path,
+    crew_cfg: dict,
+    fleet_cfg: dict | None = None,
+    dry_run: bool = False,
+    cleanup_crews: bool = True,
+) -> list[str]:
+    """Build a single project from its .crews/crew.yaml config. Returns agent names."""
+    root = Path(__file__).parent.parent
+    base_crews_dir = root / "base" / "crews"
+
+    proj_crews = crew_cfg.get("crews", ["general"])
+    kiro_dir = proj_dir / ".kiro"
+    if kiro_dir.is_symlink() and not kiro_dir.exists():
+        kiro_dir.unlink()
+
+    # Sync base crews
+    crews_dir = kiro_dir / "crews"
+    crews_dir.mkdir(parents=True, exist_ok=True)
+    for crew_name in proj_crews:
+        src = base_crews_dir / f"{crew_name}.yaml"
+        if src.exists():
+            shutil.copy2(src, crews_dir / src.name)
+
+    # Generate agents
+    output_dir = kiro_dir / "agents"
+    if not dry_run:
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    proj_crew_files = sorted(crews_dir.glob("*.yaml"))
+    proj_siblings = build_sibling_map(proj_crew_files)
+    agents = []
+    for cf in proj_crew_files:
+        agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
+
+    # Theme
+    theme_name = crew_cfg.get("theme")
+    if theme_name and not dry_run:
+        theme = load_theme(theme_name)
+        if theme:
+            apply_theme_to_agents(output_dir, theme)
+
+    # Crew sheet
+    if not dry_run:
+        theme_for_sheet = load_theme(theme_name) if theme_name else None
+        crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+        prompts_dir = kiro_dir / "prompts"
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+        (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
+
+    # Sync steering/skills/prompts
+    sync_steering_to_project(kiro_dir, root)
+    sync_skills_to_project(kiro_dir, root)
+    sync_prompts_to_project(kiro_dir, root)
+    generate_project_md_skeleton(kiro_dir)
+
+    # Dispatcher + components
+    shared_names = []
+    if not dry_run:
+        shared_names = collect_shared_agents(proj_crew_files)
+        dispatcher_cfg = crew_cfg.get("dispatcher", {})
+        synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
+
+    if fleet_cfg or crew_cfg.get("components"):
+        defaults = fleet_cfg.get("defaults", {}) if fleet_cfg else {}
+        synthetic = {"projects": {proj_dir.name: crew_cfg}, "defaults": defaults}
+        generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
+
+    if not dry_run and shared_names:
+        inject_subagents_into_orchestrators(shared_names, kiro_dir)
+
+    # Cleanup temp crews dir
+    if cleanup_crews and not dry_run and crews_dir.is_dir():
+        shutil.rmtree(crews_dir)
+
+    return agents
+
+
+def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Path):
+    """Sync crew files and steering to a single project directory."""
+    proj = kiro_dir.parent.name
+    if has_custom_crews(kiro_dir):
+        print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
+        sync_steering_to_project(kiro_dir, root)
+        sync_skills_to_project(kiro_dir, root)
+        sync_prompts_to_project(kiro_dir, root)
+        generate_project_md_skeleton(kiro_dir)
+        return
+
+    proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
+    proj_crews = proj_cfg.get("crews") or fleet.get("defaults", {}).get("crews", None)
+
+    print(f"Syncing crews+steering -> {proj}")
+    dest_crews = kiro_dir / "crews"
+    dest_crews.mkdir(parents=True, exist_ok=True)
+
+    # Remove stale themed crew files
+    for stale in ("raid-party", "bug-hunt", "deploy-squad", "lore-guild",
+                  "recon-squad", "pit-crew", "content-crew", "scriptorium"):
+        p = dest_crews / f"{stale}.yaml"
+        if p.exists():
+            p.unlink()
+
+    if proj_crews:
+        all_base = {f.stem for f in base_crews.glob("*.yaml")}
+        for existing in dest_crews.glob("*.yaml"):
+            if existing.stem in all_base and existing.stem not in proj_crews:
+                with open(existing, encoding="utf-8") as f:
+                    data = yaml.safe_load(f)
+                if data and data.get("extends"):
+                    continue
+                existing.unlink()
+        for crew_name in proj_crews:
+            dest = dest_crews / f"{crew_name}.yaml"
+            if dest.exists():
+                with open(dest, encoding="utf-8") as f:
+                    local_data = yaml.safe_load(f)
+                if local_data and local_data.get("extends"):
+                    continue
+            src = base_crews / f"{crew_name}.yaml"
+            if src.exists():
+                shutil.copy2(src, dest)
+    else:
+        for f in base_crews.glob("*.yaml"):
+            shutil.copy2(f, dest_crews / f.name)
+
+    sync_steering_to_project(kiro_dir, root)
+    sync_skills_to_project(kiro_dir, root)
+    sync_prompts_to_project(kiro_dir, root)
+    generate_project_md_skeleton(kiro_dir)
+
+
+def _generate_project_dir(crew_file: Path, fleet: dict, root: Path, dry_run: bool):
+    """Generate agents for a single project directory (projects/ or examples/)."""
+    kiro_dir = crew_file.parent
+    proj = kiro_dir.parent.name
+    crews_dir = kiro_dir / "crews"
+    full_mode = crews_dir.is_dir() and any(crews_dir.glob("*.yaml"))
+    output_dir = kiro_dir / "agents"
+
+    if not dry_run:
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    agents = []
+    if full_mode:
+        proj_crew_files = sorted(crews_dir.glob("*.yaml"))
+        proj_siblings = build_sibling_map(proj_crew_files)
+        for cf in proj_crew_files:
+            agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
+    else:
+        agents.extend(generate(crew_file, output_dir, dry_run))
+        for sibling in sorted(f for f in kiro_dir.glob("*.yaml") if f != crew_file and f.stem != "crew"):
+            agents.extend(generate(sibling, output_dir, dry_run))
+
+    print(f"  -> {len(agents)} agents")
+
+    # Theme
+    proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
+    theme_name = proj_cfg.get("theme") or fleet.get("defaults", {}).get("theme")
+    if theme_name and not dry_run:
+        theme = load_theme(theme_name)
+        if theme:
+            apply_theme_to_agents(output_dir, theme)
+            print(f"    + theme: {theme_name}")
+
+    # Crew sheet
+    if full_mode and not dry_run:
+        theme_for_sheet = load_theme(theme_name) if theme_name else None
+        crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+        prompts_dir = kiro_dir / "prompts"
+        prompts_dir.mkdir(parents=True, exist_ok=True)
+        (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
+
+    # Dispatcher + shared agents
+    shared_names = []
+    if not dry_run:
+        crew_sources = sorted(crews_dir.glob("*.yaml")) if full_mode else [crew_file]
+        shared_names = collect_shared_agents(crew_sources)
+        synthesize_dispatcher(crew_sources, shared_names, kiro_dir, dry_run=dry_run)
+
+    # Components
+    if fleet and proj in fleet.get("projects", {}):
+        generate_components_for_project(proj, kiro_dir, fleet, dry_run)
+
+    if not dry_run and shared_names:
+        inject_subagents_into_orchestrators(shared_names, kiro_dir)
+
+    # Provenance
+    if not dry_run:
+        shared_prompts_dir = root / "shared" / "prompts"
+        meta = {
+            "source": "agent-crews",
+            "project": proj,
+            "agents": agents,
+            "shared_prompts": sorted(f.name for f in shared_prompts_dir.glob("*.md")) if shared_prompts_dir.is_dir() else [],
+        }
+        meta_path = kiro_dir / ".agent-crews-meta.json"
+        with open(meta_path, "w") as f:
+            json.dump(meta, f, indent=2)
+            f.write("\n")
+
+
 def generate_all(dry_run: bool = False):
     """Sync crews+steering from base to all projects, then generate all."""
     root = Path(__file__).parent.parent
     base_crews = root / "base" / "crews"
     examples = root / "projects"
-
     fleet = load_fleet_config()
 
+    # Sync crews to all project dirs
     project_dirs = list(examples.glob("*/.kiro")) + list((root / "examples").glob("*/.kiro"))
     for kiro_dir in sorted(project_dirs):
-        proj = kiro_dir.parent.name
-        if has_custom_crews(kiro_dir):
-            print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
-            sync_steering_to_project(kiro_dir, root)
-            sync_skills_to_project(kiro_dir, root)
-            sync_prompts_to_project(kiro_dir, root)
-            generate_project_md_skeleton(kiro_dir)
-        else:
-            proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
-            proj_crews = proj_cfg.get("crews") or fleet.get("defaults", {}).get("crews", None)
-
-            print(f"Syncing crews+steering -> {proj}")
-
-            dest_crews = kiro_dir / "crews"
-            dest_crews.mkdir(parents=True, exist_ok=True)
-
-            _stale_crews = [
-                "raid-party.yaml", "bug-hunt.yaml", "deploy-squad.yaml",
-                "lore-guild.yaml", "recon-squad.yaml", "pit-crew.yaml",
-                "content-crew.yaml", "scriptorium.yaml",
-            ]
-            for stale in _stale_crews:
-                stale_path = dest_crews / stale
-                if stale_path.exists():
-                    stale_path.unlink()
-
-            if proj_crews:
-                all_base = {f.stem for f in base_crews.glob("*.yaml")}
-                for existing in dest_crews.glob("*.yaml"):
-                    if existing.stem in all_base and existing.stem not in proj_crews:
-                        with open(existing, encoding="utf-8") as f:
-                            data = yaml.safe_load(f)
-                        if data and data.get("extends"):
-                            continue
-                        existing.unlink()
-                for crew_name in proj_crews:
-                    dest = dest_crews / f"{crew_name}.yaml"
-                    if dest.exists():
-                        with open(dest, encoding="utf-8") as f:
-                            local_data = yaml.safe_load(f)
-                        if local_data and local_data.get("extends"):
-                            continue
-                    src = base_crews / f"{crew_name}.yaml"
-                    if src.exists():
-                        shutil.copy2(src, dest)
-            else:
-                for f in base_crews.glob("*.yaml"):
-                    shutil.copy2(f, dest_crews / f.name)
-
-            sync_steering_to_project(kiro_dir, root)
-            sync_skills_to_project(kiro_dir, root)
-            sync_prompts_to_project(kiro_dir, root)
-            generate_project_md_skeleton(kiro_dir)
+        _sync_project_crews(kiro_dir, fleet, base_crews, root)
 
     # Generate base crews
-    base_crews_dir = root / "base" / "crews"
     base_output = root / "base" / "agents"
     print("\nGenerating: base/crews/*.yaml")
     if not dry_run:
         if base_output.exists():
             shutil.rmtree(base_output)
         base_output.mkdir(parents=True, exist_ok=True)
-    base_crew_files = sorted(base_crews_dir.glob("*.yaml"))
+    base_crew_files = sorted(base_crews.glob("*.yaml"))
     base_siblings = build_sibling_map(base_crew_files)
     agents = []
     for cf in base_crew_files:
         agents.extend(generate(cf, base_output, dry_run, sibling_crews=base_siblings))
     print(f"  -> {len(agents)} agents")
 
-    # Generate each project
-    all_crew_files = sorted(list(examples.glob("*/.kiro/crew.yaml")) + list((root / "examples").glob("*/.kiro/crew.yaml")))
+    # Generate each project dir
+    all_crew_files = sorted(
+        list(examples.glob("*/.kiro/crew.yaml")) + list((root / "examples").glob("*/.kiro/crew.yaml"))
+    )
     for crew_file in all_crew_files:
         print(f"\nGenerating: {crew_file}")
-        kiro_dir = crew_file.parent
-        proj = kiro_dir.parent.name
-        crews_dir = kiro_dir / "crews"
-        full_mode = crews_dir.is_dir() and any(crews_dir.glob("*.yaml"))
-        output_dir = kiro_dir / "agents"
-        if not dry_run:
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-        agents = []
-        if full_mode:
-            proj_crew_files = sorted(crews_dir.glob("*.yaml"))
-            proj_siblings = build_sibling_map(proj_crew_files)
-            for cf in proj_crew_files:
-                agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
-        else:
-            agents.extend(generate(crew_file, output_dir, dry_run))
-            for sibling in sorted(f for f in kiro_dir.glob("*.yaml") if f != crew_file and f.stem != "crew"):
-                agents.extend(generate(sibling, output_dir, dry_run))
-
-        print(f"  -> {len(agents)} agents")
-
-        proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
-        theme_name = proj_cfg.get("theme") or fleet.get("defaults", {}).get("theme")
-        if theme_name and not dry_run:
-            theme = load_theme(theme_name)
-            if theme:
-                apply_theme_to_agents(output_dir, theme)
-                print(f"    + theme: {theme_name}")
-
-        if full_mode and not dry_run:
-            theme_for_sheet = load_theme(theme_name) if theme_name else None
-            crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
-            prompts_dir = kiro_dir / "prompts"
-            prompts_dir.mkdir(parents=True, exist_ok=True)
-            (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
-
-        if not dry_run:
-            crew_sources = sorted(crews_dir.glob("*.yaml")) if full_mode else [crew_file]
-            shared_names = collect_shared_agents(crew_sources)
-            synthesize_dispatcher(crew_sources, shared_names, kiro_dir, dry_run=dry_run)
-
-        if fleet and proj in fleet.get("projects", {}):
-            generate_components_for_project(proj, kiro_dir, fleet, dry_run)
-
-        if not dry_run and shared_names:
-            inject_subagents_into_orchestrators(shared_names, kiro_dir)
-
-        if not dry_run:
-            shared_prompts_dir = root / "shared" / "prompts"
-            meta = {
-                "source": "agent-crews",
-                "project": proj,
-                "agents": agents,
-                "shared_prompts": sorted(f.name for f in shared_prompts_dir.glob("*.md")) if shared_prompts_dir.is_dir() else [],
-            }
-            meta_path = kiro_dir / ".agent-crews-meta.json"
-            with open(meta_path, "w") as f:
-                json.dump(meta, f, indent=2)
-                f.write("\n")
+        _generate_project_dir(crew_file, fleet, root, dry_run)
 
     if fleet:
         validate_coverage(fleet)
         validate_changelog_prerequisites(fleet)
 
-    # Generate self-hosted projects
+    # Self-hosted projects
     if fleet:
         for proj_name, proj_cfg in fleet.get("projects", {}).items():
             if not proj_cfg.get("self_hosted"):
@@ -220,67 +316,20 @@ def generate_all(dry_run: bool = False):
             if not dry_run and shared_names:
                 inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
-    # Generate from fleet.local.yaml projects
+    # Fleet.local.yaml projects
     fleet_local = load_fleet_local()
     for proj_name, proj_path in fleet_local.items():
         proj_dir = Path(proj_path).expanduser()
-        crews_config = proj_dir / '.crews' / 'crew.yaml'
+        crews_config = proj_dir / ".crews" / "crew.yaml"
         if not crews_config.exists():
             continue
-        if (root / 'projects' / proj_name / '.kiro').exists():
+        if (root / "projects" / proj_name / ".kiro").exists():
             continue
         print(f"\nGenerating (in-place): {proj_name}")
-        kiro_dir = proj_dir / '.kiro'
-        if kiro_dir.is_symlink() and not kiro_dir.exists():
-            kiro_dir.unlink()
-        with open(crews_config, encoding='utf-8') as f:
+        with open(crews_config, encoding="utf-8") as f:
             crew_cfg = yaml.safe_load(f) or {}
-        proj_crews = crew_cfg.get('crews', ['general'])
-        crews_dir = kiro_dir / 'crews'
-        crews_dir.mkdir(parents=True, exist_ok=True)
-        for crew_name in proj_crews:
-            src = base_crews / f"{crew_name}.yaml"
-            if src.exists():
-                shutil.copy2(src, crews_dir / src.name)
-        output_dir = kiro_dir / 'agents'
-        if not dry_run:
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            output_dir.mkdir(parents=True, exist_ok=True)
-        proj_crew_files = sorted(crews_dir.glob('*.yaml'))
-        proj_siblings = build_sibling_map(proj_crew_files)
-        agents = []
-        for cf in proj_crew_files:
-            agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
+        agents = build_single_project(proj_dir, crew_cfg, fleet, dry_run)
         print(f"  -> {len(agents)} agents")
-        theme_name = crew_cfg.get('theme')
-        if theme_name and not dry_run:
-            theme = load_theme(theme_name)
-            if theme:
-                apply_theme_to_agents(output_dir, theme)
-        if not dry_run:
-            theme_for_sheet = load_theme(theme_name) if theme_name else None
-            crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
-            prompts_dir = kiro_dir / 'prompts'
-            prompts_dir.mkdir(parents=True, exist_ok=True)
-            (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
-        sync_steering_to_project(kiro_dir, root)
-        sync_skills_to_project(kiro_dir, root)
-        sync_prompts_to_project(kiro_dir, root)
-        generate_project_md_skeleton(kiro_dir)
-        if not dry_run:
-            shared_names = collect_shared_agents(proj_crew_files)
-            dispatcher_cfg = crew_cfg.get("dispatcher", {})
-            synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
-        if fleet:
-            synthetic_fleet = {'projects': {proj_name: crew_cfg}, 'defaults': fleet.get('defaults', {})}
-            generate_components_for_project(proj_name, kiro_dir, synthetic_fleet, dry_run)
-        if not dry_run and shared_names:
-            inject_subagents_into_orchestrators(shared_names, kiro_dir)
-        if not dry_run:
-            crews_cleanup = kiro_dir / 'crews'
-            if crews_cleanup.is_dir():
-                shutil.rmtree(crews_cleanup)
 
     print("\nDone.")
 
@@ -323,39 +372,36 @@ def load_fleet_local() -> dict:
 
 def resolve_project(name_or_path: str) -> Path:
     """Resolve project name or '.' to the project root directory."""
-    if name_or_path == '.':
+    if name_or_path == ".":
         cwd = Path.cwd()
         while cwd != cwd.parent:
-            if (cwd / '.crews' / 'crew.yaml').exists():
+            if (cwd / ".crews" / "crew.yaml").exists():
                 return cwd
             cwd = cwd.parent
-        sys.exit('No .crews/crew.yaml found in cwd or parents')
+        sys.exit("No .crews/crew.yaml found in cwd or parents")
     p = Path(name_or_path).expanduser()
-    if p.is_dir() and (p / '.crews' / 'crew.yaml').exists():
+    if p.is_dir() and (p / ".crews" / "crew.yaml").exists():
         return p
     fleet = load_fleet_local()
     if name_or_path in fleet:
         resolved = Path(fleet[name_or_path]).expanduser()
-        if (resolved / '.crews' / 'crew.yaml').exists():
+        if (resolved / ".crews" / "crew.yaml").exists():
             return resolved
-        if (resolved / '.kiro' / 'crew.yaml').exists():
+        if (resolved / ".kiro" / "crew.yaml").exists():
             return resolved
-    sys.exit(f'Project not found or missing .crews/crew.yaml: {name_or_path}')
+    sys.exit(f"Project not found or missing .crews/crew.yaml: {name_or_path}")
 
 
 def sync_steering():
     """Copy shared/steering/ to ALL projects based on persona."""
     root = Path(__file__).parent.parent
     examples = root / "projects"
-
     print("Syncing steering to all projects (persona-aware)...")
-
     for kiro_dir in sorted(examples.glob("*/.kiro")):
         proj = kiro_dir.parent.name
         persona = get_project_persona(kiro_dir)
         sync_steering_to_project(kiro_dir, root)
         print(f"  {proj}: persona={persona}")
-
     print("Done.")
 
 
@@ -363,25 +409,20 @@ def sync_prompts():
     """Copy shared/prompts/ to ALL projects."""
     root = Path(__file__).parent.parent
     examples = root / "projects"
-
     print("Syncing shared prompts to all projects...")
-
     for kiro_dir in sorted(examples.glob("*/.kiro")):
         proj = kiro_dir.parent.name
         sync_prompts_to_project(kiro_dir, root)
         print(f"  {proj}")
-
     print("Done.")
 
 
 def check_health():
     """Validate allowedCommands vs project.md DO NOTs for each project."""
     import io
-    import re
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     root = Path(__file__).parent.parent
     examples = root / "projects"
-
     print("Checking health across projects...")
 
     for proj_dir in sorted(examples.iterdir()):
