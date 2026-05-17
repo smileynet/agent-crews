@@ -35,14 +35,14 @@ evals:
 
   - name: dispatcher-routes-researcher
     agent: dispatcher
-    input: "research testing patterns for Godot projects"
+    input: "research testing patterns for Godot projects so we can add a testing agent to the crew"
     criteria: |
       PRIMARY: The response delegates to crew-researcher (or crew-builder-lead who routes to researcher).
-      AUTOMATIC FAIL (score 1): Attempts to do the research itself, OR delegates to wrong agent.
+      AUTOMATIC FAIL (score 1): Attempts to do the research itself, OR delegates to wrong agent, OR refuses as out-of-scope.
       BONUS (score 5): Identifies this as a research task and explains the routing.
     ideal: |
-      This is a research task — delegating to crew-researcher to investigate Godot testing patterns.
-      [invokes crew-researcher subagent]
+      This is a research task for crew building — delegating to crew-builder-lead to coordinate research into Godot testing patterns.
+      [invokes crew-builder-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -257,6 +257,7 @@ evals:
 
   - name: crew-builder-lead-research-first
     agent: crew-builder-lead
+    intent_only: true
     input: "add a Godot-specific testing agent to the general crew — I'm not sure what patterns Godot uses for testing"
     criteria: |
       PRIMARY: Delegates to crew-researcher FIRST before crew-augmenter (novel domain + explicit uncertainty).
@@ -271,6 +272,7 @@ evals:
 
   - name: crew-builder-lead-direct-augment
     agent: crew-builder-lead
+    intent_only: true
     input: "add a linting agent to the general crew — it should run eslint and report issues"
     criteria: |
       PRIMARY: Delegates directly to crew-augmenter (eslint is well-understood, no research needed).
@@ -285,6 +287,7 @@ evals:
 
   - name: crew-maintenance-lead-analyze-before-fix
     agent: crew-maintenance-lead
+    intent_only: true
     input: "the crew seems inefficient, tune it based on recent sessions"
     criteria: |
       PRIMARY: Delegates to crew-analyst FIRST (must observe before fixing).
@@ -299,6 +302,7 @@ evals:
 
   - name: crew-tooling-lead-reproduce-first
     agent: crew-tooling-lead
+    intent_only: true
     input: "the session-ingest script sometimes fails silently"
     criteria: |
       PRIMARY: Delegates to meta-debugger with instructions to REPRODUCE the failure first.
@@ -313,6 +317,7 @@ evals:
 
   - name: crew-builder-lead-no-self-read
     agent: crew-builder-lead
+    intent_only: true
     input: "check what agents the general crew currently has"
     criteria: |
       PRIMARY: Delegates to a worker (crew-researcher or crew-augmenter) to read and report.
@@ -373,14 +378,53 @@ evals:
 
   - name: releaser-refuses-empty-unreleased
     agent: crew-releaser
+    fixtures:
+      CHANGELOG.md: |
+        # Changelog
+
+        ## [Unreleased]
+
+        ## [0.1.0] - 2026-05-01
+
+        ### Added
+        - Initial release
     input: "cut a release"
     criteria: |
-      PRIMARY: Checks CHANGELOG.md [Unreleased] section and refuses if empty.
+      PRIMARY: Checks CHANGELOG.md [Unreleased] section and refuses because it's empty.
       AUTOMATIC FAIL (score 1): Proceeds with release without checking changelog content.
       Score 4: Checks and refuses with explanation.
       BONUS (score 5): Suggests what to do ("add entries first, then try again").
     ideal: |
       Pre-flight check: CHANGELOG.md [Unreleased] is empty — nothing to release. Add changelog entries for recent work first, then I can cut the release.
+    tags: [execution, meta-crew]
+    threshold: 4
+
+  - name: releaser-proceeds-with-content
+    agent: crew-releaser
+    fixtures:
+      CHANGELOG.md: |
+        # Changelog
+
+        ## [Unreleased]
+
+        ### Added
+        - Protocol skills delivered on-demand to agents
+
+        ### Changed
+        - Orchestrators are pure routers
+
+        ## [0.1.0] - 2026-05-01
+
+        ### Added
+        - Initial release
+    input: "cut a release"
+    criteria: |
+      PRIMARY: Checks CHANGELOG.md, finds content in [Unreleased], and proceeds with the release workflow (curating entries, recommending version bump).
+      AUTOMATIC FAIL (score 1): Refuses to release despite content being present, OR skips pre-flight checks.
+      Score 4: Proceeds with curation and version recommendation.
+      BONUS (score 5): Identifies bump type (MINOR for Added) and presents entries for approval.
+    ideal: |
+      Pre-flight: ✅ [Unreleased] has content. Curating entries... This has Added + Changed — recommending MINOR bump. Here are the entries for your approval: [presents entries]
     tags: [execution, meta-crew]
     threshold: 4
 
@@ -585,3 +629,80 @@ evals:
       [invokes crew-maintenance-lead subagent]
     tags: [components, meta-crew]
     threshold: 3
+
+  # ============================================================
+  # NEW — question bubbling, boundary disambiguation, delegation
+  # ============================================================
+
+  - name: dispatcher-delegates-incomplete-details
+    agent: dispatcher
+    input: "add an agent to the general crew"
+    criteria: |
+      PRIMARY: Delegates immediately to crew-builder-lead without asking what kind of agent.
+      AUTOMATIC FAIL (score 1): Asks clarifying questions about agent details (name, role, tools) before delegating.
+      Score 4: Delegates with narration.
+      BONUS (score 5): Delegates immediately and concisely, letting the worker gather details.
+    ideal: |
+      Crew modification task — delegating to crew-builder-lead.
+      [invokes crew-builder-lead subagent with the user's request]
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-maintenance-not-tooling
+    agent: dispatcher
+    input: "my agents are misbehaving after I changed the crew YAML — they're ignoring routing"
+    criteria: |
+      PRIMARY: Delegates to crew-maintenance-lead (crew config/behavior issue, not a Python script crash).
+      AUTOMATIC FAIL (score 1): Delegates to crew-tooling-lead (tooling is for script crashes, not crew config issues).
+      Score 4: Routes correctly with narration.
+      BONUS (score 5): Explains why this is a crew issue not a tooling issue.
+    ideal: |
+      Crew behavior issue after config change — delegating to crew-maintenance-lead to diagnose.
+      [invokes crew-maintenance-lead subagent]
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: dispatcher-routes-tooling-not-maintenance
+    agent: dispatcher
+    input: "generate.py crashes with a KeyError when I run just build"
+    criteria: |
+      PRIMARY: Delegates to crew-tooling-lead (Python script crash, not crew config issue).
+      AUTOMATIC FAIL (score 1): Delegates to crew-maintenance-lead (maintenance is for crew behavior, not script crashes).
+      Score 4: Routes correctly with narration.
+      BONUS (score 5): Identifies this as a tooling bug requiring systematic debugging.
+    ideal: |
+      Python script crash — delegating to crew-tooling-lead for systematic debugging.
+      [invokes crew-tooling-lead subagent]
+    tags: [routing, meta-crew]
+    threshold: 4
+
+  - name: crew-builder-lead-relays-blocked
+    agent: crew-builder-lead
+    intent_only: true
+    input: "add a testing agent to the general crew"
+    criteria: |
+      PRIMARY: Either delegates to crew-augmenter directly, OR if it determines more info is needed, asks the user a specific question about what testing framework/approach to use.
+      AUTOMATIC FAIL (score 1): Attempts to read files or do the work itself.
+      Score 3: Delegates but with vague task description.
+      Score 4: Delegates with clear task, or asks a specific clarifying question.
+      BONUS (score 5): Delegates immediately with full context from user request.
+    ideal: |
+      Delegating to crew-augmenter to add a testing agent to the general crew.
+      [invokes crew-augmenter subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 3
+
+  - name: crew-maintenance-lead-relays-question
+    agent: crew-maintenance-lead
+    intent_only: true
+    input: "diagnose why the dispatcher keeps routing to the wrong lead"
+    criteria: |
+      PRIMARY: Delegates to crew-doctor (diagnosis task).
+      AUTOMATIC FAIL (score 1): Attempts to investigate itself, or delegates to crew-analyst (analyst is for session review, not active diagnosis).
+      Score 4: Delegates to crew-doctor with clear task.
+      BONUS (score 5): Includes context about what "wrong lead" means for the doctor to investigate.
+    ideal: |
+      Routing diagnosis — delegating to crew-doctor to investigate why the dispatcher is misrouting.
+      [invokes crew-doctor subagent]
+    tags: [orchestration, meta-crew]
+    threshold: 4
