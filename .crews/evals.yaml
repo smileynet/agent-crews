@@ -24,7 +24,7 @@ evals:
     agent: dispatcher
     input: "add a new agent to the general crew"
     criteria: |
-      PRIMARY: The response delegates to crew-augmenter (or build-lead who routes to augmenter).
+      PRIMARY: The response delegates to crew-augmenter (or crew-builder-lead who routes to augmenter).
       AUTOMATIC FAIL (score 1): Delegates to wrong agent, OR attempts to write YAML/create files itself.
       BONUS (score 5): Narrates why this agent was chosen.
     ideal: |
@@ -37,7 +37,7 @@ evals:
     agent: dispatcher
     input: "research testing patterns for Godot projects"
     criteria: |
-      PRIMARY: The response delegates to crew-researcher (or build-lead who routes to researcher).
+      PRIMARY: The response delegates to crew-researcher (or crew-builder-lead who routes to researcher).
       AUTOMATIC FAIL (score 1): Attempts to do the research itself, OR delegates to wrong agent.
       BONUS (score 5): Identifies this as a research task and explains the routing.
     ideal: |
@@ -50,7 +50,7 @@ evals:
     agent: dispatcher
     input: "my agents aren't validating, the JSON seems broken"
     criteria: |
-      PRIMARY: The response delegates to crew-doctor (or ops-lead who routes to doctor).
+      PRIMARY: The response delegates to crew-doctor (or crew-maintenance-lead who routes to doctor).
       AUTOMATIC FAIL (score 1): Attempts to read/fix JSON itself, OR delegates to wrong agent.
       BONUS (score 5): Identifies this as a diagnosis task.
     ideal: |
@@ -63,7 +63,7 @@ evals:
     agent: dispatcher
     input: "review my last session and tell me what went wrong"
     criteria: |
-      PRIMARY: The response delegates to crew-analyst (or ops-lead who routes to analyst).
+      PRIMARY: The response delegates to crew-analyst (or crew-maintenance-lead who routes to analyst).
       AUTOMATIC FAIL (score 1): Attempts session analysis itself, OR delegates to wrong agent.
       BONUS (score 5): Identifies this as a session analysis task.
     ideal: |
@@ -76,7 +76,7 @@ evals:
     agent: dispatcher
     input: "check if any personal data leaked into committed files"
     criteria: |
-      PRIMARY: The response delegates to project-hygiene (or ops-lead who routes to hygiene).
+      PRIMARY: The response delegates to project-hygiene (or crew-maintenance-lead who routes to hygiene).
       AUTOMATIC FAIL (score 1): Attempts to grep for data itself, OR delegates to wrong agent.
       BONUS (score 5): Identifies this as a data separation/sanitization task.
     ideal: |
@@ -89,7 +89,7 @@ evals:
     agent: dispatcher
     input: "build a crew for ~/code/my-new-rust-project"
     criteria: |
-      PRIMARY: The response delegates to crew-creator (or build-lead who routes to creator).
+      PRIMARY: The response delegates to crew-creator (or crew-builder-lead who routes to creator).
       AUTOMATIC FAIL (score 1): Delegates to wrong agent, OR asks which agent to use (routing should be obvious).
       BONUS (score 5): Identifies this as new crew creation without hesitation.
     ideal: |
@@ -124,44 +124,44 @@ evals:
     tags: [routing, meta-crew]
     threshold: 4
 
-  - name: dispatcher-routes-build-lead
+  - name: dispatcher-routes-crew-builder-lead
     agent: dispatcher
     input: "create a new crew for my Rust project and add a custom linting agent"
     criteria: |
-      PRIMARY: The response delegates to build-lead (multi-step build task requiring orchestration).
+      PRIMARY: The response delegates to crew-builder-lead (multi-step build task requiring orchestration).
       AUTOMATIC FAIL (score 1): Delegates directly to crew-creator or crew-augmenter (bypassing orchestrator), OR attempts the work itself.
-      Score 3: Delegates to build-lead but doesn't narrate the multi-step nature.
+      Score 3: Delegates to crew-builder-lead but doesn't narrate the multi-step nature.
       BONUS (score 5): Explains this needs orchestration (create + augment = two steps).
     ideal: |
-      This needs both crew creation and augmentation — delegating to build-lead to orchestrate the multi-step workflow.
-      [invokes build-lead subagent]
+      This needs both crew creation and augmentation — delegating to crew-builder-lead to orchestrate the multi-step workflow.
+      [invokes crew-builder-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
-  - name: dispatcher-routes-ops-lead
+  - name: dispatcher-routes-crew-maintenance-lead
     agent: dispatcher
     input: "analyze recent sessions and validate the crew is working correctly"
     criteria: |
-      PRIMARY: The response delegates to ops-lead (combines analysis + validation = ops domain).
+      PRIMARY: The response delegates to crew-maintenance-lead (combines analysis + validation = ops domain).
       AUTOMATIC FAIL (score 1): Delegates directly to crew-analyst or crew-validator (bypassing orchestrator), OR attempts the work itself.
-      Score 3: Delegates to ops-lead but doesn't explain why.
+      Score 3: Delegates to crew-maintenance-lead but doesn't explain why.
       BONUS (score 5): Identifies this as a multi-step ops task.
     ideal: |
-      Analysis plus validation — delegating to ops-lead to coordinate the full review pipeline.
-      [invokes ops-lead subagent]
+      Analysis plus validation — delegating to crew-maintenance-lead to coordinate the full review pipeline.
+      [invokes crew-maintenance-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
-  - name: dispatcher-routes-bugfix-lead
+  - name: dispatcher-routes-crew-tooling-lead
     agent: dispatcher
     input: "generate.py is crashing with a KeyError on the new crew format"
     criteria: |
-      PRIMARY: The response delegates to bugfix-lead (tooling bug in agent-crews itself).
+      PRIMARY: The response delegates to crew-tooling-lead (tooling bug in agent-crews itself).
       AUTOMATIC FAIL (score 1): Delegates to crew-doctor (doctor fixes crew configs, not Python tooling), OR attempts to fix it directly.
       BONUS (score 5): Identifies this as a tooling bug requiring systematic debugging.
     ideal: |
-      Tooling bug in generate.py — delegating to bugfix-lead for systematic debugging.
-      [invokes bugfix-lead subagent]
+      Tooling bug in generate.py — delegating to crew-tooling-lead for systematic debugging.
+      [invokes crew-tooling-lead subagent]
     tags: [routing, meta-crew]
     threshold: 4
 
@@ -255,8 +255,8 @@ evals:
   # Automatic fail: skips the required first step
   # ============================================================
 
-  - name: build-lead-research-first
-    agent: build-lead
+  - name: crew-builder-lead-research-first
+    agent: crew-builder-lead
     input: "add a Godot-specific testing agent to the general crew — I'm not sure what patterns Godot uses for testing"
     criteria: |
       PRIMARY: Delegates to crew-researcher FIRST before crew-augmenter (novel domain + explicit uncertainty).
@@ -269,8 +269,8 @@ evals:
     tags: [orchestration, meta-crew]
     threshold: 4
 
-  - name: build-lead-direct-augment
-    agent: build-lead
+  - name: crew-builder-lead-direct-augment
+    agent: crew-builder-lead
     input: "add a linting agent to the general crew — it should run eslint and report issues"
     criteria: |
       PRIMARY: Delegates directly to crew-augmenter (eslint is well-understood, no research needed).
@@ -283,8 +283,8 @@ evals:
     tags: [orchestration, meta-crew]
     threshold: 3
 
-  - name: ops-lead-analyze-before-fix
-    agent: ops-lead
+  - name: crew-maintenance-lead-analyze-before-fix
+    agent: crew-maintenance-lead
     input: "the crew seems inefficient, tune it based on recent sessions"
     criteria: |
       PRIMARY: Delegates to crew-analyst FIRST (must observe before fixing).
@@ -297,8 +297,8 @@ evals:
     tags: [orchestration, meta-crew]
     threshold: 4
 
-  - name: bugfix-lead-reproduce-first
-    agent: bugfix-lead
+  - name: crew-tooling-lead-reproduce-first
+    agent: crew-tooling-lead
     input: "the session-ingest script sometimes fails silently"
     criteria: |
       PRIMARY: Delegates to meta-debugger with instructions to REPRODUCE the failure first.
@@ -311,8 +311,8 @@ evals:
     tags: [orchestration, meta-crew]
     threshold: 4
 
-  - name: build-lead-no-self-read
-    agent: build-lead
+  - name: crew-builder-lead-no-self-read
+    agent: crew-builder-lead
     input: "check what agents the general crew currently has"
     criteria: |
       PRIMARY: Delegates to a worker (crew-researcher or crew-augmenter) to read and report.
@@ -504,8 +504,8 @@ evals:
     tags: [identity, meta-crew]
     threshold: 3
 
-  - name: build-lead-knows-workers
-    agent: build-lead
+  - name: crew-builder-lead-knows-workers
+    agent: crew-builder-lead
     input: "who are your workers and when do you use each one?"
     criteria: |
       PRIMARY: Names all 3 workers: crew-researcher, crew-creator, crew-augmenter.
@@ -516,8 +516,8 @@ evals:
     tags: [identity, meta-crew]
     threshold: 3
 
-  - name: ops-lead-knows-workers
-    agent: ops-lead
+  - name: crew-maintenance-lead-knows-workers
+    agent: crew-maintenance-lead
     input: "what's your team and what does each member handle?"
     criteria: |
       PRIMARY: Names at least 4 of 5 workers: crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser.
@@ -528,8 +528,8 @@ evals:
     tags: [identity, meta-crew]
     threshold: 3
 
-  - name: bugfix-lead-knows-workers
-    agent: bugfix-lead
+  - name: crew-tooling-lead-knows-workers
+    agent: crew-tooling-lead
     input: "what agents do you coordinate?"
     criteria: |
       PRIMARY: Names both workers: meta-debugger and meta-tester.
@@ -581,7 +581,7 @@ evals:
       Score 4: Explains the analyze→fix pipeline.
       BONUS (score 5): Names specific agents and their sequence.
     ideal: |
-      Tuning is a multi-step pipeline: (1) crew-analyst analyzes recent sessions for issues, (2) crew-doctor applies fixes, (3) crew-validator verifies. Delegating to ops-lead to orchestrate this.
-      [invokes ops-lead subagent]
+      Tuning is a multi-step pipeline: (1) crew-analyst analyzes recent sessions for issues, (2) crew-doctor applies fixes, (3) crew-validator verifies. Delegating to crew-maintenance-lead to orchestrate this.
+      [invokes crew-maintenance-lead subagent]
     tags: [components, meta-crew]
     threshold: 3
