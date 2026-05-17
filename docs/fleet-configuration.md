@@ -26,8 +26,7 @@ Each project's config lives in `.crews/crew.yaml` — self-contained, no inherit
 # ~/code/my-project/.crews/crew.yaml
 persona: personal
 crews: [general, research]
-theme: null
-components:
+behavior:
   verification:
     variant: gate
     checks:
@@ -36,6 +35,9 @@ components:
       lint: "cargo clippy"
   git:
     variant: checkpoint
+workspace:
+  ephemeral: .scratch
+  durable: .memory
 ```
 
 ### Key fields
@@ -43,16 +45,16 @@ components:
 | Field | Purpose |
 |-------|--------|
 | `persona` | personal or team identifier |
-| `crews` | Which base crews to include (general is mandatory) |
-| `theme` | Cosmetic agent renaming (null for standard names) |
-| `components` | Behavioral configuration (verification, git, notifications, etc.) |
+| `crews` | Which base crews to include (literal list; required, non-empty) |
+| `behavior` | Behavioral configuration (verification, git, notifications, etc.) |
+| `workspace` | Optional `{ephemeral, durable}` root paths; both required when present (defaults: `.scratch`, `.memory`) |
 
 ### Build/test/lint commands
 
 Critical — agents use these to verify their own work:
 
 ```yaml
-components:
+behavior:
   verification:
     checks:
       build: "npm run build"   # fast compilation check

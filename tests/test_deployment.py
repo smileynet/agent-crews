@@ -33,7 +33,7 @@ def _deploy(tmp_path, cfg):
 
 FULL_STACK_CFG = {
     "crews": ["general", "bug-fix"],
-    "components": {
+    "behavior": {
         "narration": "verified",
         "writing": "standard",
         "verification": {"variant": "gate", "checks": {"build": "make", "test": "pytest", "lint": "ruff check"}},
@@ -90,7 +90,7 @@ class TestSkillConsumption:
 
     def test_crew_defined_skill_refs_resolve(self, tmp_path):
         """Skills referenced in crew YAML (not just protocol) also resolve."""
-        proj = _deploy(tmp_path, {"crews": ["general"], "components": {}})
+        proj = _deploy(tmp_path, {"crews": ["general"], "behavior": {}})
         kiro = proj / ".kiro"
         for f in (kiro / "agents").glob("*.json"):
             data = json.loads(f.read_text())
@@ -209,7 +209,7 @@ class TestAllowedCommands:
         """Workers get allowedCommands from their component config."""
         proj = _deploy(tmp_path, {
             "crews": ["general"],
-            "components": {
+            "behavior": {
                 "verification": {"variant": "gate", "checks": {"build": "cargo check", "test": "cargo test", "lint": "cargo clippy"}},
                 "git": {"variant": "checkpoint"},
             },
@@ -231,7 +231,7 @@ class TestAllowedCommands:
         """Orchestrators (with subagent tool) don't get allowedCommands."""
         proj = _deploy(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
+            "behavior": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
         })
         kiro = proj / ".kiro"
         for f in (kiro / "agents").glob("*.json"):
@@ -244,7 +244,7 @@ class TestAllowedCommands:
         """Null/empty placeholder values don't appear in allowedCommands."""
         proj = _deploy(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
+            "behavior": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
         })
         kiro = proj / ".kiro"
         for f in (kiro / "agents").glob("*.json"):
@@ -261,7 +261,7 @@ class TestSubagentIsolation:
         """Component-generated verifier has empty resources (fresh judgment)."""
         proj = _deploy(tmp_path, {
             "crews": ["general"],  # general has no crew-defined verifier
-            "components": {"narration": "verified"},
+            "behavior": {"narration": "verified"},
         })
         kiro = proj / ".kiro"
         verifier = json.loads((kiro / "agents" / "verifier.json").read_text())
@@ -273,7 +273,7 @@ class TestSubagentIsolation:
         """Crew-defined verifier (bug-fix) retains its configured resources."""
         proj = _deploy(tmp_path, {
             "crews": ["general", "bug-fix"],  # bug-fix defines its own verifier
-            "components": {"narration": "verified"},
+            "behavior": {"narration": "verified"},
         })
         kiro = proj / ".kiro"
         verifier = json.loads((kiro / "agents" / "verifier.json").read_text())

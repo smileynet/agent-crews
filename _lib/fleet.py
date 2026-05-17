@@ -15,7 +15,6 @@ from _lib.build import generate
 from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
 from _lib.inject import synthesize_dispatcher
 from _lib.sync import get_project_persona, sync_prompts_to_project, sync_skills_to_project, sync_steering_to_project
-from _lib.theme import apply_theme_to_agents, load_theme
 from _lib.utils import (
     build_sibling_map,
     collect_shared_agents,
@@ -24,6 +23,7 @@ from _lib.utils import (
     has_custom_crews,
 )
 from _lib.validate import validate_changelog_prerequisites, validate_coverage
+from _lib.workspace import resolve_workspace, stage_workspace
 
 
 def build_single_project(
@@ -37,7 +37,9 @@ def build_single_project(
     root = Path(__file__).parent.parent
     base_crews_dir = root / "base" / "crews"
 
-    proj_crews = crew_cfg.get("crews", ["general"])
+    proj_crews = crew_cfg.get("crews") or []
+    if not proj_crews:
+        sys.exit(f"  ❌ {proj_dir}: .crews/crew.yaml must declare a non-empty 'crews:' list")
     kiro_dir = proj_dir / ".kiro"
     if kiro_dir.is_symlink() and not kiro_dir.exists():
         kiro_dir.unlink()
@@ -49,11 +51,14 @@ def build_single_project(
         src = base_crews_dir / f"{crew_name}.yaml"
         if src.exists():
             shutil.copy2(src, crews_dir / src.name)
+    workspace = resolve_workspace(crew_cfg, source=str(proj_dir / ".crews" / "crew.yaml"))
+    if not dry_run:
+        stage_workspace(proj_dir, kiro_dir, workspace)
 
     # Sync steering/skills/prompts BEFORE generation (prompts are read during build)
     sync_steering_to_project(kiro_dir, root)
     sync_skills_to_project(kiro_dir, root)
-    sync_prompts_to_project(kiro_dir, root)
+    sync_prompts_to_project(kiro_dir, root, workspace=workspace)
     generate_project_md_skeleton(kiro_dir)
 
     # Generate agents
@@ -69,17 +74,9 @@ def build_single_project(
     for cf in proj_crew_files:
         agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
 
-    # Theme
-    theme_name = crew_cfg.get("theme")
-    if theme_name and not dry_run:
-        theme = load_theme(theme_name)
-        if theme:
-            apply_theme_to_agents(output_dir, theme)
-
     # Crew sheet
     if not dry_run:
-        theme_for_sheet = load_theme(theme_name) if theme_name else None
-        crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+        crew_sheet = generate_crew_sheet(crews_dir)
         prompts_dir = kiro_dir / "prompts"
         prompts_dir.mkdir(parents=True, exist_ok=True)
         (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
@@ -91,7 +88,7 @@ def build_single_project(
         dispatcher_cfg = crew_cfg.get("dispatcher", {})
         synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
 
-    if fleet_cfg or crew_cfg.get("components"):
+    if fleet_cfg or crew_cfg.get("behavior"):
         defaults = fleet_cfg.get("defaults", {}) if fleet_cfg else {}
         synthetic = {"projects": {proj_dir.name: crew_cfg}, "defaults": defaults}
         generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
@@ -106,14 +103,28 @@ def build_single_project(
     return agents
 
 
+def _read_project_crew_cfg(kiro_dir: Path) -> dict:
+    """Load crew config from .crews/crew.yaml (preferred) or legacy .kiro/crew.yaml."""
+    proj_dir = kiro_dir.parent
+    for candidate in (proj_dir / ".crews" / "crew.yaml", kiro_dir / "crew.yaml"):
+        if candidate.exists():
+            with open(candidate, encoding="utf-8") as fh:
+                return yaml.safe_load(fh) or {}
+    return {}
+
+
 def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Path):
     """Sync crew files and steering to a single project directory."""
     proj = kiro_dir.parent.name
+    proj_dir = kiro_dir.parent
+    proj_crew_cfg = _read_project_crew_cfg(kiro_dir)
+    workspace = resolve_workspace(proj_crew_cfg, source=f"{proj_dir}/.kiro/crew.yaml")
     if has_custom_crews(kiro_dir):
         print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
+        stage_workspace(proj_dir, kiro_dir, workspace)
         sync_steering_to_project(kiro_dir, root)
         sync_skills_to_project(kiro_dir, root)
-        sync_prompts_to_project(kiro_dir, root)
+        sync_prompts_to_project(kiro_dir, root, workspace=workspace)
         generate_project_md_skeleton(kiro_dir)
         return
 
@@ -123,13 +134,6 @@ def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Pat
     print(f"Syncing crews+steering -> {proj}")
     dest_crews = kiro_dir / "crews"
     dest_crews.mkdir(parents=True, exist_ok=True)
-
-    # Remove stale themed crew files
-    for stale in ("raid-party", "bug-hunt", "deploy-squad", "lore-guild",
-                  "recon-squad", "pit-crew", "content-crew", "scriptorium"):
-        p = dest_crews / f"{stale}.yaml"
-        if p.exists():
-            p.unlink()
 
     if proj_crews:
         all_base = {cf.stem for cf in base_crews.glob("*.yaml")}
@@ -154,9 +158,10 @@ def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Pat
         for cf in base_crews.glob("*.yaml"):
             shutil.copy2(cf, dest_crews / cf.name)
 
+    stage_workspace(proj_dir, kiro_dir, workspace)
     sync_steering_to_project(kiro_dir, root)
     sync_skills_to_project(kiro_dir, root)
-    sync_prompts_to_project(kiro_dir, root)
+    sync_prompts_to_project(kiro_dir, root, workspace=workspace)
     generate_project_md_skeleton(kiro_dir)
 
 
@@ -186,19 +191,9 @@ def _generate_project_dir(crew_file: Path, fleet: dict, root: Path, dry_run: boo
 
     print(f"  -> {len(agents)} agents")
 
-    # Theme
-    proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
-    theme_name = proj_cfg.get("theme") or fleet.get("defaults", {}).get("theme")
-    if theme_name and not dry_run:
-        theme = load_theme(theme_name)
-        if theme:
-            apply_theme_to_agents(output_dir, theme)
-            print(f"    + theme: {theme_name}")
-
     # Crew sheet
     if full_mode and not dry_run:
-        theme_for_sheet = load_theme(theme_name) if theme_name else None
-        crew_sheet = generate_crew_sheet(crews_dir, theme_for_sheet)
+        crew_sheet = generate_crew_sheet(crews_dir)
         prompts_dir = kiro_dir / "prompts"
         prompts_dir.mkdir(parents=True, exist_ok=True)
         (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")

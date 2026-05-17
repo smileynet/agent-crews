@@ -162,43 +162,31 @@ def generate_routing_table(crews_dir: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def generate_crew_sheet(crews_dir: Path, theme: dict | None = None) -> str:
+def generate_crew_sheet(crews_dir: Path) -> str:
     """Auto-generate crew-sheet.md prompt listing all agents."""
     lines = ["# Crew Sheet", "",
              "All available agents and crews for this project.", ""]
-
-    agent_map = theme.get("agents", {}) if theme else {}
-    name_map = {g: c["name"] for g, c in agent_map.items() if "name" in c}
-    crews_cfg = theme.get("crews", {}) if theme else {}
 
     for crew_file in sorted(crews_dir.glob("*.yaml")):
         with open(crew_file, encoding="utf-8") as f:
             crew = yaml.safe_load(f)
         crew_name = crew.get("workflow", crew_file.stem)
 
-        crew_display = crew_name.title()
-        icon = ""
-        if crew_name in crews_cfg:
-            crew_display = crews_cfg[crew_name].get("display", crew_display)
-            icon = crews_cfg[crew_name].get("icon", "")
-
-        header = f"{icon} {crew_display}".strip() if icon else crew_display
-        lines.append(f"## {header}")
+        lines.append(f"## {crew_name.title()}")
         lines.append("")
         lines.append("| Agent | Role | Command |")
         lines.append("|-------|------|---------|")
 
         for archetype in get_architypes(crew):
             for agent in archetype.get("agents", []):
-                generic_name = agent["name"]
-                display_name = name_map.get(generic_name, generic_name)
+                name = agent["name"]
                 desc = agent.get("description", "")
                 role = re.sub(r"^\[[\w\s-]+\]\s*", "", desc)
                 shortcut = agent.get("keyboardShortcut", "")
-                cmd = f"`/agent {display_name}`"
+                cmd = f"`/agent {name}`"
                 if shortcut:
                     cmd += f" or `{shortcut}`"
-                lines.append(f"| {display_name} | {role} | {cmd} |")
+                lines.append(f"| {name} | {role} | {cmd} |")
         lines.append("")
 
     return "\n".join(lines) + "\n"

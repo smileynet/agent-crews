@@ -71,8 +71,14 @@ def sync_skills_to_project(kiro_dir: Path, root: Path):
             shutil.copy2(item, dest)
 
 
-def sync_prompts_to_project(kiro_dir: Path, root: Path):
-    """Sync shared prompts to a project's .kiro/prompts/ directory."""
+def sync_prompts_to_project(kiro_dir: Path, root: Path, workspace: dict | None = None):
+    """Sync shared prompts to a project's .kiro/prompts/ directory.
+
+    When `workspace` is supplied, `{{workspace.ephemeral}}` / `{{workspace.durable}}`
+    placeholders inside prompt text are substituted with the resolved paths.
+    """
+    from _lib.workspace import substitute_workspace_placeholders
+
     shared_prompts = root / "shared" / "prompts"
     if not shared_prompts.is_dir():
         return
@@ -82,7 +88,10 @@ def sync_prompts_to_project(kiro_dir: Path, root: Path):
     shared_files = {f.name for f in shared_prompts.glob("*.md")}
 
     for f in shared_prompts.glob("*.md"):
-        shutil.copy2(f, dest_prompts / f.name)
+        text = f.read_text(encoding="utf-8")
+        if workspace:
+            text = substitute_workspace_placeholders(text, workspace)
+        (dest_prompts / f.name).write_text(text, encoding="utf-8")
 
     # Remove stale previously-synced shared prompts
     meta_path = kiro_dir / ".agent-crews-meta.json"

@@ -67,8 +67,8 @@ def validate_changelog_prerequisites(fleet: dict):
     for proj_name, proj_cfg in fleet.get("projects", {}).items():
         if proj_cfg.get("self_hosted"):
             continue
-        components = proj_cfg.get("components", {})
-        changelog_cfg = components.get("changelog")
+        behavior = proj_cfg.get("behavior", {})
+        changelog_cfg = behavior.get("changelog")
         if changelog_cfg is None:
             continue
         proj_dir = root / "projects" / proj_name

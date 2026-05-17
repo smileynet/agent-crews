@@ -1,7 +1,6 @@
 # agent-crews crew configuration (self-hosted)
 persona: personal
 crews: [crew-builder, crew-maintenance, crew-tooling]
-theme: null
 dispatcher:
   prompt_suffix: |
 
@@ -12,7 +11,7 @@ dispatcher:
     ## Anti-Self-Execution
     If you catch yourself about to use `read` to investigate a problem: STOP. That's a delegation signal.
     The ONLY valid use of `read` is answering "show me file X" when you know the exact path.
-components:
+behavior:
   narration: verified
   writing: standard
   verification:

@@ -8,7 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -35,7 +34,7 @@ class TestComponentSteeringDelivery:
         """verification/gate produces worker/verification.md with configured checks."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "make build", "test": "make test", "lint": "ruff check"}}},
+            "behavior": {"verification": {"variant": "gate", "checks": {"build": "make build", "test": "make test", "lint": "ruff check"}}},
         })
         steering = kiro / "steering" / "worker" / "verification.md"
         assert steering.exists()
@@ -48,7 +47,7 @@ class TestComponentSteeringDelivery:
         """git/checkpoint produces worker/git.md."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"git": {"variant": "checkpoint"}},
+            "behavior": {"git": {"variant": "checkpoint"}},
         })
         steering = kiro / "steering" / "worker" / "git.md"
         assert steering.exists()
@@ -59,7 +58,7 @@ class TestComponentSteeringDelivery:
         """narration/verified produces orchestrator/narration.md."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"narration": "verified"},
+            "behavior": {"narration": "verified"},
         })
         steering = kiro / "steering" / "orchestrator" / "narration.md"
         assert steering.exists()
@@ -70,7 +69,7 @@ class TestComponentSteeringDelivery:
         """Null check values substitute to empty string (not literal 'None')."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "cargo check", "test": None, "lint": None}}},
+            "behavior": {"verification": {"variant": "gate", "checks": {"build": "cargo check", "test": None, "lint": None}}},
         })
         steering = kiro / "steering" / "worker" / "verification.md"
         content = steering.read_text()
@@ -85,7 +84,7 @@ class TestSubagentGeneration:
         """narration/verified generates verifier.json."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"narration": "verified"},
+            "behavior": {"narration": "verified"},
         })
         verifier = kiro / "agents" / "verifier.json"
         assert verifier.exists()
@@ -97,7 +96,7 @@ class TestSubagentGeneration:
         """writing/standard generates editor.json."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"writing": "standard"},
+            "behavior": {"writing": "standard"},
         })
         editor = kiro / "agents" / "editor.json"
         assert editor.exists()
@@ -108,7 +107,7 @@ class TestSubagentGeneration:
         """Component subagents appear in orchestrator availableAgents."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"narration": "verified", "writing": "standard"},
+            "behavior": {"narration": "verified", "writing": "standard"},
         })
         # Check general-lead has verifier and editor in availableAgents
         lead = kiro / "agents" / "general-lead.json"
@@ -121,7 +120,7 @@ class TestSubagentGeneration:
         """Verifier/editor get NO steering resources (fresh judgment)."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"narration": "verified"},
+            "behavior": {"narration": "verified"},
         })
         verifier = kiro / "agents" / "verifier.json"
         data = json.loads(verifier.read_text())
@@ -176,7 +175,7 @@ class TestPlaceholderSubstitution:
         """{{notifications.channels}} in steering resolves to configured value."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"notifications": {"variant": "channels", "channels": ["toast", "slack"], "policy": "completions"}},
+            "behavior": {"notifications": {"variant": "channels", "channels": ["toast", "slack"], "policy": "completions"}},
         })
         steering = kiro / "steering" / "orchestrator" / "notifications.md"
         assert steering.exists()
@@ -187,7 +186,7 @@ class TestPlaceholderSubstitution:
         """{{checks.build}} in steering resolves to configured command."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "npm run build", "test": "npm test", "lint": "eslint ."}}},
+            "behavior": {"verification": {"variant": "gate", "checks": {"build": "npm run build", "test": "npm test", "lint": "eslint ."}}},
         })
         steering = kiro / "steering" / "worker" / "verification.md"
         content = steering.read_text()
@@ -203,7 +202,7 @@ class TestComponentCombinations:
         """All default components generate without error."""
         kiro = _build(tmp_path, {
             "crews": ["general"],
-            "components": {
+            "behavior": {
                 "narration": "verified",
                 "writing": "standard",
                 "verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}},

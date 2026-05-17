@@ -22,7 +22,6 @@ base/
 
 1. Crew YAMLs define: agent roster + delegation rules + scope + routes
 2. Behavioral rules come from `shared/components/` (not inline in crew prompts)
-3. Theme overlay from `shared/themes/` renames agents cosmetically (optional)
 4. `generate.py --all` produces `.json` agent files + steering + crew-sheet for each project
 5. Projects in `projects/` get crews synced from here (unless they have `.custom-crews`)
 6. `.crews/crew.yaml` controls which crews each project gets (`crews:` field)
@@ -56,12 +55,11 @@ architypes:
 2. Add `scope:` declaration (handles/refuses)
 3. Add `routes:` to each agent
 4. Run `just build`
-5. Add theme mapping to `shared/themes/wow.yaml` (if using themes)
 6. Update AGENTS.md crew table
 
 ## Design Principles
 
-- Generic descriptive names by default (themes are opt-in cosmetic overlays)
+- Generic descriptive names by default
 - Crew prompts contain ONLY identity + delegation + routing + scope
 - Behavioral rules (verification, git, troubleshooting, etc.) live in components
 - Each crew declares what it handles and refuses (for handoff routing)

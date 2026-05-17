@@ -20,17 +20,17 @@ Instead of copy-pasting instructions into every agent prompt, components deliver
 | decisions | When to log decisions vs write ADRs |
 | handoff | When to suggest switching to a different crew |
 | narration | How agents report progress and verify claims |
-| writing | Style rules, editor triggers, theme voice |
+| writing | Style rules, editor triggers |
 | completion | What agents do when finishing (signal, push, notify) |
 | sanity_gate | Assumption tracking, rubber-stamp prevention |
 
 ## Configuring components
 
-Set defaults in `.crews/crew.yaml` under `defaults.components`, override per-project:
+Set defaults in your fleet config under `defaults.behavior`, override per-project under each project's `behavior:` block. The `behavior:` map in project config uses the same keys (verification, git, narration, etc.); `components` is the contributor-facing name for what's wired internally.
 
 ```yaml
 defaults:
-  components:
+  behavior:
     verification:
       checks:
         build: null
@@ -41,7 +41,7 @@ defaults:
 
 projects:
   my-project:
-    components:
+    behavior:
       verification:
         checks:
           build: "cargo check"

@@ -41,8 +41,7 @@ class FleetProject(TypedDict, total=False):
 
     path: str
     crews: list[str]
-    theme: str | None
-    components: dict
+    behavior: dict
     persona: str
 
 

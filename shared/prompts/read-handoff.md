@@ -3,7 +3,7 @@ name: read-handoff
 description: "Start-of-session — read the handoff doc from the previous session and orient yourself."
 ---
 
-Read `scratch/HANDOFF.md` and orient yourself to continue the work.
+Read `{{workspace.ephemeral}}/HANDOFF.md` and orient yourself to continue the work.
 
 ## After reading, report:
 1. The `handoff_key`, `created_at`, and `base_commit`

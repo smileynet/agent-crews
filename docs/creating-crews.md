@@ -23,7 +23,7 @@ The dispatcher delegates to crew-creator, which scans your project, analyzes ses
 
 ## Choosing crews
 
-Every project gets `general`. Add specialized crews based on signals:
+Pick whichever crews match your work. `general` is a sensible default but no longer mandatory.
 
 | Signal | Add crew |
 |--------|----------|
@@ -44,8 +44,7 @@ Your project's config lives in `.crews/crew.yaml` (self-contained, no inheritanc
 # ~/code/my-project/.crews/crew.yaml
 persona: personal
 crews: [general, research]
-theme: null
-components:
+behavior:
   verification:
     variant: gate
     checks:

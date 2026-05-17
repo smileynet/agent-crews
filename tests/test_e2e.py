@@ -29,16 +29,6 @@ def project_dir(tmp_path):
     return proj
 
 
-@pytest.fixture
-def themed_project_dir(tmp_path):
-    """Create a project with a theme configured."""
-    proj = tmp_path / "themed-project"
-    proj.mkdir()
-    crews_dir = proj / ".crews"
-    crews_dir.mkdir()
-    (crews_dir / "crew.yaml").write_text(yaml.dump({"crews": ["general"], "theme": "wow"}))
-    return proj
-
 
 @pytest.fixture
 def multi_crew_project(tmp_path):
@@ -54,7 +44,7 @@ def multi_crew_project(tmp_path):
 
 
 @pytest.fixture
-def project_with_components(tmp_path):
+def project_with_behavior(tmp_path):
     """Create a project with component config."""
     proj = tmp_path / "comp-project"
     proj.mkdir()
@@ -62,7 +52,7 @@ def project_with_components(tmp_path):
     crews_dir.mkdir()
     (crews_dir / "crew.yaml").write_text(yaml.dump({
         "crews": ["general"],
-        "components": {
+        "behavior": {
             "verification": {"variant": "gate", "checks": {"build": "echo ok"}},
             "git": {"variant": "checkpoint"},
         },
@@ -159,47 +149,13 @@ class TestDispatcherSynthesis:
         assert data.get("keyboardShortcut") == "ctrl+shift+d"
 
 
-class TestThemeOverlay:
-    """Test theme application renames agents correctly."""
-
-    def test_theme_renames_agent_files(self, themed_project_dir):
-        """Themed project has renamed agent files."""
-        _build_project(themed_project_dir)
-        agents_dir = themed_project_dir / ".kiro" / "agents"
-        agent_names = {f.stem for f in agents_dir.glob("*.json")}
-        # wow theme renames general-lead → raid-leader
-        assert "raid-leader" in agent_names, f"Expected 'raid-leader' in {agent_names}"
-        assert "general-lead" not in agent_names
-
-    def test_theme_updates_agent_name_field(self, themed_project_dir):
-        """Agent JSON name field matches the themed filename."""
-        _build_project(themed_project_dir)
-        agents_dir = themed_project_dir / ".kiro" / "agents"
-        for f in agents_dir.glob("*.json"):
-            data = json.loads(f.read_text())
-            assert data["name"] == f.stem, f"Name mismatch: {data['name']} != {f.stem}"
-
-    def test_theme_updates_subagent_references(self, themed_project_dir):
-        """Themed orchestrator availableAgents use themed names."""
-        _build_project(themed_project_dir)
-        # raid-leader (themed general-lead) should have themed worker names
-        rl = themed_project_dir / ".kiro" / "agents" / "raid-leader.json"
-        assert rl.exists()
-        with open(rl) as f:
-            data = json.load(f)
-        available = data.get("toolsSettings", {}).get("subagent", {}).get("availableAgents", [])
-        # Workers should be themed (paladin, rogue, etc. — not builder, tester)
-        assert "general-lead" not in available
-        assert len(available) > 0
-
-
 class TestComponentSystem:
     """Test component steering and subagent generation."""
 
-    def test_steering_files_written(self, project_with_components):
+    def test_steering_files_written(self, project_with_behavior):
         """Components write steering files to appropriate subdirs."""
-        _build_project(project_with_components)
-        steering = project_with_components / ".kiro" / "steering"
+        _build_project(project_with_behavior)
+        steering = project_with_behavior / ".kiro" / "steering"
         # verification and git components write to worker/ or universal/
         md_files = list(steering.rglob("*.md"))
         assert len(md_files) > 0, "No steering files generated"
@@ -212,6 +168,61 @@ class TestComponentSystem:
         content = crew_sheet.read_text()
         assert "# Crew Sheet" in content
         assert "| Agent |" in content
+
+
+class TestWorkspace:
+    """Workspace contract: roots staged, steering emitted, prompts substituted."""
+
+    def test_default_workspace_dirs_created(self, project_dir):
+        _build_project(project_dir)
+        assert (project_dir / ".scratch").is_dir()
+        assert (project_dir / ".memory").is_dir()
+
+    def test_workspace_steering_emitted(self, project_dir):
+        _build_project(project_dir)
+        steering = (project_dir / ".kiro" / "steering" / "universal" / "workspace.md").read_text()
+        assert "`.scratch/`" in steering
+        assert "`.memory/`" in steering
+        assert "Ephemeral" in steering and "Durable" in steering
+
+    def test_handoff_prompt_substitutes_ephemeral_path(self, project_dir):
+        _build_project(project_dir)
+        handoff = (project_dir / ".kiro" / "prompts" / "handoff.md").read_text()
+        assert "{{workspace.ephemeral}}" not in handoff
+        assert ".scratch/HANDOFF.md" in handoff
+
+    def test_custom_workspace_roots(self, tmp_path):
+        proj = tmp_path / "custom-ws"
+        proj.mkdir()
+        (proj / ".crews").mkdir()
+        (proj / ".crews" / "crew.yaml").write_text(yaml.dump({
+            "crews": ["general"],
+            "workspace": {"ephemeral": ".work", "durable": "memory"},
+        }))
+        _build_project(proj)
+        assert (proj / ".work").is_dir()
+        assert (proj / "memory").is_dir()
+        handoff = (proj / ".kiro" / "prompts" / "handoff.md").read_text()
+        assert ".work/HANDOFF.md" in handoff
+
+    def test_partial_workspace_rejected(self, tmp_path):
+        proj = tmp_path / "bad-ws"
+        proj.mkdir()
+        (proj / ".crews").mkdir()
+        (proj / ".crews" / "crew.yaml").write_text(yaml.dump({
+            "crews": ["general"],
+            "workspace": {"ephemeral": ".work"},
+        }))
+        with pytest.raises(SystemExit):
+            _build_project(proj)
+
+    def test_missing_crews_rejected(self, tmp_path):
+        proj = tmp_path / "no-crews"
+        proj.mkdir()
+        (proj / ".crews").mkdir()
+        (proj / ".crews" / "crew.yaml").write_text(yaml.dump({"persona": "personal"}))
+        with pytest.raises(SystemExit):
+            _build_project(proj)
 
 
 class TestSyncOperations:

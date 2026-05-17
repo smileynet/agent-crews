@@ -12,10 +12,9 @@ Canonical definitions for all terms used in the component system. Use these cons
 | **Variant** | A specific implementation of a component (e.g., `signaling/standard` vs `signaling/minimal`). Selected per-project. |
 | **Steering file** | A markdown file in `.kiro/steering/` with `inclusion: always` frontmatter. Auto-loaded into all agents including subagents. |
 | **Skill** | A markdown file with name/description frontmatter. Loaded on-demand when the agent determines it's relevant. |
-| **Crew** | A named collection of agents (orchestrator + workers) with a theme and scope. Defined in `crews/*.yaml`. |
+| **Crew** | A named collection of agents (orchestrator + workers) with a declared scope. Defined in `base/crews/*.yaml`. |
 | **Fleet** | The inventory of all projects and their configurations. Defined in `fleet.yaml` (committed) + `fleet.local.yaml` (per-machine, gitignored). |
 | **Persona** | The context separation layer (personal vs sa). Determines which steering subdirectory is synced. |
-| **Theme** | A structured specification (name, domain, vocabulary, tone, examples, anti-examples) that defines how narration/notifications sound. Stored in `theme.yaml`. |
 
 ## Agent Roles
 
@@ -94,6 +93,5 @@ Canonical definitions for all terms used in the component system. Use these cons
 | **Crews** | `base/crews/*.yaml` | Base crew templates |
 | **Project config** | `<project>/.crews/crew.yaml` | Source inputs that define which crews/components get deployed |
 | **Project runtime** | `<project>/.kiro/` | Generated agents, prompts, skills, and local steering for one deployed project |
-| **Themes** | `<project>/.kiro/theme.yaml` | Project theme specification |
 | **Decisions** | `.scratch/session-decisions.md` | Decision log |
 | **Implementation plan** | `.scratch/implementation-plan.md` | This plan |

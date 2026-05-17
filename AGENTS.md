@@ -35,7 +35,6 @@ base/              Base templates
   crews/              Generic crew definitions (12 crews, 78 agents total)
 shared/               Shared resources across all projects
   components/         Component system (15 behavioral concerns)
-  themes/             Theme overlays
   skills/             Shared skills
   steering/           Universal + persona-specific steering
 .crews/               This repo's own crew config + evals
@@ -81,16 +80,9 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 | Crew-Tooling | `/agent crew-tooling-lead` | 3 | Fixing agent-crews scripts |
 | Rust | `/agent rust-lead` | 4 | Rust-specific workflows |
 
-**Mandatory rule: general crew is ALWAYS included.** Every project gets the general crew as its baseline. Specialized crews (bug-fix, research, etc.) are added alongside general, never instead of it. A project with `crews: [research, writing]` is WRONG — it must be `crews: [general, research, writing]`.
+### Composing a project's crews
 
-### Theme Overlay (optional)
-
-Themes rename agents cosmetically without changing behavior. Configure in .crews/crew.yaml:
-```yaml
-theme: wow  # general-lead → raid-leader, builder → paladin, etc.
-```
-
-See [Themed Crews Guide](docs/themed-crews-guide.md) for available themes and mappings.
+`crews:` is a literal list — pick the crews that match the work. `general` is a sensible default for mixed work but is no longer auto-included. Specialized crews stand on their own.
 
 ## Common tasks
 
@@ -166,9 +158,7 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 | Doc | What it covers |
 |-----|---------------|
 | [docs/use-case-guide.md](docs/use-case-guide.md) | Common workflows — how to use deployed agents |
-| [docs/themed-crews-guide.md](docs/themed-crews-guide.md) | Theme overlay — game-themed agent names and when to use each |
 | [base/crews/](base/crews/) | Generic crew definitions (12 crews) |
-| [shared/themes/](shared/themes/) | Theme overlays (cosmetic name mapping) |
 | [shared/components/](shared/components/) | Component system (15 behavioral concerns) |
 | [shared/skills/](shared/skills/) | Shared skills library |
 | [docs/session-analysis.md](docs/session-analysis.md) | Multi-tool session analysis and crew recommendations |

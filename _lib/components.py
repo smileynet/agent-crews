@@ -13,12 +13,12 @@ COMPONENTS_DIR = Path(__file__).parent.parent / "shared" / "components"
 
 
 def resolve_component_config(project_name: str, fleet: dict) -> dict:
-    """Resolve component config: fleet defaults → project overrides."""
+    """Resolve behavior config: fleet defaults → project overrides."""
     from _lib import deep_merge
-    defaults = fleet.get("defaults", {}).get("components", {})
+    defaults = fleet.get("defaults", {}).get("behavior", {})
     project_cfg = fleet.get("projects", {}).get(project_name, {})
-    project_components = project_cfg.get("components", {})
-    return deep_merge(defaults, project_components)
+    project_behavior = project_cfg.get("behavior", {})
+    return deep_merge(defaults, project_behavior)
 
 
 def load_component(name: str, config) -> dict:

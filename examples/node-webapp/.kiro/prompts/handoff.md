@@ -3,7 +3,7 @@ name: handoff
 description: "End-of-session handoff — delete old handoff doc, write a new one capturing current state for the next session."
 ---
 
-Delete any existing `scratch/HANDOFF.md`, then create a new one capturing everything the next developer (or session) needs to continue this work.
+Delete any existing `.scratch/HANDOFF.md`, then create a new one capturing everything the next developer (or session) needs to continue this work.
 
 ## Format
 
@@ -36,7 +36,7 @@ handoff_key: replace-with-workstream-slug
 ```
 
 ## Rules
-- Delete the old handoff first — a new handoff supersedes the prior one for the same `handoff_key`
+- Delete the old handoff first — a new handoff supersedes the prior one for the same `handoff_key`. Write the new file to `.scratch/HANDOFF.md`.
 - `handoff_key` must be a short human-readable slug for the workstream (`auth-flow`, `release-0-3-0`, `repo-map`)
 - `created_at` must be an exact ISO 8601 timestamp with offset
 - `base_commit` must be the current `git rev-parse --short HEAD` value at handoff creation time

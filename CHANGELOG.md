@@ -50,6 +50,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
  - `@grill-with-docs` now asks only product-defining design questions, explores codebase-answerable details itself, and presents multiple plausible answers with rationale before recommending one
  - `@handoff` and `@read-handoff` now use a standardized ephemeral handoff artifact with metadata (`created_at`, `base_commit`, `handoff_key`), required briefing sections, and evidence pointers instead of ad hoc summaries
 
+### Added (public-config refactor)
+- `workspace:` is a first-class public-config field with `ephemeral:` + `durable:` roots; both required when present, otherwise the product defaults `.scratch` and `.memory` apply
+- Every deployed project now ships a `workspace.md` universal steering file describing both roots, their lifecycle, and where the standardized handoff lives
+- Shared prompts substitute `{{workspace.ephemeral}}` / `{{workspace.durable}}` so the configured roots flow into `@handoff` / `@read-handoff` without per-prompt edits
+
+### Changed (public-config refactor)
+- **BREAKING:** `.crews/crew.yaml` no longer auto-includes `general` — `crews:` is a literal, required, non-empty list; missing or empty `crews:` now fails the build with a clear error
+- **BREAKING:** Public-config behavior key renamed from `components:` to `behavior:` (the internal `Component` terminology remains for contributors); update any project configs accordingly
+
+### Removed (public-config refactor)
+- **BREAKING:** `theme:` is no longer a public-config field — `shared/themes/`, `_lib/theme.py`, `docs/themed-crews-guide.md`, and the themed-crew test suite are deleted; agent names are always the generic ones from `base/crews/*.yaml`
+
 ### Removed
 - `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context
 - `fleet.yaml` — replaced by per-project `.crews/crew.yaml`
