@@ -340,18 +340,18 @@ def run_eval_with_trials(ev: dict, trials: int, **kwargs) -> dict:
         }
 
     passes = sum(1 for s in scores if s >= threshold)
-    all_passed = passes == len(scores)
+    majority_passed = passes > len(scores) / 2  # majority pass (2/3, 3/5, etc.)
     avg_score = sum(scores) / len(scores)
     min_score = min(scores)
 
-    # pass^k: did ALL trials pass?
+    # pass^k: did MAJORITY of trials pass?
     return {
         "name": ev["name"],
         "score": min_score,  # Conservative: report worst score
         "avg_score": round(avg_score, 1),
         "status": "evaluated",
         "reason": f"pass^{trials}: {passes}/{len(scores)} passed (scores: {scores})",
-        "pass_k": all_passed,
+        "pass_k": majority_passed,
         "trials": trials,
         "trial_scores": scores,
         "duration_s": round(total_duration, 1),

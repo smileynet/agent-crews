@@ -1534,9 +1534,27 @@ def synthesize_dispatcher(
         routing_lines.append(f"| {lead['name']} | {lead['routes']} |")
     routing_table = "\n".join(routing_lines)
 
-    # Build shared utilities section
+    # Build shared utilities section (with routing hints)
     if shared_agents:
-        shared_lines = "\n".join(f"- {name}" for name in shared_agents)
+        shared_lines_parts = []
+        for name in shared_agents:
+            # Find the agent's routes or description from crew files
+            routes_hint = ""
+            for cf in crew_files:
+                try:
+                    crew_data = yaml.safe_load(cf.read_text(encoding="utf-8"))
+                except (yaml.YAMLError, OSError):
+                    continue
+                for arch in get_architypes(crew_data or {}):
+                    for ag in arch.get("agents", []):
+                        if ag["name"] == name and ag.get("routes"):
+                            routes_hint = ag["routes"]
+                            break
+            if routes_hint:
+                shared_lines_parts.append(f"- {name} → {routes_hint}")
+            else:
+                shared_lines_parts.append(f"- {name}")
+        shared_lines = "\n".join(shared_lines_parts)
     else:
         shared_lines = "(none configured)"
 
@@ -1568,8 +1586,10 @@ Any task requiring those capabilities MUST be delegated.
 {routing_table}
 
 ## Shared Utilities
-Available to dispatch directly for one-shot tasks:
+Dispatch directly (no lead needed) for one-shot tasks:
 {shared_lines}
+
+Route to these when the request matches their domain — don't attempt the work yourself.
 
 ## Delegation Format
 Always include:

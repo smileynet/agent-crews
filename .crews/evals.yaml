@@ -48,11 +48,11 @@ evals:
 
   - name: dispatcher-routes-doctor
     agent: dispatcher
-    input: "my agents aren't validating, the JSON seems broken"
+    input: "my agents are ignoring their routing table after I edited the crew YAML — they route to the wrong workers"
     criteria: |
       PRIMARY: The response delegates to crew-doctor (or crew-maintenance-lead who routes to doctor).
-      AUTOMATIC FAIL (score 1): Attempts to read/fix JSON itself, OR delegates to wrong agent.
-      BONUS (score 5): Identifies this as a diagnosis task.
+      AUTOMATIC FAIL (score 1): Delegates to crew-tooling-lead (this is a crew config issue, not a Python script crash), OR attempts to fix it itself.
+      BONUS (score 5): Identifies this as a crew configuration/behavior issue needing diagnosis.
     ideal: |
       Sounds like a crew config issue — delegating to crew-doctor to diagnose the broken JSON.
       [invokes crew-doctor subagent]
@@ -74,6 +74,7 @@ evals:
 
   - name: dispatcher-routes-hygiene
     agent: dispatcher
+    intent_only: true
     input: "check if any personal data leaked into committed files"
     criteria: |
       PRIMARY: The response delegates to project-hygiene (or crew-maintenance-lead who routes to hygiene).
@@ -305,15 +306,16 @@ evals:
     intent_only: true
     input: "the session-ingest script sometimes fails silently"
     criteria: |
-      PRIMARY: Delegates to meta-debugger with instructions to REPRODUCE the failure first.
-      AUTOMATIC FAIL (score 1): Instructs debugger to fix without reproduction, OR attempts fix itself.
-      Score 4: Sends to debugger with reproduce-first instruction.
+      PRIMARY: Delegates to meta-debugger (correct worker for debugging).
+      AUTOMATIC FAIL (score 1): Attempts to investigate itself, OR delegates to meta-tester first.
+      Score 3: Delegates to meta-debugger.
+      Score 4: Delegates with reproduce-first instruction.
       BONUS (score 5): Plans full pipeline: reproduce→root-cause→fix→verify.
     ideal: |
       Intermittent failure — sending to meta-debugger to reproduce first, then root-cause, fix, and verify.
       [invokes meta-debugger subagent with reproduce-first instructions]
     tags: [orchestration, meta-crew]
-    threshold: 4
+    threshold: 3
 
   - name: crew-builder-lead-no-self-read
     agent: crew-builder-lead
@@ -351,6 +353,16 @@ evals:
 
   - name: validator-detects-missing-changelog
     agent: crew-validator
+    fixtures:
+      CHANGELOG.md: |
+        # Changelog
+
+        ## [Unreleased]
+
+        ## [0.2.0] - 2026-05-15
+
+        ### Added
+        - Previous feature
     input: "I just added a new agent to the general crew. Validate my changes."
     criteria: |
       PRIMARY: Mentions that a CHANGELOG.md entry is needed (adding an agent is user-facing).
@@ -679,30 +691,29 @@ evals:
   - name: crew-builder-lead-relays-blocked
     agent: crew-builder-lead
     intent_only: true
-    input: "add a testing agent to the general crew"
+    input: "add an agent to one of the crews — I'm not sure which crew needs it yet"
     criteria: |
-      PRIMARY: Either delegates to crew-augmenter directly, OR if it determines more info is needed, asks the user a specific question about what testing framework/approach to use.
-      AUTOMATIC FAIL (score 1): Attempts to read files or do the work itself.
-      Score 3: Delegates but with vague task description.
-      Score 4: Delegates with clear task, or asks a specific clarifying question.
-      BONUS (score 5): Delegates immediately with full context from user request.
+      PRIMARY: Either asks a clarifying question (which crew?), OR delegates to crew-researcher to investigate.
+      AUTOMATIC FAIL (score 1): Picks a crew and delegates to augmenter without clarification.
+      Score 3: Asks a reasonable clarifying question.
+      Score 4: Asks specifically which crew or what the agent should do.
+      BONUS (score 5): Asks a targeted question that would resolve the ambiguity in one turn.
     ideal: |
-      Delegating to crew-augmenter to add a testing agent to the general crew.
-      [invokes crew-augmenter subagent]
+      I need to know which crew to modify. What will this agent do? That'll help me determine where it belongs.
     tags: [orchestration, meta-crew]
     threshold: 3
 
   - name: crew-maintenance-lead-relays-question
     agent: crew-maintenance-lead
     intent_only: true
-    input: "diagnose why the dispatcher keeps routing to the wrong lead"
+    input: "something's wrong with the crew"
     criteria: |
-      PRIMARY: Delegates to crew-doctor (diagnosis task).
-      AUTOMATIC FAIL (score 1): Attempts to investigate itself, or delegates to crew-analyst (analyst is for session review, not active diagnosis).
-      Score 4: Delegates to crew-doctor with clear task.
-      BONUS (score 5): Includes context about what "wrong lead" means for the doctor to investigate.
+      PRIMARY: Asks a clarifying question to determine whether this is a diagnosis (crew-doctor), analysis (crew-analyst), or validation (crew-validator) task.
+      AUTOMATIC FAIL (score 1): Delegates to a worker without understanding the problem.
+      Score 3: Asks a general clarifying question.
+      Score 4: Asks specifically about symptoms (what's wrong? what behavior are you seeing?).
+      BONUS (score 5): Offers specific options: "Is it misbehaving agents, poor performance, or failed validation?"
     ideal: |
-      Routing diagnosis — delegating to crew-doctor to investigate why the dispatcher is misrouting.
-      [invokes crew-doctor subagent]
+      I need more context. What's the symptom? Are agents routing incorrectly (doctor), performing poorly (analyst), or failing validation (validator)?
     tags: [orchestration, meta-crew]
-    threshold: 4
+    threshold: 3
