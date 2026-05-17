@@ -1,7 +1,17 @@
 # agent-crews crew configuration (self-hosted)
 persona: personal
-crews: [meta]
+crews: [crew-builder, crew-maintenance, crew-tooling]
 theme: null
+dispatcher:
+  prompt_suffix: |
+
+    ## Scope
+    You manage agent crews — NOT application code, infrastructure, or deployments.
+    If the request is about fixing app bugs, deploying services, or writing features in a target project: REFUSE and explain your scope.
+
+    ## Anti-Self-Execution
+    If you catch yourself about to use `read` to investigate a problem: STOP. That's a delegation signal.
+    The ONLY valid use of `read` is answering "show me file X" when you know the exact path.
 components:
   narration: verified
   writing: standard

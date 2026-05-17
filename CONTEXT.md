@@ -52,6 +52,10 @@ _Avoid_: skin, flavor
 The generation step that transforms source YAML into deployable agent JSON + steering. Running `just build` is mandatory after any source change.
 _Avoid_: generate (acceptable as verb), compile
 
+**Grill Session**:
+A structured design interrogation that challenges a plan until shared understanding is reached, updating domain docs inline.
+_Avoid_: design review, brainstorm
+
 ## Relationships
 
 - A **Fleet** contains many projects, each with one or more **Crews**
@@ -60,9 +64,11 @@ _Avoid_: generate (acceptable as verb), compile
 - A **Component** produces **Steering** files and optional **Agents** (subagents)
 - A **Theme** maps generic agent names to themed names within a **Crew**
 - A **Skill** is attached to agents via resources and loaded on-demand by the platform
+- The meta domain has three crews: **Crew-Builder** (create/modify), **Crew-Maintenance** (diagnose/tune/release), **Crew-Tooling** (fix scripts/generator)
 
 ## Flagged Ambiguities
 
 - "lead" is used interchangeably with "orchestrator" — resolved: orchestrator is the archetype, lead is the informal shorthand (acceptable in conversation, not in code/config)
 - "generate" vs "build" — resolved: build is the user-facing command (`just build`), generate is the internal verb (what generate.py does)
 - "vocabulary" was used for routing intent keywords — resolved: deprecated. Routing data is now injected directly into prompts as routing tables. Domain glossary lives in CONTEXT.md.
+- "ops-lead" / "build-lead" / "bugfix-lead" — resolved: renamed to crew-builder-lead, crew-maintenance-lead, crew-tooling-lead. Meta crews follow the same one-lead-per-file structure as base crews.

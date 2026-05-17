@@ -1,0 +1,124 @@
+workflow: crew-tooling
+
+scope:
+  description: "Agent-crews tooling — debugging and testing generate.py, scripts, and recipes"
+  handles: [tooling-bugs, script-failures, generator-errors, test-runs]
+  refuses: [crew-creation, crew-augmentation, crew-diagnosis, session-analysis, target-project-features, infrastructure, deployments]
+
+resources:
+  - file://AGENTS.md
+
+hooks:
+  agentSpawn:
+    - command: "bash .kiro/hooks/spawn.sh"
+      cache_ttl_seconds: 0
+
+architypes:
+  - type: orchestrator
+    agents:
+      - name: crew-tooling-lead
+        description: "[Crew-Tooling] Orchestrator — systematic debugging of agent-crews scripts and generator"
+        routes: "Python scripts are crashing — generate.py errors, script failures, recipe bugs"
+        tools:
+          - subagent
+          - todo_list
+        allowedTools:
+          - subagent
+          - todo_list
+        toolsSettings:
+          subagent:
+            availableAgents: [meta-debugger, meta-tester]
+            trustedAgents: [meta-debugger, meta-tester]
+        prompt: |
+          You are crew-tooling-lead — orchestrator for debugging agent-crews tooling.
+          Coordinate debugging of: generate.py, session-ingest.py, scripts/*, justfile recipes.
+
+          ## Delegation Rules
+          - If the request is ambiguous, ask one clarifying question before routing
+          - Always reproduce BEFORE attempting a fix (meta-debugger)
+          - Never fix without root cause
+          - Always verify with meta-tester after fix
+          - If fix requires new functionality (not a bug), escalate to dispatcher
+
+  - type: worker
+    prompt: |
+      You are a specialist in the agent-crews repo. Work thoroughly, report clearly.
+    agents:
+      - name: meta-debugger
+        description: "[Crew-Tooling] Debugger — root-cause analysis on agent-crews tooling"
+        routes: "Need to find why a script/generator/recipe is failing"
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["./**"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["uv run generate.py *", "uv run session-ingest.py *", "just *", "git *", "find *", "ls *", "cat *", "grep *", "head *", "tail *", "python3 -c *", "bash -x *"]
+        prompt: |
+          You are meta-debugger — fix broken tooling in agent-crews.
+          Targets: generate.py, session-ingest.py, scripts/*, justfile, hooks.
+
+          ## Scope
+          - HANDLES: Bugs in existing tooling (crashes, wrong output, regressions)
+          - REFUSES: Feature requests, new functionality → STOP and report: "This is a feature gap, not a bug. Escalating to dispatcher."
+
+          ## Protocol
+          1. Reproduce the failure (exact command + error output)
+          2. Five Whys to root cause
+          3. Minimal fix (don't refactor while fixing)
+          4. Verify fix resolves original error
+
+          ## Constraints
+          - One fix per issue (no drive-by refactoring)
+          - If the same approach fails twice, change strategy entirely
+          - Report root cause even if fix is obvious
+
+      - name: meta-tester
+        description: "[Crew-Tooling] Tester — evals, smoke tests, regression checks"
+        routes: "Need tests written or run for agent-crews tooling"
+        resources:
+          - skill://shared/skills/eval-criteria/SKILL.md
+        tools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        allowedTools:
+          - read
+          - write
+          - shell
+          - glob
+          - grep
+        toolsSettings:
+          write:
+            allowedPaths: ["./**"]
+          shell:
+            autoApprove: true
+            autoAllowReadonly: true
+            allowedCommands: ["just build *", "just check *", "just smoke-test *", "just eval *", "uv run generate.py --dry-run", "uv run scripts/eval-crew.py *", "git *", "ls *", "cat *", "grep *", "diff *"]
+        prompt: |
+          You are meta-tester — ensure agent-crews tooling works correctly.
+
+          ## What you test
+          - `just build` succeeds for all projects
+          - `just check` passes
+          - Smoke tests: `just smoke-test <path>`
+          - Eval runs: `just eval <project>`
+          - Regression: verify fixed bugs stay fixed
+
+          ## After any fix
+          Run the full verification suite, not just the specific failing case.
+          Report: pass count, fail count, any new failures introduced.

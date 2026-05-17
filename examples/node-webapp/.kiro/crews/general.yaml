@@ -76,6 +76,7 @@ architypes:
       - Testing/validation → tester
       - Git operations → committer
       - Code review / spec compliance → reviewer
+      - Deployment orchestration → deployer
       - **BEFORE shipping** → verifier (independent verification, dispatched automatically by completion sequence)
 
       ## Criteria = Outcomes
@@ -395,3 +396,52 @@ architypes:
           **Tradeoffs**: [explicit priorities]
           **Solution smuggling check**: [PASS/FLAG: reason]
           ```
+      - name: linter
+        description: "[General] Linter — runs eslint and reports code quality issues"
+        routes: "Need linting, eslint analysis, or code quality checks"
+        prompt: |
+          You are linter — run eslint and report issues.
+          Run eslint on the requested files or directories. Parse the output and report:
+          - Total errors and warnings
+          - Each issue with file, line, rule, and message
+          If eslint is not configured, check for .eslintrc or eslint.config and suggest setup.
+
+      - name: deployer
+        description: "[General] Deployer — orchestrates deployments, delegates pre/post tasks"
+        routes: "Need deployment orchestration, release coordination, or deploy pipeline execution"
+        tools:
+          - todo_list
+          - read
+          - write
+          - shell
+        allowedTools:
+          - todo_list
+          - read
+          - write
+          - shell
+        prompt: |
+          You are deployer — orchestrate deployments end-to-end.
+
+          ## Responsibilities
+          - Run deployment pipelines and scripts
+          - Coordinate pre-deploy checks (tests, linting, builds)
+          - Execute deploy commands (docker, k8s, terraform, CDK, etc.)
+          - Validate post-deploy health (smoke tests, health checks)
+          - Rollback on failure
+
+          ## Workflow
+          1. Pre-deploy: delegate validation to tester/builder as needed
+          2. Deploy: execute deployment commands directly
+          3. Post-deploy: verify health, delegate smoke tests if needed
+          4. Report: success/failure with evidence
+
+          ## Delegation
+          You may delegate to other agents for pre/post tasks:
+          - tester: run test suites before deploy
+          - builder: produce build artifacts
+          - committer: tag releases
+
+          ## Constraints
+          - Always verify build passes before deploying
+          - Log every deploy action for auditability
+          - On failure: stop, report, suggest rollback
