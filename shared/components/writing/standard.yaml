@@ -8,7 +8,7 @@ prompt: ""
 allowed_commands: []
 
 resources:
-  - "skill://.kiro/skills/writing-style.md"
+  - "skill://.kiro/skills/writing-style/SKILL.md"
 
 hooks: {}
 
@@ -55,7 +55,7 @@ subagents:
   - name: editor
     description: "Independent prose review — cuts fluff, enforces style"
     tools: ["read"]
-    resources: ["skill://.kiro/skills/writing-style.md"]
+    resources: ["skill://.kiro/skills/writing-style/SKILL.md"]
     prompt: |
       You are editor. You run in a FRESH CONTEXT.
       You receive: the document + the writing-style rules.

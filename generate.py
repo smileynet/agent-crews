@@ -515,6 +515,23 @@ inclusion: always
 """)
 
 
+def sync_skills_to_project(kiro_dir: Path, root: Path):
+    """Sync shared skills to a project's .kiro/skills/ directory."""
+    shared_skills = root / "shared" / "skills"
+    if not shared_skills.is_dir():
+        return
+    dest_skills = kiro_dir / "skills"
+    dest_skills.mkdir(parents=True, exist_ok=True)
+    for item in shared_skills.iterdir():
+        dest = dest_skills / item.name
+        if item.is_dir():
+            if dest.exists():
+                shutil.rmtree(dest)
+            shutil.copytree(item, dest)
+        elif item.is_file():
+            shutil.copy2(item, dest)
+
+
 def sync_prompts_to_project(kiro_dir: Path, root: Path):
     """Sync shared prompts to a project's .kiro/prompts/ directory."""
     shared_prompts = root / "shared" / "prompts"
@@ -704,7 +721,7 @@ def generate_all(dry_run: bool = False):
         if has_custom_crews(kiro_dir):
             print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
             sync_steering_to_project(kiro_dir, root)
-
+            sync_skills_to_project(kiro_dir, root)
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
         else:
@@ -756,7 +773,7 @@ def generate_all(dry_run: bool = False):
 
             # Sync steering based on persona
             sync_steering_to_project(kiro_dir, root)
-
+            sync_skills_to_project(kiro_dir, root)
             sync_prompts_to_project(kiro_dir, root)
             generate_project_md_skeleton(kiro_dir)
 
@@ -959,6 +976,7 @@ def generate_all(dry_run: bool = False):
             (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
         # Sync steering
         sync_steering_to_project(kiro_dir, root)
+        sync_skills_to_project(kiro_dir, root)
         sync_prompts_to_project(kiro_dir, root)
         generate_project_md_skeleton(kiro_dir)
         # Synthesize dispatcher
@@ -1871,7 +1889,7 @@ def main():
                         prompts_dir.mkdir(parents=True, exist_ok=True)
                         (prompts_dir / 'crew-sheet.md').write_text(crew_sheet, encoding='utf-8')
                     sync_steering_to_project(kiro_dir, root)
-        
+                    sync_skills_to_project(kiro_dir, root)
                     sync_prompts_to_project(kiro_dir, root)
                     generate_project_md_skeleton(kiro_dir)
                     # Synthesize dispatcher + inject shared agents

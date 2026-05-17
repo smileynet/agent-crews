@@ -20,20 +20,19 @@ analyze-session.py # Session transcript analysis
 ```
 
 ## Workflow
-1. Create/edit crew YAML in `base/crews/` or `<project>/.kiro/`
-2. Configure components in `.crews/crew.yaml`
-3. Generate: `just build`
-4. Deploy: `just link <project>`
-5. Test in target project
-6. Analyze: `uv run analyze-session.py --project <name>`
-7. Iterate: edit crew/component, regenerate, redeploy
+1. Create/edit crew YAML in `base/crews/`
+2. Configure project in `.crews/crew.yaml`
+3. Generate: `just build .`
+4. Test in target project: `just build <project>`
+5. Iterate: edit crew/component, regenerate
 
-## New Commands
-- `just build` — generate all projects (crews + components + steering)
-- `just link <project>` — create symlink to target project
+## Key Commands
+- `just build .` — generate this repo's agents
+- `just build <project>` — generate a specific project
+- `just build --all` — generate all projects
 - `just status` — show fleet deployment status
 - `just check` — validate health
-- `just components` — generate component steering only
+- `just eval` — run behavioral evals
 
 ## Post-Change Rule
 After ANY modification to crew.yaml, crews/*.yaml, or shared/components/, ALWAYS run `just build` before considering the task complete. Generation is not optional — it's part of the change.
