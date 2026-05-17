@@ -138,7 +138,7 @@ architypes:
         description: "[Crew-Builder] Crew Augmenter — adds agents/features to existing crews"
         routes: "Add new agent, modify existing crew, implement new feature in a crew"
         resources:
-          - skill://shared/skills/eval-criteria/SKILL.md
+          - skill://.kiro/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write

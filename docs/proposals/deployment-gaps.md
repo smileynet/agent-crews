@@ -1,7 +1,7 @@
 # Proposal: Address Deployment Pipeline Gaps
 
-**Date:** 2026-05-16  
-**Status:** Proposed  
+**Date:** 2026-05-16
+**Status:** Resolved (2026-05-17) — Gap 1 implemented, Gap 2 implemented, Gap 3 deferred with mitigation documented.
 **Context:** Pipeline validation revealed three gaps where configured behavior isn't reaching agents at runtime.
 
 ---
@@ -125,7 +125,8 @@ Rationale: The current bloat (~1,500 extra tokens per agent) is within acceptabl
 
 ## Success Criteria
 
-- [ ] Gap 1: `test_allowed_commands_not_in_agent_json` flipped to assert commands ARE present
-- [ ] Gap 1: Workers in deployed projects have `execute_bash.allowedCommands` matching their component config
-- [ ] Gap 2: `shared/skills/manifest.yaml` exists and generator respects it
-- [ ] Gap 3: Feature request filed for kiro-cli steering filtering
+- [x] Gap 1: `test_allowed_commands_in_worker_agents` asserts commands ARE present (c31b48c)
+- [x] Gap 1: Workers in component-enabled projects have `execute_bash.allowedCommands`
+- [x] Gap 2: `shared/skills/manifest.yaml` exists; generator reads it for archetype injection
+- [x] Gap 2: `test_manifest_classifies_all_skills` enforces every skill on disk is classified
+- [ ] Gap 3: Feature request filed for kiro-cli steering filtering (external — track in upstream tracker)

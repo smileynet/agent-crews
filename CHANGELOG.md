@@ -24,11 +24,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Auto-discovery finds all your crew-enabled projects with `just scan`
 - Before/after comparison shows whether crew tuning improved token efficiency
 - One-shot project analysis and session summary scripts give agents pre-digested data instead of raw parsing
+- Rust crew (`rust-lead`, `rust-linter`, `rust-builder`, `rust-tester`) for Rust-specific workflows
+- `@handoff` and `@read-handoff` prompts for session continuity across context windows
+- Skill manifest at `shared/skills/manifest.yaml` documents which skills auto-load by archetype, which are referenced per crew, and which are user-invoked only — build now refuses unclassified skills
 
 ### Fixed
 - Component utility agents (verifier, editor) are now automatically available to all orchestrators — previously generated but not wired into dispatch lists
 - Projects with components in `.crews/crew.yaml` now get component generation even without a fleet.yaml file
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
+- Component `allowed_commands` (e.g. `git *`, `cargo check`) now reach worker `toolsSettings.execute_bash.allowedCommands` so kiro-cli can actually enforce them — previously declared but ignored
+- Skill references now consistently resolve under `.kiro/skills/` — agents no longer carry broken `skill://shared/skills/...` URIs that fail to load
+- Crew-builder's `create-crew` and crew-doctor's `diagnose-crew` skills now ship with deployments — previously referenced but only present in the agent-crews repo itself
 
 ### Changed
 - **BREAKING:** Meta crew split into three: crew-builder, crew-maintenance, crew-tooling — each follows the standard one-lead-per-file pattern. Leads renamed to crew-builder-lead, crew-maintenance-lead, crew-tooling-lead.

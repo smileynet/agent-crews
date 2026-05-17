@@ -172,8 +172,8 @@ architypes:
         description: "[Crew-Maintenance] Crew Validator — proactive post-change verification, changelog enforcement"
         routes: "Validate changes, check work, verify changelog, schema validation, drift detection"
         resources:
-          - skill://shared/skills/changelog-discipline/SKILL.md
-          - skill://shared/skills/eval-criteria/SKILL.md
+          - skill://.kiro/skills/changelog-discipline/SKILL.md
+          - skill://.kiro/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write

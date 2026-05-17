@@ -1,0 +1,53 @@
+# Skill manifest — classifies every skill in shared/skills/ by how it
+# reaches agents at runtime.
+#
+# Validation: every directory or `*.md` file in shared/skills/ MUST appear
+# in exactly one section below (excluding this manifest itself). The
+# build-time test `test_manifest_classifies_all_skills` enforces this.
+
+# Auto-injected by the generator into agent resources, scoped by archetype.
+# A change here changes which skills every worker/orchestrator carries
+# in its context budget. Keep this list small and protocol-shaped.
+archetype:
+  worker:
+    - verification-protocol
+    - git-protocol
+    - troubleshooting-protocol
+  orchestrator:
+    - completion-protocol
+
+# Referenced by specific crews or agents via YAML `resources:` / `skills:`.
+# The generator does NOT inject these — they are opt-in per crew.
+# Listing here is documentation; removing a skill from a crew YAML does
+# not require touching this entry.
+crew_referenced:
+  - adr-authoring
+  - adversarial-review
+  - agents-md-authoring
+  - ai-assisted-development
+  - changelog-discipline
+  - code-review
+  - coding-principles
+  - contribution-conventions
+  - create-crew
+  - diagnose-crew
+  - diagrams
+  - diataxis-classification
+  - docs-audit
+  - document-formats
+  - eval-criteria
+  - kiro-cli-schema
+  - presentation-writing
+  - readme-writing
+  - session-review-patterns
+  - situation-routing
+  - socratic-teaching
+  - task-lifecycle
+  - testing-patterns
+  - tutorial-authoring
+  - writing-style
+
+# Synced to .kiro/skills/ for @skill-name user invocation but not auto-loaded
+# or referenced by any agent. Available on demand only.
+user_only:
+  - spike-workflow

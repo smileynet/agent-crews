@@ -10,6 +10,7 @@ from pathlib import Path
 import yaml
 
 from _lib import deep_merge, get_architypes
+from _lib.skills import archetype_skill_refs, load_manifest
 from _lib.validate import validate_hierarchy
 
 
@@ -194,6 +195,7 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
 
     workflow_cfg = {k: v for k, v in crew.items() if k not in ("architypes", "archetypes")}
     agents_generated = []
+    manifest = load_manifest()
 
     crew_agent_names = []
     for archetype in get_architypes(crew):
@@ -300,15 +302,13 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                         agent_json["welcomeMessage"] += "\n\n📎 Prompts:\n" + "\n".join(prompt_entries)
 
             if not is_orchestrator:
-                agent_json.setdefault('resources', []).extend([
-                    'skill://.kiro/skills/verification-protocol/SKILL.md',
-                    'skill://.kiro/skills/git-protocol/SKILL.md',
-                    'skill://.kiro/skills/troubleshooting-protocol/SKILL.md',
-                ])
+                agent_json.setdefault("resources", []).extend(
+                    archetype_skill_refs("worker", manifest)
+                )
             elif is_orchestrator and not is_dispatcher:
-                agent_json.setdefault('resources', []).extend([
-                    'skill://.kiro/skills/completion-protocol/SKILL.md',
-                ])
+                agent_json.setdefault("resources", []).extend(
+                    archetype_skill_refs("orchestrator", manifest)
+                )
 
             name = agent_json["name"]
             out_path = output_dir / f"{name}.json"

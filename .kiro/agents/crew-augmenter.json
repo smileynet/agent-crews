@@ -54,7 +54,7 @@
   },
   "resources": [
     "file://AGENTS.md",
-    "skill://shared/skills/eval-criteria/SKILL.md",
+    "skill://.kiro/skills/eval-criteria/SKILL.md",
     "skill://.kiro/skills/verification-protocol/SKILL.md",
     "skill://.kiro/skills/git-protocol/SKILL.md",
     "skill://.kiro/skills/troubleshooting-protocol/SKILL.md"

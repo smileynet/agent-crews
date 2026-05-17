@@ -281,3 +281,46 @@ class TestSubagentIsolation:
         assert len(verifier.get("resources", [])) > 0, (
             "Crew-defined verifier should keep its resources"
         )
+
+class TestSkillManifest:
+    """The shared/skills/manifest.yaml MUST classify every skill on disk."""
+
+    def test_manifest_classifies_all_skills(self):
+        from _lib.skills import list_shared_skills, manifest_classified_skills
+        on_disk = set(list_shared_skills())
+        classified = manifest_classified_skills()
+        unclassified = on_disk - classified
+        ghosts = classified - on_disk
+        assert not unclassified, (
+            f"Skills present on disk but missing from manifest: {sorted(unclassified)}"
+        )
+        assert not ghosts, (
+            f"Manifest lists skills that don't exist on disk: {sorted(ghosts)}"
+        )
+
+    def test_manifest_drives_archetype_injection(self, tmp_path):
+        """Archetype-scoped skills in the manifest match what agents receive."""
+        from _lib.skills import archetype_skill_refs
+        proj = _deploy(tmp_path, FULL_STACK_CFG)
+        kiro = proj / ".kiro"
+        worker_refs = set(archetype_skill_refs("worker"))
+        orch_refs = set(archetype_skill_refs("orchestrator"))
+        for f in (kiro / "agents").glob("*.json"):
+            data = json.loads(f.read_text())
+            # Component-generated subagents (verifier, editor) run in fresh
+            # context and bypass archetype injection — they have no hooks.
+            if not data.get("hooks"):
+                continue
+            resources = set(data.get("resources", []))
+            tools = data.get("tools", [])
+            if "subagent" in tools:
+                if data["name"] != "dispatcher":
+                    assert orch_refs.issubset(resources), (
+                        f"Orchestrator {data['name']} missing manifest skills: "
+                        f"{orch_refs - resources}"
+                    )
+            else:
+                assert worker_refs.issubset(resources), (
+                    f"Worker {data['name']} missing manifest skills: "
+                    f"{worker_refs - resources}"
+                )

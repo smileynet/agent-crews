@@ -89,7 +89,7 @@ architypes:
         description: "[Crew-Tooling] Tester — evals, smoke tests, regression checks"
         routes: "Need tests written or run for agent-crews tooling"
         resources:
-          - skill://shared/skills/eval-criteria/SKILL.md
+          - skill://.kiro/skills/eval-criteria/SKILL.md
         tools:
           - read
           - write
