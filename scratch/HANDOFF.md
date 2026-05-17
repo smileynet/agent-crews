@@ -1,51 +1,47 @@
 # Handoff — 2026-05-16
 
 ## What was being worked on
-generate.py modularization — extracting the 1997-line monolith into `_lib/` modules.
+Build-time context injection (Phases 1+2), meta crew restructure, eval improvements, generate.py modularization, and quality gates.
 
 ## Current state
-- Modularization: ✅ Done (9 extraction commits, all pushed)
-- generate.py: 209 lines (entry point only)
-- _lib/: 9 modules, 1769 lines total
-- `just build --all` passes for all projects
-- Pre-modularization tag exists for rollback if needed
-
-## Module structure
-```
-generate.py          209 lines  Entry point: argparse + dispatch
-_lib/__init__.py      33 lines  get_architypes, deep_merge (shared utilities)
-_lib/types.py         53 lines  TypedDict definitions
-_lib/validate.py     130 lines  Hierarchy validation, coverage checks
-_lib/theme.py        107 lines  Theme overlay system
-_lib/sync.py          96 lines  Steering/skills/prompts sync
-_lib/utils.py        150 lines  Routing table, crew sheet, sibling map
-_lib/components.py   252 lines  Component system + inject_subagents
-_lib/build.py        326 lines  build_agent, resolve_extends, generate
-_lib/inject.py       162 lines  synthesize_dispatcher
-_lib/fleet.py        460 lines  generate_all, fleet config, health checks
-```
+- Phase 1 (protocol skills): ✅ Done
+- Phase 2 (orchestrator model): ✅ Done
+- Meta crew split (crew-builder/maintenance/tooling): ✅ Done
+- Eval harness (parallel 5, fixtures, intent_only, majority-pass): ✅ Done
+- 7 eval fixes committed, NOT re-run yet (baseline stale at 28/46)
+- generate.py modularization: ✅ Done (9 modules in `_lib/`, 209-line entry point)
+- Quality gates: ruff clean, pre-commit config, expanded rules ✅
 
 ## Key decisions made
-- `get_architypes` and `deep_merge` in `_lib/__init__.py` (used by all modules)
-- All modules use `Path(__file__).parent.parent` for repo root
-- `inject_subagents_into_orchestrators` lives in components.py (called from generate_components_for_project)
-- No circular imports — dependency flows: validate/theme/sync → utils → components → build → inject → fleet
+- Orchestrators: no `read`, pure routers, auto-injected worker tables
+- Worker tables scoped per crew file (split fixed the bug structurally)
+- Eval pass criterion: majority (2/3) not all (3/3)
+- `_lib/` at repo root, TypedDict for 3 main shapes, mypy (not ty yet)
+- Structural + idempotency tests (no golden files)
+- Question bubbling: workers report BLOCKED, leads relay to user
 
-## What was NOT done (from spec)
-- Phase D: Testing (unit tests for validate, build, idempotency)
-- mypy configuration and type annotations on function signatures
-- Eval re-run (baseline still stale at 28/46 pre-fix)
-
-## Next steps
-1. Run evals: `just eval` to confirm baseline improved (expect ~35-40/46)
+## Next steps (priority order)
+1. `just eval` — re-run to confirm fixes improved baseline (expect ~35-40/46)
 2. Add `tests/test_validate.py` — hierarchy validation unit tests
 3. Add `tests/test_idempotency.py` — run build twice, diff output
-4. Add mypy.ini with permissive settings, type public signatures
-5. Consider: fleet.py is 460 lines (largest module) — could split generate_all into smaller functions
+4. Add `mypy.ini` with permissive settings, type public function signatures
+5. Phase 3 of context injection (`docs/specs/build-time-context-injection.md`):
+   - `inject_scope_and_siblings()` — auto-inject scope + sibling list for workers
+   - `inject_project_commands()` — from verification config
+6. Phase 4 of context injection:
+   - `--measure-context` flag on eval harness
+   - Token budget tracking in meta.json
+   - Test removing `file://AGENTS.md` from workers (keep for orchestrators)
+7. Create mock session data fixtures for session-analysis evals
+8. Consider splitting `_lib/fleet.py` (460 lines, largest module)
+9. Evaluate switching mypy → ty once ty reaches stable
 
 ## Context the next session needs
 - `_lib/fleet.py` imports from all other _lib modules (it's the orchestrator)
-- `_lib/components.py` has a deferred import: `from _lib import deep_merge` inside resolve_component_config
-- The `## ─── Theme Overlay System ───` comment was removed (was just a section marker)
-- `load_fleet_local()` reads fleet.local.yaml (gitignored, per-machine project registry)
-- `resolve_project()` handles both `.` (cwd) and named projects from fleet.local.yaml
+- `_lib/components.py` has a deferred import: `from _lib import deep_merge`
+- `get_architypes()` supports both `architypes` and `archetypes` spellings
+- `rust.yaml` uses `archetypes` (different from other crew files)
+- Shared skills sync to `.kiro/skills/` during build — all references resolve
+- `load_fleet_local()` reads fleet.local.yaml (gitignored, per-machine)
+- Modularization spec: `docs/specs/generate-modularization.md`
+- Context injection spec: `docs/specs/build-time-context-injection.md`
