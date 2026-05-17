@@ -100,7 +100,7 @@ Convert steering docs into skills with proper frontmatter for on-demand loading.
 
 ### Phase 2: Build-Time Injection (leads)
 
-**Status:** Designed (grill session 2026-05-16)
+**Status:** Designed (grill session 2026-05-16) → **Implemented**
 
 #### Decisions
 
@@ -334,7 +334,7 @@ echo "{\"kiro_version\": \"$KIRO_VERSION\", \"timestamp\": \"$TIMESTAMP\", \"pas
 ```
 Phase 0 (assumptions) → GATE for all other phases
 Phase 1 (skills)      ✅ DONE — protocol skills injected by archetype
-Phase 2 (leads)       → next: remove read, inject worker table, remove vocabulary.md
+Phase 2 (leads)       ✅ DONE — read removed, worker table injected, vocabulary removed, meta split into 3 crews
 Phase 3 (workers)     → independent of Phase 2
 Phase 4 (eval)        → after Phases 1-3 stabilize; includes AGENTS.md removal test for workers
 Phase 5 (dispatcher)  → already partially done (scope boundary injection exists)

@@ -55,12 +55,13 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 | Depth | Archetype | Role | Tools |
 |-------|-----------|------|-------|
 | 0 | `dispatcher` | Routes by intent to the right crew | `subagent`, `read`, `todo_list` |
-| 1 | `orchestrator` | Plans and delegates within one crew | `subagent`, `read`, `todo_list` |
+| 1 | `orchestrator` | Plans and delegates within one crew | `subagent`, `todo_list` |
 | 2 | `worker` | Executes tasks, produces artifacts | `read`, `write`, `shell` |
 
 **Guardrails (enforced at build time):**
 - Workers cannot have `subagent` (no delegation)
 - Orchestrators cannot target other orchestrators (no lateral dispatch)
+- Orchestrators should not have `read` (warning) — delegate reading to workers
 - Only dispatchers can target orchestrators
 
 ## Crews (58 agents across 8 crews)
@@ -122,18 +123,18 @@ The dispatcher (`ctrl+shift+d`) is the entry point. It plans work, routes to cre
 
 ```
 Dispatcher (ctrl+shift+d) — plans, routes, reads context for routing
-├── build-lead → crew-researcher, crew-creator, crew-augmenter
-├── ops-lead → crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser
-├── bugfix-lead → meta-debugger, meta-tester
+├── crew-builder-lead → crew-researcher, crew-creator, crew-augmenter
+├── crew-maintenance-lead → crew-analyst, crew-doctor, crew-validator, project-hygiene, crew-releaser
+├── crew-tooling-lead → meta-debugger, meta-tester
 └── Shared utilities: verifier, editor, kiro-helper (available to all leads)
 ```
 
 | Agent | Role |
 |-------|------|
 | dispatcher | Plans work, routes to leads, reads context for routing decisions |
-| build-lead | Coordinates crew creation and modification |
-| ops-lead | Coordinates analysis, diagnosis, validation, releases |
-| bugfix-lead | Coordinates debugging of agent-crews tooling |
+| crew-builder-lead | Coordinates crew creation and modification |
+| crew-maintenance-lead | Coordinates analysis, diagnosis, validation, releases |
+| crew-tooling-lead | Coordinates debugging of agent-crews tooling |
 | verifier | Independent verification before marking DONE |
 | editor | Prose review, style enforcement |
 | kiro-helper | CLI troubleshooting, MCP config |
@@ -153,6 +154,7 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 | `@release` | Cut a release — validate, curate changelog, bump version, tag |
 | `@crew-sheet` | Show all agents, prompts, and common tasks |
 | `@grill-me` | Design interrogation — relentless questioning until shared understanding |
+| `@grill-with-docs` | Design interrogation that updates CONTEXT.md and ADRs inline |
 | `@thunderdome` | Ruthless editing — every feature fights to earn its place |
 
 ## Doc index

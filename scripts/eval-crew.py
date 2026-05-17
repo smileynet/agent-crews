@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -370,6 +371,7 @@ def main():
     parser.add_argument("--trials", type=int, default=3, help="Run each eval N times, report pass^k (default: 3)")
     parser.add_argument("--judge-trials", type=int, default=1, help="Judge each output N times, majority vote (default: 1)")
     parser.add_argument("--backfill", type=str, metavar="RUN_DIR", help="Re-run only failed/errored evals from a previous run (path to run dir or 'latest')")
+    parser.add_argument("--parallel", type=int, default=1, help="Run N evals concurrently (default: 1, sequential)")
     args = parser.parse_args()
 
     if args.intent_only:
@@ -448,31 +450,66 @@ def main():
     # Run evals
     trial_label = f" x{args.trials} trials" if args.trials > 1 else ""
     judge_label = f", {args.judge_trials}-vote judge" if args.judge_trials > 1 else ""
-    print(f"Running {len(evals)} evals{trial_label}{judge_label} (isolated)...\n")
-    results = []
+    parallel_label = f", {args.parallel} parallel" if args.parallel > 1 else ""
+    print(f"Running {len(evals)} evals{trial_label}{judge_label}{parallel_label} (isolated)...\n")
+    results = [None] * len(evals)
     start_time = time.time()
 
-    for ev in evals:
-        result = run_eval_with_trials(
-            ev, trials=args.trials,
-            verbose=args.verbose, global_timeout=args.timeout,
-            intent_only=args.intent_only, judge_trials=args.judge_trials,
-        )
-        results.append(result)
+    def _run_one(idx_ev):
+        idx, ev = idx_ev
+        backoff = 1
+        for attempt in range(3):
+            result = run_eval_with_trials(
+                ev, trials=args.trials,
+                verbose=args.verbose, global_timeout=args.timeout,
+                intent_only=args.intent_only, judge_trials=args.judge_trials,
+            )
+            # Retry on all-trials-failed with backoff (likely rate limit)
+            if result.get("error") == "all_trials_failed" and attempt < 2:
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+            return idx, result
+        return idx, result
 
-        # Print result
-        threshold = ev.get("threshold", args.threshold)
-        score = result["score"]
-        if score is None:
-            print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
-        elif args.trials > 1:
-            passed = result.get("pass_k", False)
-            marker = f"\033[32m{'✓' if passed else '✗'}\033[0m" if passed else f"\033[31m✗\033[0m"
-            print(f"[ {marker} ] {result['name']}: {result['reason']}")
-        else:
-            passed = score >= threshold
-            marker = f"\033[32m{score}\033[0m" if passed else f"\033[31m{score}\033[0m"
-            print(f"[ {marker} ] {result['name']}: {result['reason']}")
+    if args.parallel > 1:
+        with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+            futures = {executor.submit(_run_one, (i, ev)): i for i, ev in enumerate(evals)}
+            for future in as_completed(futures):
+                idx, result = future.result()
+                results[idx] = result
+                # Print as they complete
+                ev = evals[idx]
+                threshold = ev.get("threshold", args.threshold)
+                score = result["score"]
+                if score is None:
+                    print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
+                elif args.trials > 1:
+                    passed = result.get("pass_k", False)
+                    marker = f"\033[32m✓\033[0m" if passed else f"\033[31m✗\033[0m"
+                    print(f"[ {marker} ] {result['name']}: {result['reason']}")
+                else:
+                    passed = score >= threshold
+                    marker = f"\033[32m{score}\033[0m" if passed else f"\033[31m{score}\033[0m"
+                    print(f"[ {marker} ] {result['name']}: {result['reason']}")
+    else:
+        for i, ev in enumerate(evals):
+            _, result = _run_one((i, ev))
+            results[i] = result
+
+            # Print result
+            threshold = ev.get("threshold", args.threshold)
+            score = result["score"]
+            if score is None:
+                print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
+            elif args.trials > 1:
+                passed = result.get("pass_k", False)
+                marker = f"\033[32m{'✓' if passed else '✗'}\033[0m" if passed else f"\033[31m✗\033[0m"
+                print(f"[ {marker} ] {result['name']}: {result['reason']}")
+            else:
+                passed = score >= threshold
+                marker = f"\033[32m{score}\033[0m" if passed else f"\033[31m{score}\033[0m"
+                print(f"[ {marker} ] {result['name']}: {result['reason']}")
 
     # Summary
     total_duration = time.time() - start_time

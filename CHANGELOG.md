@@ -31,6 +31,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 
 ### Changed
+- **BREAKING:** Meta crew split into three: crew-builder, crew-maintenance, crew-tooling — each follows the standard one-lead-per-file pattern. Leads renamed to crew-builder-lead, crew-maintenance-lead, crew-tooling-lead.
 - Orchestrators are pure routers — they delegate all work including file reading, using the injected worker table and delegation rules to decide who gets what
 - Dispatcher now delegates reliably — tool permissions enforce routing instead of relying on prompt suggestions alone. Simple file reads still work directly; everything else goes to the right specialist.
 - **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
