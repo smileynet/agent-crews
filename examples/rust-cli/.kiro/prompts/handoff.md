@@ -34,4 +34,5 @@ Delete any existing `scratch/HANDOFF.md`, then create a new one capturing everyt
 - Be specific — "fix the bug" is useless, "fix the timeout in eval-crew.py line 255 where intent_only evals still use global timeout" is useful
 - Include file paths, function names, line numbers where relevant
 - If an eval run or build is in progress, note it
-- Keep it under 50 lines — dense, not verbose
+- Keep it under 60 lines — dense, not verbose
+- **Capture ALL future work discussed** — not just immediate next steps. Include deferred items, follow-up tasks, and "do later" decisions from grill sessions. If it was discussed as future work, it belongs in Next Steps.

@@ -38,14 +38,20 @@
         "grep *",
         "diff *"
       ]
+    },
+    "execute_bash": {
+      "allowedCommands": [
+        "uv run generate.py --dry-run",
+        "git *"
+      ]
     }
   },
   "resources": [
     "file://AGENTS.md",
     "skill://shared/skills/eval-criteria/SKILL.md",
-    "skill://shared/skills/verification-protocol/SKILL.md",
-    "skill://shared/skills/git-protocol/SKILL.md",
-    "skill://shared/skills/troubleshooting-protocol/SKILL.md"
+    "skill://.kiro/skills/verification-protocol/SKILL.md",
+    "skill://.kiro/skills/git-protocol/SKILL.md",
+    "skill://.kiro/skills/troubleshooting-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

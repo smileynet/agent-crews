@@ -13,7 +13,7 @@
   "resources": [
     "file://.kiro/steering/**/*.md",
     "file://CONTEXT.md",
-    "skill://shared/skills/completion-protocol/SKILL.md"
+    "skill://.kiro/skills/completion-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

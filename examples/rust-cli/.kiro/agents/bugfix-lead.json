@@ -17,7 +17,7 @@
     "skill://.kiro/skills/task-lifecycle.md",
     "file://CONTEXT.md",
     "skill://.kiro/skills/situation-routing.md",
-    "skill://shared/skills/completion-protocol/SKILL.md"
+    "skill://.kiro/skills/completion-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [

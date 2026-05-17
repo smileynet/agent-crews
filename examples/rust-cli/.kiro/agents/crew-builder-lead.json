@@ -32,7 +32,7 @@
   },
   "resources": [
     "file://AGENTS.md",
-    "skill://shared/skills/completion-protocol/SKILL.md"
+    "skill://.kiro/skills/completion-protocol/SKILL.md"
   ],
   "hooks": {
     "agentSpawn": [
