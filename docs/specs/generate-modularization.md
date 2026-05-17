@@ -1,8 +1,20 @@
 # Spec: generate.py Modularization and Quality Gates
 
-**Status:** Draft  
+**Status:** Designed (grill session 2026-05-16)  
 **Date:** 2026-05-16  
 **Depends on:** Phase 2 complete, eval baseline established
+
+## Grill Session Decisions
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| G1 | `_lib/` doesn't need packaging — uv adds script dir to sys.path | No pyproject.toml, no build system, just local imports |
+| G2 | TypedDict with `total=False` for 3 main shapes (Crew, AgentJSON, FleetConfig) | Catches misspelled keys without requiring all optional fields |
+| G3 | Pre-commit covers ALL Python files (generate.py, _lib/, scripts/) | No reason to allow broken syntax anywhere. Ruff is <100ms. |
+| G4 | Big bang extraction in one session (9 commits, tag before starting) | No hybrid state ships. Revert individual commits if broken. |
+| G5 | Structural assertions + idempotency test (no golden files) | Golden files break on every prompt tweak. Structural tests catch real invariants. |
+| G6 | mypy now, evaluate ty when stable | Standard annotations work with any checker. Swappable later. |
+| G7 | Lint the monolith first, then extract | Extraction diffs are pure structural moves, no style noise. |
 
 ## Problem
 
@@ -97,10 +109,9 @@ Gradual adoption strategy:
 | pytest | `tests/` directory | mise task + pre-commit (fast tests only) |
 
 Test strategy:
-- Unit tests for `validate.py` (pure functions, easy to test)
-- Unit tests for `build.py` (given YAML input → expected JSON output)
-- Integration test: `just build --dry-run` produces expected agent count
-- Snapshot tests: golden-file comparison for generated agent JSON
+- Structural assertions: invariants that must hold regardless of prompt content
+- Idempotency test: `just build` twice → identical output (catches non-determinism)
+- No golden files (break on every prompt tweak, high maintenance for low value)
 
 #### Layer 4: Pre-commit Hooks (enforcement mechanism)
 
@@ -201,10 +212,9 @@ fleet.py     ←── depends on: build, inject, sync, theme, components, utils
 ### Phase D: Testing
 
 1. Add `tests/test_validate.py` — hierarchy validation unit tests
-2. Add `tests/test_build.py` — YAML→JSON transformation tests
-3. Add `tests/test_inject.py` — worker table, dispatcher synthesis tests
-4. Add integration test: golden-file comparison for generated output
-5. Add to CI
+2. Add `tests/test_build.py` — structural assertions (workers no subagent, orchestrators have worker table, dispatcher has all leads)
+3. Add `tests/test_idempotency.py` — run build twice, diff output
+4. Add to CI
 
 **Commit:** `test: add unit tests for core modules`
 

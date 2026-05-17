@@ -52,6 +52,10 @@ _Avoid_: skin, flavor
 The generation step that transforms source YAML into deployable agent JSON + steering. Running `just build` is mandatory after any source change.
 _Avoid_: generate (acceptable as verb), compile
 
+**_lib**:
+Internal Python modules that implement generate.py's logic. Not a deployable package — just code organization for maintainability.
+_Avoid_: package, library (it's not distributed)
+
 **Grill Session**:
 A structured design interrogation that challenges a plan until shared understanding is reached, updating domain docs inline.
 _Avoid_: design review, brainstorm

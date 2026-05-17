@@ -41,7 +41,7 @@ One-sentence definition.
 _Avoid_: synonym1, synonym2
 ```
 
-CONTEXT.md is a glossary only — no implementation details, no specs, no scratch notes.
+CONTEXT.md is a glossary only — no implementation details, no specs, no scratch notes. Include any term relevant to the project that could cause confusion — domain concepts, infrastructure conventions, and internal naming decisions all belong.
 
 ### Offer ADRs sparingly
 Only create an ADR when ALL THREE are true:
