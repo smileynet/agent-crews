@@ -202,31 +202,56 @@ class TestPromptConsumption:
         assert "builder" in crew_sheet
 
 
-class TestAllowedCommandsGap:
-    """Document the known gap: allowed_commands not merged into toolsSettings."""
+class TestAllowedCommands:
+    """Component allowed_commands are merged into worker toolsSettings."""
 
-    def test_allowed_commands_not_in_agent_json(self, tmp_path):
-        """KNOWN GAP: component allowed_commands are NOT merged into agent toolsSettings.
-
-        This test documents the current behavior. When this is implemented,
-        change the assertion to verify commands ARE present.
-        """
+    def test_allowed_commands_in_worker_agents(self, tmp_path):
+        """Workers get allowedCommands from their component config."""
         proj = _deploy(tmp_path, {
             "crews": ["general"],
-            "components": {"verification": {"variant": "gate", "checks": {"build": "cargo check", "test": "cargo test", "lint": "cargo clippy"}}},
+            "components": {
+                "verification": {"variant": "gate", "checks": {"build": "cargo check", "test": "cargo test", "lint": "cargo clippy"}},
+                "git": {"variant": "checkpoint"},
+            },
         })
         kiro = proj / ".kiro"
-        # Check if any worker has allowedCommands with the configured values
-        has_commands = False
+        workers_with_commands = 0
+        for f in (kiro / "agents").glob("*.json"):
+            data = json.loads(f.read_text())
+            if "subagent" in data.get("tools", []):
+                continue  # skip orchestrators
+            cmds = data.get("toolsSettings", {}).get("execute_bash", {}).get("allowedCommands", [])
+            if cmds:
+                workers_with_commands += 1
+                assert "cargo check" in cmds, f"{data['name']} missing 'cargo check'"
+                assert "git *" in cmds, f"{data['name']} missing 'git *'"
+        assert workers_with_commands > 0, "No workers received allowedCommands"
+
+    def test_orchestrators_dont_get_commands(self, tmp_path):
+        """Orchestrators (with subagent tool) don't get allowedCommands."""
+        proj = _deploy(tmp_path, {
+            "crews": ["general"],
+            "components": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
+        })
+        kiro = proj / ".kiro"
+        for f in (kiro / "agents").glob("*.json"):
+            data = json.loads(f.read_text())
+            if "subagent" in data.get("tools", []):
+                cmds = data.get("toolsSettings", {}).get("execute_bash", {}).get("allowedCommands", [])
+                assert not cmds, f"Orchestrator {data['name']} should not have allowedCommands"
+
+    def test_null_commands_filtered(self, tmp_path):
+        """Null/empty placeholder values don't appear in allowedCommands."""
+        proj = _deploy(tmp_path, {
+            "crews": ["general"],
+            "components": {"verification": {"variant": "gate", "checks": {"build": "make", "test": None, "lint": None}}},
+        })
+        kiro = proj / ".kiro"
         for f in (kiro / "agents").glob("*.json"):
             data = json.loads(f.read_text())
             cmds = data.get("toolsSettings", {}).get("execute_bash", {}).get("allowedCommands", [])
-            if "cargo check" in cmds:
-                has_commands = True
-        # Currently NOT implemented — this documents the gap
-        assert not has_commands, (
-            "allowed_commands are now being merged! Update this test to assert they ARE present."
-        )
+            assert "" not in cmds, f"{data['name']} has empty string in allowedCommands"
+            assert "None" not in cmds, f"{data['name']} has 'None' in allowedCommands"
 
 
 class TestSubagentIsolation:

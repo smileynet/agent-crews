@@ -228,6 +228,34 @@ def inject_subagents_into_orchestrators(subagent_names: list[str], kiro_dir: Pat
                 f.write("\n")
 
 
+def merge_allowed_commands(components: list[dict], kiro_dir: Path):
+    """Merge component allowed_commands into worker agent toolsSettings."""
+    commands = []
+    for comp in components:
+        targets = comp.get("targets", [])
+        if "worker" in targets or "all" in targets:
+            commands.extend(comp.get("allowed_commands", []))
+    commands = [c for c in commands if c]  # filter empty from null placeholders
+    if not commands:
+        return
+    agents_dir = kiro_dir / "agents"
+    if not agents_dir.is_dir():
+        return
+    for agent_file in agents_dir.glob("*.json"):
+        with open(agent_file, encoding="utf-8") as f:
+            data = json.load(f)
+        if "subagent" in data.get("tools", []):
+            continue  # orchestrators don't run commands
+        ts = data.setdefault("toolsSettings", {})
+        bash = ts.setdefault("execute_bash", {})
+        existing = bash.get("allowedCommands", [])
+        merged = list(dict.fromkeys(existing + commands))
+        bash["allowedCommands"] = merged
+        with open(agent_file, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+
+
 def generate_components_for_project(project_name: str, kiro_dir: Path, fleet: dict, dry_run: bool = False):
     """Full component generation pipeline for a project."""
     component_config = resolve_component_config(project_name, fleet)
@@ -243,6 +271,7 @@ def generate_components_for_project(project_name: str, kiro_dir: Path, fleet: di
         subagents = generate_subagents(components, kiro_dir, dry_run)
         deployed_scripts = deploy_scripts(components, kiro_dir, dry_run)
         write_scripts_steering(deployed_scripts, kiro_dir)
+        merge_allowed_commands(components, kiro_dir)
         if subagents:
             inject_subagents_into_orchestrators(subagents, kiro_dir)
             print(f"    + subagents: {', '.join(subagents)}")
