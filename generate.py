@@ -28,6 +28,7 @@ except ImportError:
 
 from _lib import get_architypes
 from _lib.validate import validate_coverage, validate_changelog_prerequisites, validate_hierarchy
+from _lib.theme import load_theme, apply_theme_to_agents
 
 
 def deep_merge(base: dict, override: dict) -> dict:
@@ -877,118 +878,7 @@ def generate_all(dry_run: bool = False):
 ## ─── Theme Overlay System ──────────────────────────────────────────────────────
 
 
-THEMES_DIR = Path(__file__).parent / "shared" / "themes"
 
-
-def load_theme(theme_name: str) -> dict:
-    """Load a theme YAML file from shared/themes/."""
-    if not theme_name:
-        return {}
-    path = THEMES_DIR / f"{theme_name}.yaml"
-    if not path.exists():
-        return {}
-    with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
-
-
-def apply_theme_to_agents(agents_dir: Path, theme: dict):
-    """Apply theme overlay: rename agent JSON files and update contents."""
-    if not theme:
-        return
-    agent_map = theme.get("agents", {})
-    # Build reverse map for prompt substitution (generic → themed)
-    name_map = {generic: cfg["name"] for generic, cfg in agent_map.items() if "name" in cfg}
-
-    # Rename all agent files and update contents
-    for json_file in sorted(agents_dir.glob("*.json")):
-        generic_name = json_file.stem
-        if generic_name not in name_map:
-            continue
-
-        with open(json_file, encoding="utf-8") as f:
-            agent = json.load(f)
-
-        themed_name = name_map[generic_name]
-        theme_cfg = agent_map[generic_name]
-
-        # Rename the agent
-        agent["name"] = themed_name
-
-        # Replace welcome message if theme provides one
-        if "welcomeMessage" in theme_cfg:
-            agent["welcomeMessage"] = theme_cfg["welcomeMessage"]
-
-        # Update description: replace [Crew Name] with themed crew display
-        crew_display = _get_crew_display_for_agent(generic_name, theme)
-        if crew_display and "description" in agent:
-            # Replace the [Generic] prefix with themed display
-            import re
-            agent["description"] = re.sub(
-                r"^\[[\w\s-]+\]",
-                f"[{crew_display}]",
-                agent["description"],
-            )
-
-        # Substitute all generic agent names in prompt text with themed names
-        if "prompt" in agent:
-            agent["prompt"] = _substitute_names_in_text(agent["prompt"], name_map)
-
-        # Update toolsSettings.subagent references
-        if "toolsSettings" in agent and "subagent" in agent.get("toolsSettings", {}):
-            sub_settings = agent["toolsSettings"]["subagent"]
-            for key in ("availableAgents", "trustedAgents"):
-                if key in sub_settings:
-                    sub_settings[key] = [name_map.get(n, n) for n in sub_settings[key]]
-
-        # Write with new name
-        new_path = agents_dir / f"{themed_name}.json"
-        with open(new_path, "w", encoding="utf-8") as f:
-            json.dump(agent, f, indent=2)
-            f.write("\n")
-
-        # Remove old file if name changed
-        if json_file.name != new_path.name and json_file.exists():
-            json_file.unlink()
-
-
-def _get_crew_display_for_agent(generic_name: str, theme: dict) -> str:
-    """Find the themed crew display name for a given generic agent."""
-    crews = theme.get("crews", {})
-    # Map agent prefixes to crew names
-    prefix_map = {
-        "general": ["general-lead", "planner", "explorer", "researcher", "challenger",
-                    "advisor", "architect", "builder", "tester", "committer", "reviewer", "advocate"],
-        "bug-fix": ["bugfix-lead", "triager", "investigator", "practices-advisor",
-                    "reproducer", "fixer", "verifier", "documenter"],
-        "infrastructure": ["infrastructure-lead", "deploy-planner", "infra-advisor",
-                          "provisioner", "monitor", "security-reviewer", "cleanup"],
-        "research": ["research-lead", "outliner", "internal-researcher", "external-researcher",
-                    "writer", "fact-checker", "editor"],
-        "onboarding": ["onboarding-lead", "mapper", "analyst", "auditor", "restorer", "guide-writer"],
-        "hygiene": ["hygiene-lead", "doc-checker", "deps-checker", "structure-checker",
-                   "link-checker", "fix-verifier"],
-        "content": ["content-lead", "narrative-writer", "content-researcher", "tutorial-writer",
-                   "content-reviewer", "publisher"],
-        "writing": ["writing-lead", "doc-auditor", "doc-architect", "doc-writer",
-                   "tutorial-author", "doc-verifier"],
-    }
-    for crew_name, agents in prefix_map.items():
-        if generic_name in agents:
-            crew_cfg = crews.get(crew_name, {})
-            icon = crew_cfg.get("icon", "")
-            display = crew_cfg.get("display", crew_name.title())
-            return f"{icon} {display}".strip() if icon else display
-    return ""
-
-
-def _substitute_names_in_text(text: str, name_map: dict) -> str:
-    """Replace generic agent names with themed names in prompt text."""
-    import re
-    # Sort by length descending to avoid partial matches
-    for generic, themed in sorted(name_map.items(), key=lambda x: -len(x[0])):
-        # Replace as whole words (word boundary or preceded by space/slash/backtick)
-        text = re.sub(r'(?<![a-zA-Z-])' + re.escape(generic) + r'(?![a-zA-Z-])', themed, text)
-    return text
 
 
 def generate_routing_table(crews_dir: Path) -> str:
