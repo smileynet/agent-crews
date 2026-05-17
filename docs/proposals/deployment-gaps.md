@@ -1,8 +1,7 @@
 # Proposal: Address Deployment Pipeline Gaps
 
 **Date:** 2026-05-16
-**Status:** Resolved (2026-05-17) — Gap 1 implemented, Gap 2 implemented, Gap 3 deferred with mitigation documented.
-**Context:** Pipeline validation revealed three gaps where configured behavior isn't reaching agents at runtime.
+**Status:** Resolved (2026-05-17) — Gap 1 implemented, Gap 2 implemented, Gap 3 reframed around sparse runtime context and implemented via `project.md` guidance + skeleton upgrade.
 
 ---
 
@@ -86,30 +85,27 @@ Generator reads this manifest. Agent skills get `skill://` references. User skil
 
 ---
 
-## Gap 3: No steering isolation between agent types
+## Gap 3: Project context is too broad and blurs runtime vs build-time surfaces
 
-**Problem:** kiro-cli loads ALL `.kiro/steering/**/*.md` files with `inclusion: always` into every agent's context, regardless of subdirectory. Workers see orchestrator rules (narration, delegation, memory). Orchestrators see worker rules (verification, troubleshooting). This wastes context tokens and can confuse agents with irrelevant instructions.
+**Problem:** Generated agents already get targeted instructions through prompt injection, tool permissions, and archetype-loaded skills. The remaining context risk is the always-loaded project context itself: `project.md` can grow into a general design memo, and in self-hosted repos it can blur what is deployed here (`.kiro/`) versus the source/config that defines the deployment (`.crews/`, templates, generator code).
 
-**Impact:** Medium. Measured at ~19 steering files × ~200 tokens avg = ~3,800 tokens of steering per agent. Workers receive ~1,500 tokens of orchestrator-only content they'll never use. At scale (14 agents), this is ~21K wasted tokens per session.
+**Impact:** Medium. Agents waste attention on build-system detail that does not matter for most turns, and they are more likely to edit generated output or describe the wrong surface in handoffs.
 
-**Options:**
+**Approach:**
 
-| Option | Tradeoff |
-|--------|----------|
-| A. Do nothing | Accept context bloat. Agents mostly ignore irrelevant steering. |
-| B. Use `inclusion: agent_match` | Requires kiro-cli to support per-agent steering filtering (not available) |
-| C. Flatten into single steering file per agent type | Lose modularity. One giant file per role. |
-| D. Move role-specific steering into agent prompts | Increases prompt size but ensures isolation |
-| E. Use `inclusion: conditional` with agent name patterns | Requires kiro-cli feature (not available) |
+| Step | Change |
+|------|--------|
+| 1 | Keep `project.md` explicitly sparse — facts most deployed agents need on most turns |
+| 2 | Add a runtime-boundary section that distinguishes `.kiro/` deployed artifacts from `.crews/` and other build inputs |
+| 3 | Auto-upgrade untouched legacy skeletons so examples and fresh projects converge on the clarified template |
+| 4 | Keep reusable behavior in prompts, components, and skills instead of repeating it in always-loaded project context |
 
-**Recommendation:** Option A (short-term) + file a kiro-cli feature request for Option B.
+**Recommendation:** Implement the sparse-boundary template now. Treat further steering filtering as an optional future optimization, not the primary fix.
 
-Rationale: The current bloat (~1,500 extra tokens per agent) is within acceptable bounds. Agents already handle mixed instructions well — they follow what's relevant to their role. The real fix requires kiro-cli to support `inclusion: agent_match` or similar filtering. Until then, the subdirectory structure serves as documentation for humans even if it doesn't provide runtime isolation.
+**Rationale:** We already have precise delivery for agent-specific behavior. The load-bearing fix is to make the always-loaded context small and unambiguous, especially in repos like `agent-crews` that contain both the deployed crew and the machinery that builds it.
 
-**If context pressure becomes measurable** (agents hitting limits, degraded performance), implement Option D as a stopgap: move the 4-5 most critical role-specific steering sections into the agent's `prompt` field directly, and remove them from steering files.
-
-**Effort:** None (short-term). Feature request (medium-term).  
-**Risk:** None.
+**Effort:** Small.
+**Risk:** Low — template/guidance change with a safe migration path for untouched skeletons.
 
 ---
 
@@ -119,7 +115,7 @@ Rationale: The current bloat (~1,500 extra tokens per agent) is within acceptabl
 |-----|----------|--------|------|
 | 1. allowed_commands | P1 | Small | Next session — enforcement principle violated |
 | 2. Skill manifest | P3 | Small | When adding new skills — organizational improvement |
-| 3. Steering isolation | P4 | None/External | File feature request, revisit if context pressure observed |
+| 3. Sparse project context | P2 | Small | Now — prevents runtime/source confusion |
 
 ---
 
@@ -129,4 +125,5 @@ Rationale: The current bloat (~1,500 extra tokens per agent) is within acceptabl
 - [x] Gap 1: Workers in component-enabled projects have `execute_bash.allowedCommands`
 - [x] Gap 2: `shared/skills/manifest.yaml` exists; generator reads it for archetype injection
 - [x] Gap 2: `test_manifest_classifies_all_skills` enforces every skill on disk is classified
-- [ ] Gap 3: Feature request filed for kiro-cli steering filtering (external — track in upstream tracker)
+- [x] Gap 3: Generated `project.md` skeleton stays sparse and explicitly distinguishes `.kiro/` runtime artifacts from `.crews/` config inputs
+- [x] Gap 3: Untouched legacy `project.md` skeletons auto-upgrade on rebuild

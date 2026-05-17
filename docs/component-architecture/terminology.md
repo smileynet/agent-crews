@@ -92,8 +92,8 @@ Canonical definitions for all terms used in the component system. Use these cons
 | **Steering** | `shared/steering/{universal,sa,personal}/*.md` | Persona-split behavioral rules |
 | **Skills** | `shared/skills/<name>/SKILL.md` | On-demand knowledge |
 | **Crews** | `base/crews/*.yaml` | Base crew templates |
-| **Projects** | `projects/<name>/.kiro/` | Per-project generated output |
-| **Fleet** | `fleet.yaml` + `fleet.local.yaml` | Project inventory |
-| **Themes** | `projects/<name>/.kiro/theme.yaml` | Project theme specification |
+| **Project config** | `<project>/.crews/crew.yaml` | Source inputs that define which crews/components get deployed |
+| **Project runtime** | `<project>/.kiro/` | Generated agents, prompts, skills, and local steering for one deployed project |
+| **Themes** | `<project>/.kiro/theme.yaml` | Project theme specification |
 | **Decisions** | `.scratch/session-decisions.md` | Decision log |
 | **Implementation plan** | `.scratch/implementation-plan.md` | This plan |

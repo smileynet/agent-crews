@@ -5,7 +5,6 @@ No test depends on production state (fleet.local.yaml, .kiro/, etc).
 """
 
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -249,7 +248,49 @@ class TestSyncOperations:
         assert project_md.exists()
         content = project_md.read_text()
         assert "inclusion: always" in content
+        assert "## Scope Of This File" in content
+        assert "## Runtime Boundary" in content
+        assert "`.kiro/` is the deployed runtime surface" in content
+        assert "`.crews/` is the project config surface" in content
 
+    def test_legacy_project_md_skeleton_is_upgraded(self, project_dir):
+        """Untouched legacy project.md skeletons are upgraded in place."""
+        project_md = project_dir / ".kiro" / "steering" / "project.md"
+        project_md.parent.mkdir(parents=True, exist_ok=True)
+        project_md.write_text("""---
+inclusion: always
+---
+
+# test-project
+
+<!-- TODO: What is this project? One-two sentence description. -->
+
+## Stack
+
+<!-- TODO: Languages, frameworks, key dependencies -->
+
+## Layout
+
+<!-- TODO: Key directories and what they contain -->
+```
+```
+
+## Conventions
+
+<!-- TODO: Project-specific conventions that differ from defaults -->
+
+## DO NOT
+
+<!-- TODO: Project-specific safety constraints -->
+
+## Key References
+
+<!-- TODO: Important files agents should know about -->
+""")
+        _build_project(project_dir)
+        content = project_md.read_text()
+        assert "## Scope Of This File" in content
+        assert "## Runtime Boundary" in content
 
 class TestHierarchyEnforcement:
     """Test that hierarchy rules are enforced during build."""

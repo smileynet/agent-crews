@@ -46,6 +46,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `just build <project>` generates directly in your project (no intermediate staging for normal workflow)
 - Evals live with the project at `.crews/evals.yaml` — portable and runnable without the agent-crews repo
 - Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
+- Generated `project.md` context is now explicitly runtime-scoped — deployed `.kiro/` artifacts are distinguished from `.crews/` build config, and untouched legacy skeletons auto-upgrade on rebuild
 
 ### Removed
 - `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context
