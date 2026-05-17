@@ -184,7 +184,15 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
         return crew
 
     with open(base_path, encoding="utf-8") as f:
-        base = yaml.safe_load(f)
+        try:
+            base = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            print(f"  ⚠️  extends: YAML parse error in '{extends}': {e}", file=sys.stderr)
+            return crew
+
+    if not base:
+        print(f"  ⚠️  extends: '{extends}' is empty (from {crew_path})", file=sys.stderr)
+        return crew
 
     # Start with base, then apply overrides
     remove_agents = set(crew.get("remove_agents", []))
@@ -245,7 +253,15 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
 def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_crews=None):
     """Parse crew.yaml and generate agent JSON files."""
     with open(crew_path, encoding="utf-8") as f:
-        crew = yaml.safe_load(f)
+        try:
+            crew = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            print(f"  ⚠️  Skipping {crew_path}: YAML parse error: {e}", file=sys.stderr)
+            return []
+
+    if not crew:
+        print(f"  ⚠️  Skipping {crew_path}: empty or invalid YAML", file=sys.stderr)
+        return []
 
     # Resolve inheritance if extends: is specified
     crew = resolve_extends(crew, crew_path)
@@ -300,6 +316,8 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
                             routes = a.get("routes", "")
                             worker_lines.append(f"| {a['name']} | {role} | {routes} |")
                     if len(worker_lines) > 3:
+                        worker_lines.append("")
+                        worker_lines.append("If a worker reports BLOCKED needing user input, relay the question directly — don't guess the answer.")
                         agent_json["prompt"] = agent_json.get("prompt", "") + "\n".join(worker_lines)
 
                 # Auto-inject routing table from routes: fields
@@ -1508,6 +1526,12 @@ def synthesize_dispatcher(
     prompt_suffix = dispatcher_config.get("prompt_suffix", "")
     prompt = f"""You are dispatcher — the project orchestrator.
 
+## Routing Principle
+
+Route based on INTENT, not completeness. If you know which lead handles it, delegate immediately — even if details are missing. Workers gather their own details. Only ask when you genuinely cannot determine which lead to route to.
+
+Do NOT ask clarifying questions about task details (what kind of agent, which file, etc.) — delegate with whatever context the user provided and let the specialist ask if needed.
+
 ## Routing Decision (MANDATORY — before ANY tool call)
 
 Classify the request FIRST. Do not read files to "understand" the request before routing.
@@ -1516,7 +1540,7 @@ Classify the request FIRST. Do not read files to "understand" the request before
 |-------------|--------|
 | Simple read (list a directory, show a known file) | Self-execute with read tool |
 | Needs investigation, creation, modification, or diagnosis | DELEGATE to crew lead |
-| Unclear | Ask one clarifying question |
+| Cannot determine which lead handles this | Ask one clarifying question |
 
 You have only: read, subagent, todo_list. You CANNOT write, execute commands, search, or grep.
 Any task requiring those capabilities MUST be delegated.
