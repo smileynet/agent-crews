@@ -50,6 +50,12 @@ def build_single_project(
         if src.exists():
             shutil.copy2(src, crews_dir / src.name)
 
+    # Sync steering/skills/prompts BEFORE generation (prompts are read during build)
+    sync_steering_to_project(kiro_dir, root)
+    sync_skills_to_project(kiro_dir, root)
+    sync_prompts_to_project(kiro_dir, root)
+    generate_project_md_skeleton(kiro_dir)
+
     # Generate agents
     output_dir = kiro_dir / "agents"
     if not dry_run:
@@ -77,12 +83,6 @@ def build_single_project(
         prompts_dir = kiro_dir / "prompts"
         prompts_dir.mkdir(parents=True, exist_ok=True)
         (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
-
-    # Sync steering/skills/prompts
-    sync_steering_to_project(kiro_dir, root)
-    sync_skills_to_project(kiro_dir, root)
-    sync_prompts_to_project(kiro_dir, root)
-    generate_project_md_skeleton(kiro_dir)
 
     # Dispatcher + components
     shared_names = []

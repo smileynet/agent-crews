@@ -1,209 +1,297 @@
-"""End-to-end tests: validate full generate.py pipeline produces expected output."""
+"""End-to-end tests: validate full generate.py pipeline produces expected output.
+
+All tests use isolated tmp directories with synthetic fixtures.
+No test depends on production state (fleet.local.yaml, .kiro/, etc).
+"""
 
 import json
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+import yaml
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 ROOT = Path(__file__).parent.parent
+BASE_CREWS = ROOT / "base" / "crews"
+SHARED = ROOT / "shared"
 
 
-class TestBuildAll:
-    """Test --all mode produces correct fleet-wide output."""
+@pytest.fixture
+def project_dir(tmp_path):
+    """Create a minimal project with .crews/crew.yaml pointing to general crew."""
+    proj = tmp_path / "test-project"
+    proj.mkdir()
+    crews_dir = proj / ".crews"
+    crews_dir.mkdir()
+    (crews_dir / "crew.yaml").write_text(yaml.dump({"crews": ["general"]}))
+    return proj
 
-    def test_all_projects_generate_agents(self):
-        """--all generates agents for all registered projects."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "--all"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0, f"--all failed: {result.stderr}"
-        assert "Done." in result.stdout
 
-    def test_base_agents_generated(self):
-        """Base crews produce agent JSON files."""
-        agents_dir = ROOT / "base" / "agents"
-        assert agents_dir.is_dir()
-        agent_files = list(agents_dir.glob("*.json"))
-        assert len(agent_files) >= 50, f"Expected 50+ base agents, got {len(agent_files)}"
+@pytest.fixture
+def themed_project_dir(tmp_path):
+    """Create a project with a theme configured."""
+    proj = tmp_path / "themed-project"
+    proj.mkdir()
+    crews_dir = proj / ".crews"
+    crews_dir.mkdir()
+    (crews_dir / "crew.yaml").write_text(yaml.dump({"crews": ["general"], "theme": "wow"}))
+    return proj
 
-    def test_self_hosted_agents_generated(self):
-        """Self-hosted project (agent-crews itself) generates agents."""
-        agents_dir = ROOT / ".kiro" / "agents"
-        assert agents_dir.is_dir()
-        agent_files = list(agents_dir.glob("*.json"))
-        assert len(agent_files) >= 10, f"Expected 10+ self-hosted agents, got {len(agent_files)}"
+
+@pytest.fixture
+def multi_crew_project(tmp_path):
+    """Create a project with multiple crews for dispatcher/routing tests."""
+    proj = tmp_path / "multi-crew"
+    proj.mkdir()
+    crews_dir = proj / ".crews"
+    crews_dir.mkdir()
+    (crews_dir / "crew.yaml").write_text(yaml.dump({
+        "crews": ["general", "crew-builder", "crew-tooling"],
+    }))
+    return proj
+
+
+@pytest.fixture
+def project_with_components(tmp_path):
+    """Create a project with component config."""
+    proj = tmp_path / "comp-project"
+    proj.mkdir()
+    crews_dir = proj / ".crews"
+    crews_dir.mkdir()
+    (crews_dir / "crew.yaml").write_text(yaml.dump({
+        "crews": ["general"],
+        "components": {
+            "verification": {"variant": "gate", "checks": {"build": "echo ok"}},
+            "git": {"variant": "checkpoint"},
+        },
+    }))
+    return proj
+
+
+def _build_project(proj_dir: Path, dry_run: bool = False) -> list[str]:
+    """Build a project using the library directly (no subprocess)."""
+    from _lib.fleet import build_single_project
+    crews_config = proj_dir / ".crews" / "crew.yaml"
+    with open(crews_config) as f:
+        crew_cfg = yaml.safe_load(f) or {}
+    return build_single_project(proj_dir, crew_cfg, fleet_cfg=None, dry_run=dry_run)
 
 
 class TestSingleProjectBuild:
-    """Test single-project build mode."""
+    """Test building a single project from .crews/crew.yaml."""
 
-    def test_build_dot_generates_agents(self):
-        """Building '.' generates agents for the current project."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "."],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0, f"Build . failed: {result.stderr}"
-        assert "Generated" in result.stdout
+    def test_generates_agents(self, project_dir):
+        """Building a project produces agent JSON files."""
+        agents = _build_project(project_dir)
+        assert len(agents) > 10, f"Expected 10+ agents, got {len(agents)}"
 
-    def test_build_named_project(self):
-        """Building a named project from fleet.local.yaml works."""
-        # Use agent-crews itself (always in fleet.local)
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "agent-crews"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0, f"Build named failed: {result.stderr}"
-        assert "Generated" in result.stdout or "agents" in result.stdout
+    def test_agents_are_valid_json(self, project_dir):
+        """All generated agent files are valid JSON with required fields."""
+        _build_project(project_dir)
+        agents_dir = project_dir / ".kiro" / "agents"
+        for f in agents_dir.glob("*.json"):
+            data = json.loads(f.read_text())
+            assert "name" in data
+            assert "tools" in data
+            assert data["name"] == f.stem
+
+    def test_creates_kiro_structure(self, project_dir):
+        """Build creates .kiro/ with agents, prompts, steering."""
+        _build_project(project_dir)
+        kiro = project_dir / ".kiro"
+        assert (kiro / "agents").is_dir()
+        assert (kiro / "prompts").is_dir()
+        assert (kiro / "steering").is_dir()
+
+    def test_cleans_up_temp_crews(self, project_dir):
+        """Temp .kiro/crews/ directory is removed after build."""
+        _build_project(project_dir)
+        assert not (project_dir / ".kiro" / "crews").exists()
+
+    def test_dry_run_no_files_written(self, project_dir):
+        """Dry run produces agent names but writes nothing."""
+        agents = _build_project(project_dir, dry_run=True)
+        assert len(agents) > 0
+        assert not (project_dir / ".kiro" / "agents").exists()
 
 
 class TestDispatcherSynthesis:
-    """Test that dispatcher is correctly synthesized."""
+    """Test dispatcher is correctly generated from crew composition."""
 
-    def test_dispatcher_exists(self):
-        """Dispatcher JSON is generated for self-hosted project."""
-        dispatcher_path = ROOT / ".kiro" / "agents" / "dispatcher.json"
-        assert dispatcher_path.exists(), "dispatcher.json not generated"
+    def test_dispatcher_generated(self, project_dir):
+        """Dispatcher JSON is created."""
+        _build_project(project_dir)
+        dispatcher = project_dir / ".kiro" / "agents" / "dispatcher.json"
+        assert dispatcher.exists()
 
-    def test_dispatcher_has_all_leads(self):
+    def test_dispatcher_has_subagent_tool(self, project_dir):
+        """Dispatcher has subagent in its tools."""
+        _build_project(project_dir)
+        with open(project_dir / ".kiro" / "agents" / "dispatcher.json") as f:
+            data = json.load(f)
+        assert "subagent" in data["tools"]
+
+    def test_dispatcher_routes_to_leads(self, multi_crew_project):
         """Dispatcher's availableAgents includes all crew leads."""
-        dispatcher_path = ROOT / ".kiro" / "agents" / "dispatcher.json"
-        with open(dispatcher_path) as f:
-            dispatcher = json.load(f)
-
-        available = dispatcher.get("toolsSettings", {}).get("subagent", {}).get("availableAgents", [])
-        # agent-crews has crew-builder-lead, crew-maintenance-lead, crew-tooling-lead
+        _build_project(multi_crew_project)
+        with open(multi_crew_project / ".kiro" / "agents" / "dispatcher.json") as f:
+            data = json.load(f)
+        available = data["toolsSettings"]["subagent"]["availableAgents"]
+        # general crew has general-lead, crew-builder has crew-builder-lead, etc.
+        assert "general-lead" in available
         assert "crew-builder-lead" in available
-        assert "crew-maintenance-lead" in available
         assert "crew-tooling-lead" in available
 
-    def test_dispatcher_has_routing_table(self):
-        """Dispatcher prompt contains routing table."""
-        dispatcher_path = ROOT / ".kiro" / "agents" / "dispatcher.json"
-        with open(dispatcher_path) as f:
-            dispatcher = json.load(f)
-        assert "## Routing Table" in dispatcher.get("prompt", "")
+    def test_dispatcher_has_routing_table(self, project_dir):
+        """Dispatcher prompt contains a routing table."""
+        _build_project(project_dir)
+        with open(project_dir / ".kiro" / "agents" / "dispatcher.json") as f:
+            data = json.load(f)
+        assert "## Routing Table" in data["prompt"]
 
-    def test_dispatcher_has_keyboard_shortcut(self):
-        """Dispatcher has a keyboard shortcut configured."""
-        dispatcher_path = ROOT / ".kiro" / "agents" / "dispatcher.json"
-        with open(dispatcher_path) as f:
-            dispatcher = json.load(f)
-        assert dispatcher.get("keyboardShortcut"), "Dispatcher missing keyboard shortcut"
+    def test_dispatcher_has_keyboard_shortcut(self, project_dir):
+        """Dispatcher gets default keyboard shortcut."""
+        _build_project(project_dir)
+        with open(project_dir / ".kiro" / "agents" / "dispatcher.json") as f:
+            data = json.load(f)
+        assert data.get("keyboardShortcut") == "ctrl+shift+d"
+
+
+class TestThemeOverlay:
+    """Test theme application renames agents correctly."""
+
+    def test_theme_renames_agent_files(self, themed_project_dir):
+        """Themed project has renamed agent files."""
+        _build_project(themed_project_dir)
+        agents_dir = themed_project_dir / ".kiro" / "agents"
+        agent_names = {f.stem for f in agents_dir.glob("*.json")}
+        # wow theme renames general-lead → raid-leader
+        assert "raid-leader" in agent_names, f"Expected 'raid-leader' in {agent_names}"
+        assert "general-lead" not in agent_names
+
+    def test_theme_updates_agent_name_field(self, themed_project_dir):
+        """Agent JSON name field matches the themed filename."""
+        _build_project(themed_project_dir)
+        agents_dir = themed_project_dir / ".kiro" / "agents"
+        for f in agents_dir.glob("*.json"):
+            data = json.loads(f.read_text())
+            assert data["name"] == f.stem, f"Name mismatch: {data['name']} != {f.stem}"
+
+    def test_theme_updates_subagent_references(self, themed_project_dir):
+        """Themed orchestrator availableAgents use themed names."""
+        _build_project(themed_project_dir)
+        # raid-leader (themed general-lead) should have themed worker names
+        rl = themed_project_dir / ".kiro" / "agents" / "raid-leader.json"
+        assert rl.exists()
+        with open(rl) as f:
+            data = json.load(f)
+        available = data.get("toolsSettings", {}).get("subagent", {}).get("availableAgents", [])
+        # Workers should be themed (paladin, rogue, etc. — not builder, tester)
+        assert "general-lead" not in available
+        assert len(available) > 0
 
 
 class TestComponentSystem:
     """Test component steering and subagent generation."""
 
-    def test_steering_files_generated(self):
-        """Component steering files are written to .kiro/steering/."""
-        steering_dir = ROOT / ".kiro" / "steering"
-        assert steering_dir.is_dir()
-        # Should have universal/ and worker/ and orchestrator/ subdirs
-        assert (steering_dir / "universal").is_dir() or any(steering_dir.glob("*.md"))
+    def test_steering_files_written(self, project_with_components):
+        """Components write steering files to appropriate subdirs."""
+        _build_project(project_with_components)
+        steering = project_with_components / ".kiro" / "steering"
+        # verification and git components write to worker/ or universal/
+        md_files = list(steering.rglob("*.md"))
+        assert len(md_files) > 0, "No steering files generated"
 
-    def test_crew_sheet_generated(self):
-        """crew-sheet.md prompt is generated."""
-        crew_sheet = ROOT / ".kiro" / "prompts" / "crew-sheet.md"
-        assert crew_sheet.exists(), "crew-sheet.md not generated"
+    def test_crew_sheet_generated(self, project_dir):
+        """crew-sheet.md prompt is generated with agent table."""
+        _build_project(project_dir)
+        crew_sheet = project_dir / ".kiro" / "prompts" / "crew-sheet.md"
+        assert crew_sheet.exists()
         content = crew_sheet.read_text()
         assert "# Crew Sheet" in content
         assert "| Agent |" in content
 
 
-class TestThemeOverlay:
-    """Test theme application (using a project that has a theme)."""
-
-    def test_themed_project_renames_agents(self):
-        """Projects with theme config get renamed agent files."""
-        # Check if any fleet.local project has a theme
-        import yaml
-        fleet_local = ROOT / "fleet.local.yaml"
-        if not fleet_local.exists():
-            pytest.skip("No fleet.local.yaml")
-        with open(fleet_local) as f:
-            data = yaml.safe_load(f) or {}
-        projects = data.get("projects", {})
-        for name, path in projects.items():
-            crew_cfg_path = Path(path).expanduser() / ".crews" / "crew.yaml"
-            if not crew_cfg_path.exists():
-                continue
-            with open(crew_cfg_path) as f:
-                cfg = yaml.safe_load(f) or {}
-            if cfg.get("theme"):
-                # This project has a theme — verify agents dir has themed names
-                agents_dir = Path(path).expanduser() / ".kiro" / "agents"
-                if agents_dir.is_dir():
-                    # Just verify it has agent files (theme was applied)
-                    assert list(agents_dir.glob("*.json")), f"Themed project {name} has no agents"
-                return
-        pytest.skip("No themed projects in fleet")
-
-
-class TestDryRun:
-    """Test --dry-run mode doesn't write files."""
-
-    def test_dry_run_prints_would_write(self):
-        """--dry-run on current project prints what would happen."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), ".", "--dry-run"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0
-        assert "Would write" in result.stdout
-
-    def test_all_dry_run_no_agent_changes(self):
-        """--all --dry-run doesn't modify base/agents/."""
-        # Record state before
-        agents_dir = ROOT / "base" / "agents"
-        before = {f.name: f.stat().st_mtime for f in agents_dir.glob("*.json")} if agents_dir.exists() else {}
-
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "--all", "--dry-run"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0
-
-        # Verify no files were modified (dry-run shouldn't touch disk)
-        # Note: --all dry-run still syncs crews but doesn't write agents
-        # The key assertion is it completes without error
-        assert "Done." in result.stdout
-
-
 class TestSyncOperations:
-    """Test --sync-steering and --sync-prompts."""
+    """Test steering/skills/prompts sync to project."""
 
-    def test_sync_steering_runs(self):
-        """--sync-steering completes without error."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "--sync-steering"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0
-        assert "Done." in result.stdout
+    def test_steering_synced(self, project_dir):
+        """Shared steering files are copied to project."""
+        _build_project(project_dir)
+        steering = project_dir / ".kiro" / "steering"
+        assert steering.is_dir()
+        # Universal steering should be present
+        md_files = list(steering.glob("*.md")) + list(steering.rglob("*.md"))
+        assert len(md_files) > 0
 
-    def test_sync_prompts_runs(self):
-        """--sync-prompts completes without error."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "--sync-prompts"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0
-        assert "Done." in result.stdout
+    def test_skills_synced(self, project_dir):
+        """Shared skills are copied to project."""
+        _build_project(project_dir)
+        skills = project_dir / ".kiro" / "skills"
+        assert skills.is_dir()
+        assert len(list(skills.iterdir())) > 0
+
+    def test_prompts_synced(self, project_dir):
+        """Shared prompts are copied to project."""
+        _build_project(project_dir)
+        prompts = project_dir / ".kiro" / "prompts"
+        assert prompts.is_dir()
+        # Should have crew-sheet + shared prompts
+        assert len(list(prompts.glob("*.md"))) >= 1
+
+    def test_project_md_skeleton_created(self, project_dir):
+        """project.md skeleton is generated if missing."""
+        _build_project(project_dir)
+        project_md = project_dir / ".kiro" / "steering" / "project.md"
+        assert project_md.exists()
+        content = project_md.read_text()
+        assert "inclusion: always" in content
 
 
-class TestHealthCheck:
-    """Test --check-health mode."""
+class TestHierarchyEnforcement:
+    """Test that hierarchy rules are enforced during build."""
 
-    def test_health_check_runs(self):
-        """--check-health completes and reports results."""
-        result = subprocess.run(
-            [sys.executable, str(ROOT / "generate.py"), "--check-health"],
-            capture_output=True, text=True, cwd=ROOT,
-        )
-        assert result.returncode == 0
-        assert "Checking health" in result.stdout
+    def test_workers_have_no_subagent(self, project_dir):
+        """No worker agent gets subagent tool in generated output."""
+        _build_project(project_dir)
+        agents_dir = project_dir / ".kiro" / "agents"
+        for f in agents_dir.glob("*.json"):
+            data = json.loads(f.read_text())
+            tools = set(data.get("tools", []))
+            if "subagent" in tools:
+                # Must not also have write/shell (worker tools)
+                assert not ({"write", "shell"} & tools), (
+                    f"{data['name']} has subagent + worker tools"
+                )
+
+    def test_orchestrators_have_worker_table(self, project_dir):
+        """Orchestrators (leads) have worker tables injected."""
+        _build_project(project_dir)
+        agents_dir = project_dir / ".kiro" / "agents"
+        for f in agents_dir.glob("*-lead.json"):
+            data = json.loads(f.read_text())
+            if "subagent" in data.get("tools", []):
+                prompt = data.get("prompt", "")
+                assert "## Your Workers" in prompt or "## Routing Table" in prompt, (
+                    f"{data['name']} missing worker/routing table"
+                )
+
+
+class TestIdempotency:
+    """Test that builds are deterministic."""
+
+    def test_two_builds_identical(self, project_dir):
+        """Building the same project twice produces identical output."""
+        _build_project(project_dir)
+        first = {}
+        agents_dir = project_dir / ".kiro" / "agents"
+        for f in sorted(agents_dir.glob("*.json")):
+            first[f.name] = f.read_text()
+
+        # Rebuild (build_single_project cleans agents dir)
+        _build_project(project_dir)
+        for f in sorted(agents_dir.glob("*.json")):
+            assert f.read_text() == first[f.name], f"{f.name} differs between builds"
