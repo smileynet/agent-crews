@@ -301,13 +301,13 @@ def generate(crew_path: Path, output_dir: Path, dry_run: bool = False, sibling_c
 
             if not is_orchestrator:
                 agent_json.setdefault('resources', []).extend([
-                    'skill://shared/skills/verification-protocol/SKILL.md',
-                    'skill://shared/skills/git-protocol/SKILL.md',
-                    'skill://shared/skills/troubleshooting-protocol/SKILL.md',
+                    'skill://.kiro/skills/verification-protocol/SKILL.md',
+                    'skill://.kiro/skills/git-protocol/SKILL.md',
+                    'skill://.kiro/skills/troubleshooting-protocol/SKILL.md',
                 ])
             elif is_orchestrator and not is_dispatcher:
                 agent_json.setdefault('resources', []).extend([
-                    'skill://shared/skills/completion-protocol/SKILL.md',
+                    'skill://.kiro/skills/completion-protocol/SKILL.md',
                 ])
 
             name = agent_json["name"]
