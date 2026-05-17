@@ -87,8 +87,8 @@ def sync_prompts_to_project(kiro_dir: Path, root: Path):
     # Remove stale previously-synced shared prompts
     meta_path = kiro_dir / ".agent-crews-meta.json"
     if meta_path.exists():
-        with open(meta_path, encoding="utf-8") as f:
-            meta = json.load(f)
+        with open(meta_path, encoding="utf-8") as mf:
+            meta = json.load(mf)
         prev_shared = set(meta.get("shared_prompts", []))
         for stale in prev_shared - shared_files:
             stale_path = dest_prompts / stale

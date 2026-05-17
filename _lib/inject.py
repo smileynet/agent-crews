@@ -14,7 +14,7 @@ def synthesize_dispatcher(
     crew_files: list[Path],
     shared_agents: list[str],
     kiro_dir: Path,
-    dispatcher_config: dict = None,
+    dispatcher_config: dict | None = None,
     dry_run: bool = False,
 ) -> str:
     """Auto-generate a project dispatcher from crew composition (ADR-008)."""

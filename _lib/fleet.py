@@ -132,27 +132,27 @@ def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Pat
             p.unlink()
 
     if proj_crews:
-        all_base = {f.stem for f in base_crews.glob("*.yaml")}
+        all_base = {cf.stem for cf in base_crews.glob("*.yaml")}
         for existing in dest_crews.glob("*.yaml"):
             if existing.stem in all_base and existing.stem not in proj_crews:
-                with open(existing, encoding="utf-8") as f:
-                    data = yaml.safe_load(f)
+                with open(existing, encoding="utf-8") as fh:
+                    data = yaml.safe_load(fh)
                 if data and data.get("extends"):
                     continue
                 existing.unlink()
         for crew_name in proj_crews:
             dest = dest_crews / f"{crew_name}.yaml"
             if dest.exists():
-                with open(dest, encoding="utf-8") as f:
-                    local_data = yaml.safe_load(f)
+                with open(dest, encoding="utf-8") as fh:
+                    local_data = yaml.safe_load(fh)
                 if local_data and local_data.get("extends"):
                     continue
             src = base_crews / f"{crew_name}.yaml"
             if src.exists():
                 shutil.copy2(src, dest)
     else:
-        for f in base_crews.glob("*.yaml"):
-            shutil.copy2(f, dest_crews / f.name)
+        for cf in base_crews.glob("*.yaml"):
+            shutil.copy2(cf, dest_crews / cf.name)
 
     sync_steering_to_project(kiro_dir, root)
     sync_skills_to_project(kiro_dir, root)
@@ -337,7 +337,7 @@ def generate_all(dry_run: bool = False):
 def load_fleet_config() -> dict:
     """Load fleet config: fleet.example.yaml (committed) + fleet.yaml (local, overrides)."""
     root = Path(__file__).parent.parent
-    fleet = {}
+    fleet: dict = {}
 
     example_path = root / "fleet.example.yaml"
     if example_path.exists():
