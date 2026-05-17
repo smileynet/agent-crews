@@ -91,16 +91,16 @@ eval *project:
     if [ -z "{{project}}" ]; then
       # No arg: run this repo's own evals
       if [ -f ".crews/evals.yaml" ]; then
-        uv run scripts/eval-crew.py --fixture .crews/evals.yaml
+        uv run scripts/eval-crew.py --fixture .crews/evals.yaml --parallel 5
       else
-        uv run scripts/eval-crew.py
+        uv run scripts/eval-crew.py --parallel 5
       fi
     else
       TARGET=$(python3 -c "import yaml; d=yaml.safe_load(open('fleet.local.yaml')); print(d['projects']['{{project}}'])")
       TARGET="${TARGET/#\~/$HOME}"
       FIXTURE="$TARGET/.crews/evals.yaml"
       if [ ! -f "$FIXTURE" ]; then echo "No evals: $FIXTURE"; exit 1; fi
-      uv run scripts/eval-crew.py --fixture "$FIXTURE"
+      uv run scripts/eval-crew.py --fixture "$FIXTURE" --parallel 5
     fi
 
 # Run evals in verbose mode

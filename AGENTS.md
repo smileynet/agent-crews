@@ -32,7 +32,7 @@ See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
 
 ```
 base/              Base templates
-  crews/              Generic crew definitions (8 crews, 58 agents total)
+  crews/              Generic crew definitions (12 crews, 78 agents total)
 shared/               Shared resources across all projects
   components/         Component system (15 behavioral concerns)
   themes/             Theme overlays
@@ -64,11 +64,11 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 - Orchestrators should not have `read` (warning) — delegate reading to workers
 - Only dispatchers can target orchestrators
 
-## Crews (58 agents across 8 crews)
+## Crews (78 agents across 12 crews)
 
 | Crew | Lead | Agents | Best For |
 |------|------|:------:|----------|
-| General | `/agent general-lead` | 12 | Mixed work, features |
+| General | `/agent general-lead` | 14 | Mixed work, features |
 | Bug Fix | `/agent bugfix-lead` | 8 | Bug fixing, testing |
 | Infrastructure | `/agent infrastructure-lead` | 7 | Deploy, IaC |
 | Research | `/agent research-lead` | 7 | Investigation, docs |
@@ -76,6 +76,10 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 | Hygiene | `/agent hygiene-lead` | 6 | Project maintenance |
 | Content | `/agent content-lead` | 6 | Presentations, tutorials |
 | Writing | `/agent writing-lead` | 6 | Writing, editing |
+| Crew-Builder | `/agent crew-builder-lead` | 5 | Creating/modifying crews |
+| Crew-Maintenance | `/agent crew-maintenance-lead` | 6 | Diagnosing, tuning, releasing |
+| Crew-Tooling | `/agent crew-tooling-lead` | 3 | Fixing agent-crews scripts |
+| Rust | `/agent rust-lead` | 4 | Rust-specific workflows |
 
 **Mandatory rule: general crew is ALWAYS included.** Every project gets the general crew as its baseline. Specialized crews (bug-fix, research, etc.) are added alongside general, never instead of it. A project with `crews: [research, writing]` is WRONG — it must be `crews: [general, research, writing]`.
 
@@ -163,7 +167,7 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 |-----|---------------|
 | [docs/use-case-guide.md](docs/use-case-guide.md) | Common workflows — how to use deployed agents |
 | [docs/themed-crews-guide.md](docs/themed-crews-guide.md) | Theme overlay — game-themed agent names and when to use each |
-| [base/crews/](base/crews/) | Generic crew definitions (8 crews) |
+| [base/crews/](base/crews/) | Generic crew definitions (12 crews) |
 | [shared/themes/](shared/themes/) | Theme overlays (cosmetic name mapping) |
 | [shared/components/](shared/components/) | Component system (15 behavioral concerns) |
 | [shared/skills/](shared/skills/) | Shared skills library |
