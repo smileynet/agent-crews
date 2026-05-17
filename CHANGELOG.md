@@ -47,6 +47,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Evals live with the project at `.crews/evals.yaml` — portable and runnable without the agent-crews repo
 - Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
 - Generated `project.md` context is now explicitly runtime-scoped — deployed `.kiro/` artifacts are distinguished from `.crews/` build config, and untouched legacy skeletons auto-upgrade on rebuild
+ - `@grill-with-docs` now asks only product-defining design questions, explores codebase-answerable details itself, and presents multiple plausible answers with rationale before recommending one
+ - `@handoff` and `@read-handoff` now use a standardized ephemeral handoff artifact with metadata (`created_at`, `base_commit`, `handoff_key`), required briefing sections, and evidence pointers instead of ad hoc summaries
 
 ### Removed
 - `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context

@@ -8,31 +8,39 @@ Delete any existing `scratch/HANDOFF.md`, then create a new one capturing everyt
 ## Format
 
 ```markdown
-# Handoff — [date]
+---
+created_at: 2026-05-17T15:04:00-04:00
+base_commit: abc1234
+handoff_key: replace-with-workstream-slug
+---
 
-## What was being worked on
-[1-3 sentences: the task/goal]
+# Handoff
 
-## Current state
-[What's done, what's in progress, what's blocked]
+## Objective
+[What the receiving agent should accomplish next]
 
-## Key decisions made
-[Bullet list of decisions that affect next steps]
+## Constraints
+[Rules, boundaries, or things not to change]
 
-## Files modified
-[List of files changed in this session]
+## Prior Decisions
+[Choices already made with brief rationale. Include rejected paths only when they prevent repeated dead ends]
 
-## Next steps
-[Ordered list of what to do next — specific and actionable]
+## Current State
+[Relevant files and artifact paths, current status, checks run / not run]
 
-## Context the next session needs
-[Anything non-obvious: gotchas, failed approaches, open questions]
+## Next Steps
+[Ordered next actions, plus blockers or open questions if any]
+
+## Evidence
+[Optional: pointers to logs, test output, research notes, or other artifacts worth reading on demand]
 ```
 
 ## Rules
-- Delete the old handoff first (it's stale)
+- Delete the old handoff first — a new handoff supersedes the prior one for the same `handoff_key`
+- `handoff_key` must be a short human-readable slug for the workstream (`auth-flow`, `release-0-3-0`, `repo-map`)
+- `created_at` must be an exact ISO 8601 timestamp with offset
+- `base_commit` must be the current `git rev-parse --short HEAD` value at handoff creation time
 - Be specific — "fix the bug" is useless, "fix the timeout in eval-crew.py line 255 where intent_only evals still use global timeout" is useful
-- Include file paths, function names, line numbers where relevant
-- If an eval run or build is in progress, note it
+- Include file paths, function names, and artifact paths where relevant
+- Point to evidence; do not paste large logs or transcript dumps into the handoff
 - Keep it under 60 lines — dense, not verbose
-- **Capture ALL future work discussed** — not just immediate next steps. Include deferred items, follow-up tasks, and "do later" decisions from grill sessions. If it was discussed as future work, it belongs in Next Steps.

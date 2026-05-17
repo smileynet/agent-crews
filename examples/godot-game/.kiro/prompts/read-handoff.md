@@ -6,8 +6,11 @@ description: "Start-of-session — read the handoff doc from the previous sessio
 Read `scratch/HANDOFF.md` and orient yourself to continue the work.
 
 ## After reading, report:
-1. What was being worked on
-2. Current state (done / in-progress / blocked)
-3. What you'll do next (first 1-2 steps)
+1. The `handoff_key`, `created_at`, and `base_commit`
+2. The objective in one sentence
+3. The active constraints
+4. The current state (what exists now, including files/artifacts and verification status)
+5. The first 1-2 next steps you would take
+6. Whether any evidence pointers should be read before acting
 
-Then ask: "Ready to continue, or do you want to change direction?"
+Treat the handoff as point-in-time state, not durable truth. If the repo has changed materially since `base_commit`, say so before proceeding.
