@@ -28,9 +28,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -213,7 +213,7 @@ def invoke_judge_majority(criteria: str, output: str, ideal: str | None, judge_t
     # Majority vote (most common score)
     majority_score = Counter(scores).most_common(1)[0][0]
     # Use reason from first trial that matched majority
-    majority_reason = next((r for s, r in zip(scores, reasons) if s == majority_score), reasons[0])
+    majority_reason = next((r for s, r in zip(scores, reasons, strict=False) if s == majority_score), reasons[0])
     if judge_trials > 1:
         majority_reason = f"[{len(scores)}/{judge_trials} judges, votes: {dict(Counter(scores))}] {majority_reason}"
     return majority_score, majority_reason
@@ -281,7 +281,7 @@ def run_eval(ev: dict, verbose: bool = False, global_timeout: int = DEFAULT_TIME
         if verbose:
             print(f"\n  --- Agent output ({name}) ---")
             print(f"  {output[:500]}")
-            print(f"  ---")
+            print("  ---")
 
         # Invoke judge (with majority vote if judge_trials > 1)
         if judge_trials > 1:
@@ -319,13 +319,12 @@ def run_eval_with_trials(ev: dict, trials: int, **kwargs) -> dict:
 
     threshold = ev.get("threshold", DEFAULT_THRESHOLD)
     trial_results = []
-    for t in range(trials):
+    for _t in range(trials):
         result = run_eval(ev, **kwargs)
         trial_results.append(result)
 
     # Aggregate
     scores = [r["score"] for r in trial_results if r["score"] is not None]
-    errors = [r for r in trial_results if r["status"] == "error"]
     total_duration = sum(r["duration_s"] for r in trial_results)
 
     if not scores:
@@ -444,7 +443,7 @@ def main():
             print(f"Trials: {args.trials} (pass^k reporting)")
         if args.judge_trials > 1:
             print(f"Judge trials: {args.judge_trials} (majority vote)")
-        print(f"Isolation: all evals run in mktemp environment")
+        print("Isolation: all evals run in mktemp environment")
         return
 
     # Run evals
@@ -486,7 +485,7 @@ def main():
                     print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
                 elif args.trials > 1:
                     passed = result.get("pass_k", False)
-                    marker = f"\033[32m✓\033[0m" if passed else f"\033[31m✗\033[0m"
+                    marker = "\033[32m✓\033[0m" if passed else "\033[31m✗\033[0m"
                     print(f"[ {marker} ] {result['name']}: {result['reason']}")
                 else:
                     passed = score >= threshold
@@ -504,7 +503,7 @@ def main():
                 print(f"[ERR] {result['name']}: {result.get('error', 'unknown')} — {result['reason']}")
             elif args.trials > 1:
                 passed = result.get("pass_k", False)
-                marker = f"\033[32m{'✓' if passed else '✗'}\033[0m" if passed else f"\033[31m✗\033[0m"
+                marker = f"\033[32m{'✓' if passed else '✗'}\033[0m" if passed else "\033[31m✗\033[0m"
                 print(f"[ {marker} ] {result['name']}: {result['reason']}")
             else:
                 passed = score >= threshold
@@ -520,20 +519,20 @@ def main():
         passed = [r for r in evaluated if r.get("pass_k", False)]
         failed = [r for r in evaluated if not r.get("pass_k", False)]
         avg_score = sum(r.get("avg_score", r["score"]) for r in evaluated) / len(evaluated) if evaluated else 0
-        print(f"\n---")
+        print("\n---")
         print(f"Results: {len(passed)}/{len(evaluated)} pass^{args.trials} (all trials ≥ threshold)")
         print(f"Avg score: {avg_score:.1f}")
     else:
         passed = [r for r in evaluated if r["score"] >= (next((e.get("threshold", args.threshold) for e in evals if e["name"] == r["name"]), args.threshold))]
         failed = [r for r in evaluated if r not in passed]
         avg_score = sum(r["score"] for r in evaluated) / len(evaluated) if evaluated else 0
-        print(f"\n---")
+        print("\n---")
         print(f"Results: {len(passed)}/{len(evaluated)} passed (threshold: ≥{args.threshold}), avg score: {avg_score:.1f}")
 
     if errors:
         print(f"Errors: {len(errors)} (not scored)")
     if failed:
-        print(f"Failed:")
+        print("Failed:")
         for r in failed:
             if args.trials > 1:
                 print(f"  - {r['name']} ({r['reason']})")

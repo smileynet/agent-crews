@@ -1,0 +1,14 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: local
+    hooks:
+      - id: python-syntax
+        name: Python syntax check
+        entry: python3 -c "import ast, sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]"
+        language: system
+        types: [python]

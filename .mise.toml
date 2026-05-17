@@ -5,9 +5,9 @@ python = "3.12"
 uv = "latest"
 
 [tasks.lint]
-run = "ruff check *.py"
+run = "ruff check *.py scripts/*.py"
 description = "Lint Python files"
 
 [tasks."lint:fix"]
-run = "ruff check --fix *.py"
+run = "ruff check --fix *.py scripts/*.py"
 description = "Auto-fix lint issues"

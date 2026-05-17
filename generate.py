@@ -16,7 +16,6 @@ Usage:
 """
 
 import json
-import os
 import shutil
 import sys
 from pathlib import Path
@@ -223,7 +222,7 @@ def resolve_extends(crew: dict, crew_path: Path) -> dict:
         ]
 
     # Add override agents (replacements and new additions) to appropriate architype
-    for agent_name, (agent_type, agent_cfg) in override_agents.items():
+    for _agent_name, (agent_type, agent_cfg) in override_agents.items():
         # Find matching architype in base, or create one
         placed = False
         for archetype in get_architypes(base):
@@ -583,7 +582,7 @@ def build_sibling_map(crew_files: list[Path]) -> list[dict]:
 
 def validate_coverage(fleet: dict):
     """Warn about refused keywords that no assigned sibling crew handles.
-    
+
     Only warns when at least one sibling crew's handles list contains a keyword
     in the same domain, suggesting a vocabulary mismatch. Deliberately missing
     crews (no sibling assigned for that domain) are not flagged.
@@ -717,7 +716,6 @@ def generate_all(dry_run: bool = False):
     project_dirs = list(examples.glob("*/.kiro")) + list((root / "examples").glob("*/.kiro"))
     for kiro_dir in sorted(project_dirs):
         proj = kiro_dir.parent.name
-        persona = get_project_persona(kiro_dir)
         if has_custom_crews(kiro_dir):
             print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
             sync_steering_to_project(kiro_dir, root)
@@ -780,7 +778,7 @@ def generate_all(dry_run: bool = False):
     # Generate base crews (from base/crews/*.yaml)
     base_crews_dir = root / "base" / "crews"
     base_output = root / "base" / "agents"
-    print(f"\nGenerating: base/crews/*.yaml")
+    print("\nGenerating: base/crews/*.yaml")
     if not dry_run:
         if base_output.exists():
             shutil.rmtree(base_output)
@@ -847,9 +845,8 @@ def generate_all(dry_run: bool = False):
             generate_components_for_project(proj, kiro_dir, fleet, dry_run)
 
         # Inject shared agents into all orchestrators (including dispatcher)
-        if not dry_run:
-            if shared_names:
-                inject_subagents_into_orchestrators(shared_names, kiro_dir)
+        if not dry_run and shared_names:
+            inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
         # Write provenance marker
         if not dry_run:
@@ -919,9 +916,8 @@ def generate_all(dry_run: bool = False):
                 generate_components_for_project(proj_name, kiro_dir, fleet, dry_run)
 
             # Inject shared agents into all orchestrators (including dispatcher)
-            if not dry_run:
-                if shared_names:
-                    inject_subagents_into_orchestrators(shared_names, kiro_dir)
+            if not dry_run and shared_names:
+                inject_subagents_into_orchestrators(shared_names, kiro_dir)
 
     # --- NEW: Generate from fleet.local.yaml projects with .crews/ ---
     fleet_local = load_fleet_local()
@@ -990,9 +986,8 @@ def generate_all(dry_run: bool = False):
             synthetic_fleet = {'projects': {proj_name: crew_cfg}, 'defaults': fleet.get('defaults', {})}
             generate_components_for_project(proj_name, kiro_dir, synthetic_fleet, dry_run)
         # Inject shared agents into all orchestrators (including dispatcher)
-        if not dry_run:
-            if shared_names:
-                inject_subagents_into_orchestrators(shared_names, kiro_dir)
+        if not dry_run and shared_names:
+            inject_subagents_into_orchestrators(shared_names, kiro_dir)
         # Clean up: remove .kiro/crews/ (was only needed for generation)
         if not dry_run:
             crews_cleanup = kiro_dir / 'crews'
@@ -1620,7 +1615,7 @@ Always include:
     welcome_message = "\n".join(welcome_lines)
 
     # Build available agents list (leads + shared agents)
-    available = [l["name"] for l in leads] + shared_agents
+    available = [lead["name"] for lead in leads] + shared_agents
     shortcut = dispatcher_config.get("keyboard_shortcut", "ctrl+shift+d")
 
     agent_json = {
@@ -1719,8 +1714,8 @@ def sync_prompts():
 
 def check_health():
     """Validate allowedCommands vs project.md DO NOTs for each project."""
-    import re
     import io
+    import re
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     root = Path(__file__).parent
     examples = root / "projects"
@@ -1922,9 +1917,8 @@ def main():
                         synthetic = {'projects': {proj_dir.name: crew_cfg}, 'defaults': fleet_cfg.get('defaults', {}) if fleet_cfg else {}}
                         generate_components_for_project(proj_dir.name, kiro_dir, synthetic, dry_run)
                     # Inject shared agents into all orchestrators (including dispatcher)
-                    if not dry_run:
-                        if shared_names:
-                            inject_subagents_into_orchestrators(shared_names, kiro_dir)
+                    if not dry_run and shared_names:
+                        inject_subagents_into_orchestrators(shared_names, kiro_dir)
                     # Clean up: remove .kiro/crews/ (was only needed for generation)
                     if not dry_run:
                         crews_cleanup = kiro_dir / 'crews'
@@ -1950,10 +1944,7 @@ def main():
         sys.exit(f"Not found: {crew_path}")
 
     # Output dir is always agents/ next to the crew.yaml (or its parent .kiro/)
-    if crew_path.parent.name == ".kiro":
-        output_dir = crew_path.parent / "agents"
-    else:
-        output_dir = crew_path.parent / "agents"
+    output_dir = crew_path.parent / "agents" if crew_path.parent.name == ".kiro" else crew_path.parent / "agents"
 
     if not dry_run:
         if output_dir.exists() and not append:

@@ -1,1 +1,7 @@
 line-length = 120
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # line length handled by formatter, prompts are naturally long
+# E=pycodestyle, F=pyflakes, W=warnings, I=isort
+# UP=pyupgrade, B=bugbear, SIM=simplify
