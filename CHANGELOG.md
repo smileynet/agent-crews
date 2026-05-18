@@ -7,6 +7,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-17
+
 ### Added
 - Protocol skills delivered on-demand to agents — verification, git, and troubleshooting protocols for workers; completion protocol for orchestrators
 - Orchestrators get an auto-generated worker table showing who they can delegate to and when — no more hand-maintained lists that drift
@@ -102,6 +104,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Crews use consistent intent vocabulary (no more mismatches between "bug-fixing" and "bugs")
 - Redeployment to paths with `~` now works correctly
 
-[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/smileynet/agent-crews/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/smileynet/agent-crews/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/smileynet/agent-crews/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/smileynet/agent-crews/releases/tag/v0.1.0
