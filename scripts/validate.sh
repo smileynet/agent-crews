@@ -10,7 +10,7 @@ git check-ignore projects/placeholder || { echo "FAIL: projects/ not gitignored"
 
 # No personal data in committed files
 NAMES='lacrosse-bosse|pidot-dev|rustacean-academy|news-scraper|aws-litellm|cgd-review|ue-analysis|games-sa-buddy|craft-mmo|genai-field-lab'
-if git ls-files | xargs grep -lE "$NAMES" 2>/dev/null | grep -v 'docs/specs/\|base/crews/meta.yaml\|.kiro/crews/meta.yaml\|.kiro/agents/project-hygiene\|scripts/validate.sh'; then
+if git ls-files | xargs grep -lE "$NAMES" 2>/dev/null | grep -v 'docs/archive/\|base/crews/meta.yaml\|.kiro/crews/meta.yaml\|.kiro/agents/project-hygiene\|scripts/validate.sh'; then
   echo "FAIL: Personal project names found in committed files"
   exit 1
 fi

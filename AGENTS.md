@@ -24,7 +24,7 @@ If spawn hook reports issues, help the user fix them before proceeding.
 - Changelog discipline enforced — user-facing changes require entries
 - Generated output verified — `just build` must pass before done
 
-See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
+See [ADR-0006](docs/adr/0006-high-reliability.md) for full rationale.
 
 ## Runtime Boundary
 
@@ -33,6 +33,25 @@ See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
 - `base/`, `shared/`, `_lib/`, and `generate.py` define how crews are built and deployed to any project; they are the source of truth.
 - Never hand-edit `.kiro/agents/*.json`. Change source inputs, then rebuild with `just build .` (this repo) or `just build --all`.
 - Don't add repo-specific build mechanics to shared steering/components unless every deployed project needs them.
+
+## Ancillary Tooling
+
+Two surfaces live here today because agent-crews is a kiro-cli-only project; they
+are not part of the core "build crews and deploy them" loop:
+
+- **Eval harness** — `scripts/eval-crew.py`, `.crews/evals.yaml`, `results/`, and the
+  `just eval*` recipes. Model-based behavioral evals that drive crews through
+  `kiro-cli` and grade them with a judge. We keep this here while agent-crews
+  remains kiro-only; it is a candidate for extraction if we ever support a second
+  model/tool backend.
+- **Session analytics** — `analyze-session.py`, `session-ingest.py`,
+  `scripts/session-summary.sh`, `scripts/session-diff.sh`,
+  `scripts/project-scan.sh`, `scripts/bootstrap-list.py`, `scripts/status.py`.
+  Ingest and analyze kiro-cli session JSONL across multiple AI tools to inform
+  crew-creation and tuning. Same extraction trigger as the eval harness.
+
+Both surfaces are stable and useful; this note exists so the scope is honest in
+writing.
 
 ## How this repo works
 
@@ -173,4 +192,4 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 | [shared/skills/](shared/skills/) | Shared skills library |
 | [docs/session-analysis.md](docs/session-analysis.md) | Multi-tool session analysis and crew recommendations |
 | [docs/component-architecture/spec.md](docs/component-architecture/spec.md) | Component architecture specification |
-| [docs/decisions/](docs/decisions/) | Architecture Decision Records |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (numbered series) |
