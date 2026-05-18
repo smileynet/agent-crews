@@ -59,8 +59,7 @@ Ask: "Does this match what you experienced? Should I apply this fix?"
 ## After fixing
 
 Remind:
-1. `just build` to regenerate
-2. `just link <project>` to redeploy
+1. `just build <project>` to regenerate and redeploy
 3. Test with the original failing task
 4. Optionally: `just eval` to verify no regressions
 

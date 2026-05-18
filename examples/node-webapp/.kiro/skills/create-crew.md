@@ -50,8 +50,7 @@ projects:
 ## Step 4: Generate and deploy
 
 ```bash
-just build
-just link <project-name>
+just build <project-name>
 ```
 
 Verify: `ls <project>/.kiro/agents/`

@@ -10,7 +10,7 @@ When your agents aren't working as expected.
 
 **Check:**
 - Is `.kiro/agents/` present in your project? (`ls .kiro/agents/`)
-- Did you run `just build` + `just link` after .crews/crew.yaml changes?
+- Did you run `just build` (or `just build <project>`) after .crews/crew.yaml changes?
 - Is the symlink intact? (`file .kiro` — should be a directory or valid symlink)
 
 ### Agent does the wrong thing
@@ -30,7 +30,7 @@ When your agents aren't working as expected.
 **Check:**
 - Are build/test/lint commands set in .crews/crew.yaml? (null = nothing to run)
 - Is the verification component configured? Check `.kiro/steering/worker/verification.md`
-- Regenerate: `just build` + `just link`
+- Regenerate: `just build` (use `just build <project>` for one)
 
 ### Agent won't commit or push
 
@@ -75,8 +75,7 @@ If everything is broken and you want a fresh start:
 rm -rf .kiro/
 
 # In agent-crews
-just build
-just link <project>
+just build <project>
 ```
 
 This regenerates and redeploys from scratch.

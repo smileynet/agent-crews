@@ -108,8 +108,7 @@ architypes:
 
           ### 4. Generate and Deploy
           - Run: just build
-          - Verify: ls projects/<project>/.kiro/agents/
-          - Run: just link <project>
+          - Verify: ls <project>/.kiro/agents/ (use the fleet.local.yaml path)
 
           ### 5. Scaffold Release Tooling (if changelog component enabled)
           If the project has `changelog` component configured (not null):
@@ -205,8 +204,7 @@ architypes:
           - Welcome message shows actionable examples
 
           ### 6. Deploy
-          - Run: just build
-          - Run: just link <project> (if targeting a specific project)
+          - Run: just build <project> (or just build --all when touching base/shared)
           - Verify generated output matches expectations
 
           ## Structural Rules
