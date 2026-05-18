@@ -37,7 +37,7 @@ uv run analyze-session.py <session-id> --transcript
 | Agent asks user obvious questions | Missing "research first" rule | Agent prompt or steering |
 | Skips tests/verification | Verification component not configured | .crews/crew.yaml `verification.checks` |
 | Doesn't commit | Git component or no remote | .crews/crew.yaml `git.variant` |
-| Ignores project conventions | Stale project.md steering | `.kiro/steering/project.md` |
+| Ignores project conventions | Stale `AGENTS.md` | Owner-managed `AGENTS.md` at project root |
 | Uses wrong file paths | Project layout changed | Update steering with current structure |
 
 ### 3. Propose fixes

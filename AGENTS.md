@@ -26,6 +26,14 @@ If spawn hook reports issues, help the user fix them before proceeding.
 
 See [ADR-006](docs/decisions/ADR-006-high-reliability.md) for full rationale.
 
+## Runtime Boundary
+
+- `.kiro/` is this repo's instantiated crew — generated agents, prompts, skills, and local steering. Treat it as build output.
+- `.crews/crew.yaml` selects which crews this repo deploys for itself.
+- `base/`, `shared/`, `_lib/`, and `generate.py` define how crews are built and deployed to any project; they are the source of truth.
+- Never hand-edit `.kiro/agents/*.json`. Change source inputs, then rebuild with `just build .` (this repo) or `just build --all`.
+- Don't add repo-specific build mechanics to shared steering/components unless every deployed project needs them.
+
 ## How this repo works
 
 `base/crews/*.yaml` + `shared/components/*.yaml` are the source of truth. Never edit generated `.json` files directly.
@@ -158,6 +166,7 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 | Doc | What it covers |
 |-----|---------------|
 | [docs/use-case-guide.md](docs/use-case-guide.md) | Common workflows — how to use deployed agents |
+| [docs/workspace.md](docs/workspace.md) | Workspace contract — ephemeral + durable roots, prompt substitution, handoff convention |
 | [base/crews/](base/crews/) | Generic crew definitions (12 crews) |
 | [shared/components/](shared/components/) | Component system (15 behavioral concerns) |
 | [shared/skills/](shared/skills/) | Shared skills library |

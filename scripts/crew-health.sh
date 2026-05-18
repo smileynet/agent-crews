@@ -48,14 +48,13 @@ if project not in projects:
     sys.exit(2)
 
 proj = projects[project]
-crews = proj.get('crews', defaults.get('crews', ['general']))
-theme = proj.get('theme', defaults.get('theme'))
+crews = proj.get('crews', defaults.get('crews', []))
 
 # Merge verification from defaults + project
-def_components = defaults.get('components', {})
-proj_components = proj.get('components', {})
-def_verification = def_components.get('verification', {}).get('checks', {})
-proj_verification = proj_components.get('verification', {}).get('checks', {})
+def_behavior = defaults.get('behavior', {})
+proj_behavior = proj.get('behavior', {})
+def_verification = def_behavior.get('verification', {}).get('checks', {})
+proj_verification = proj_behavior.get('verification', {}).get('checks', {})
 verification = {**def_verification, **proj_verification}
 
 # Load agent JSONs
@@ -72,15 +71,13 @@ warnings = []
 checks = []
 fixes = []
 
-# 1. General crew included
-if 'general' in crews:
-    checks.append('\u2713 general crew included')
-elif 'meta' in crews:
-    checks.append('\u2713 meta crew (self-hosted repo)')
+# 1. crews list present
+if crews:
+    checks.append(f'\u2713 crews declared: {", ".join(crews)}')
 else:
-    issues.append('general crew not included')
-    checks.append('\u2717 general crew NOT included')
-    fixes.append(f"Add 'general' to {project}'s crews in .crews/crew.yaml")
+    issues.append('crews list is empty')
+    checks.append('\u2717 crews list is empty')
+    fixes.append(f"Declare a non-empty crews list in {project}'s .crews/crew.yaml")
 
 # 2+3. Routing table and availableAgents checks
 for name, agent in agents.items():
@@ -219,7 +216,6 @@ print()
 crews_str = ', '.join(crews)
 print(f'crews: [{crews_str}]')
 print(f'agents: {total_agents} ({counts_str})')
-print(f'theme: {theme or "null"}')
 print('verification:')
 for cmd_name in sorted(verification.keys()):
     cmd = verification[cmd_name]

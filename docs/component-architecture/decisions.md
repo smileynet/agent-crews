@@ -4,6 +4,8 @@
 **Session:** Documentation crew design → persona separation → fleet management → component architecture
 
 ---
+> **Historical note (2026-05-17):** Decisions touching `theme:` / `theme.yaml` / themed crew tiers describe earlier intent. Themes were removed from the public config in the 0.3.x cleanup — treat those entries as design history.
+
 
 ## Architecture Decisions
 

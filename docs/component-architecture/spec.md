@@ -5,6 +5,8 @@
 **Decisions:** D-001 through D-036, I-001 through I-016
 
 ---
+> **Historical note (2026-05-17):** Theme overlays were removed from the public config and runtime (see CHANGELOG and ADR-0012). Sections referencing `theme:`, `theme.yaml`, themed crew variants, or the "themed" tier describe earlier intent and no longer reflect the system. Treat them as design history.
+
 
 ## 1. Problem Statement
 

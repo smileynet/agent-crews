@@ -47,7 +47,7 @@ workspace:
 | `persona` | personal or team identifier |
 | `crews` | Which base crews to include (literal list; required, non-empty) |
 | `behavior` | Behavioral configuration (verification, git, notifications, etc.) |
-| `workspace` | Optional `{ephemeral, durable}` root paths; both required when present (defaults: `.scratch`, `.memory`) |
+| `workspace` | Optional `{ephemeral, durable}` root paths; both required when present (defaults: `.scratch`, `.memory`). See [docs/workspace.md](workspace.md) |
 
 ### Build/test/lint commands
 

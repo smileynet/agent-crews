@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import sys
 from pathlib import Path
@@ -19,8 +18,8 @@ from _lib.utils import (
     build_sibling_map,
     collect_shared_agents,
     generate_crew_sheet,
-    generate_project_md_skeleton,
     has_custom_crews,
+    prune_legacy_project_md,
 )
 from _lib.validate import validate_changelog_prerequisites, validate_coverage
 from _lib.workspace import resolve_workspace, stage_workspace
@@ -59,7 +58,7 @@ def build_single_project(
     sync_steering_to_project(kiro_dir, root)
     sync_skills_to_project(kiro_dir, root)
     sync_prompts_to_project(kiro_dir, root, workspace=workspace)
-    generate_project_md_skeleton(kiro_dir)
+    prune_legacy_project_md(kiro_dir)
 
     # Generate agents
     output_dir = kiro_dir / "agents"
@@ -125,7 +124,7 @@ def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Pat
         sync_steering_to_project(kiro_dir, root)
         sync_skills_to_project(kiro_dir, root)
         sync_prompts_to_project(kiro_dir, root, workspace=workspace)
-        generate_project_md_skeleton(kiro_dir)
+        prune_legacy_project_md(kiro_dir)
         return
 
     proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
@@ -162,7 +161,7 @@ def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Pat
     sync_steering_to_project(kiro_dir, root)
     sync_skills_to_project(kiro_dir, root)
     sync_prompts_to_project(kiro_dir, root, workspace=workspace)
-    generate_project_md_skeleton(kiro_dir)
+    prune_legacy_project_md(kiro_dir)
 
 
 def _generate_project_dir(crew_file: Path, fleet: dict, root: Path, dry_run: bool):
@@ -265,52 +264,6 @@ def generate_all(dry_run: bool = False):
         validate_coverage(fleet)
         validate_changelog_prerequisites(fleet)
 
-    # Self-hosted projects
-    if fleet:
-        for proj_name, proj_cfg in fleet.get("projects", {}).items():
-            if not proj_cfg.get("self_hosted"):
-                continue
-            print(f"\nGenerating self-hosted: {proj_name}")
-            kiro_dir = root / ".kiro"
-            crews_dir = kiro_dir / "crews"
-            output_dir = kiro_dir / "agents"
-
-            proj_crews = proj_cfg.get("crews", [])
-            crews_dir.mkdir(parents=True, exist_ok=True)
-            for crew_name in proj_crews:
-                src = base_crews / f"{crew_name}.yaml"
-                if src.exists():
-                    shutil.copy2(src, crews_dir / src.name)
-
-            if not dry_run:
-                if output_dir.exists():
-                    shutil.rmtree(output_dir)
-                output_dir.mkdir(parents=True, exist_ok=True)
-
-            proj_crew_files = sorted(crews_dir.glob("*.yaml"))
-            proj_siblings = build_sibling_map(proj_crew_files)
-            agents = []
-            for cf in proj_crew_files:
-                agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
-            print(f"  -> {len(agents)} agents")
-
-            if not dry_run:
-                crew_sheet = generate_crew_sheet(crews_dir)
-                prompts_dir = kiro_dir / "prompts"
-                prompts_dir.mkdir(parents=True, exist_ok=True)
-                (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
-
-            if not dry_run:
-                shared_names = collect_shared_agents(proj_crew_files)
-                dispatcher_cfg = proj_cfg.get("dispatcher", {})
-                synthesize_dispatcher(proj_crew_files, shared_names, kiro_dir, dispatcher_cfg, dry_run)
-
-            if fleet and proj_name in fleet.get("projects", {}):
-                generate_components_for_project(proj_name, kiro_dir, fleet, dry_run)
-
-            if not dry_run and shared_names:
-                inject_subagents_into_orchestrators(shared_names, kiro_dir)
-
     # Fleet.local.yaml projects
     fleet_local = load_fleet_local()
     for proj_name, proj_path in fleet_local.items():
@@ -411,88 +364,3 @@ def sync_prompts():
         print(f"  {proj}")
     print("Done.")
 
-
-def check_health():
-    """Validate allowedCommands vs project.md DO NOTs for each project."""
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    root = Path(__file__).parent.parent
-    examples = root / "projects"
-    print("Checking health across projects...")
-
-    for proj_dir in sorted(examples.iterdir()):
-        if not proj_dir.is_dir():
-            continue
-        kiro_dir = proj_dir / ".kiro"
-        if not kiro_dir.is_dir():
-            continue
-        proj = proj_dir.name
-
-        allowed = []
-        yaml_files = list(kiro_dir.glob("crew.yaml")) + list(kiro_dir.glob("crews/*.yaml"))
-        for yf in yaml_files:
-            with open(yf, encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-            if not data:
-                continue
-            _collect_allowed(data, allowed)
-
-        project_md = kiro_dir / "steering" / "project.md"
-        if not project_md.exists():
-            print(f"  ✅ {proj}: no project.md")
-            continue
-
-        donot_lines = _extract_donot_section(project_md)
-        if not donot_lines:
-            print(f"  ✅ {proj}: no contradictions")
-            continue
-
-        warnings = []
-        for line in donot_lines:
-            line_lower = line.lower()
-            for cmd in allowed:
-                cmd_base = cmd.rstrip(" *").lower()
-                if len(cmd_base) <= 3 and not re.search(r'(?:run\s+|`|^\s*-\s*)' + re.escape(cmd_base) + r'(?:\s|`|$)', line_lower):
-                    continue
-                if cmd_base and cmd_base in line_lower:
-                    warnings.append((cmd, line.strip()))
-                    break
-
-        if warnings:
-            for cmd, donot_line in warnings:
-                print(f"  ⚠️  {proj}: allowedCommands permits '{cmd.rstrip(' *')}' but project.md says '{donot_line}'")
-        else:
-            print(f"  ✅ {proj}: no contradictions")
-
-
-def _collect_allowed(obj, allowed):
-    """Recursively find all allowedCommands values in a yaml structure."""
-    if isinstance(obj, dict):
-        if "allowedCommands" in obj and isinstance(obj["allowedCommands"], list):
-            allowed.extend(obj["allowedCommands"])
-        for v in obj.values():
-            _collect_allowed(v, allowed)
-    elif isinstance(obj, list):
-        for item in obj:
-            _collect_allowed(item, allowed)
-
-
-def _extract_donot_section(project_md: Path) -> list[str]:
-    """Extract lines from the ## DO NOT section of project.md."""
-    lines = project_md.read_text(encoding="utf-8").splitlines()
-    in_section = False
-    result = []
-    for line in lines:
-        if line.strip().lower().startswith("## do not"):
-            in_section = True
-            continue
-        if in_section:
-            if line.startswith("## "):
-                break
-            if line.strip():
-                result.append(line)
-    if not result:
-        for line in lines:
-            if any(kw in line.lower() for kw in ["never run", "do not run", "don't run"]):
-                result.append(line)
-    return result

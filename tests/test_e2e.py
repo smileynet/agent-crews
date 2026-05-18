@@ -252,56 +252,18 @@ class TestSyncOperations:
         # Should have crew-sheet + shared prompts
         assert len(list(prompts.glob("*.md"))) >= 1
 
-    def test_project_md_skeleton_created(self, project_dir):
-        """project.md skeleton is generated if missing."""
-        _build_project(project_dir)
-        project_md = project_dir / ".kiro" / "steering" / "project.md"
-        assert project_md.exists()
-        content = project_md.read_text()
-        assert "inclusion: always" in content
-        assert "## Scope Of This File" in content
-        assert "## Runtime Boundary" in content
-        assert "`.kiro/` is the deployed runtime surface" in content
-        assert "`.crews/` is the project config surface" in content
-
-    def test_legacy_project_md_skeleton_is_upgraded(self, project_dir):
-        """Untouched legacy project.md skeletons are upgraded in place."""
+    def test_legacy_project_md_pruned(self, project_dir):
+        """Stale legacy `steering/project.md` files are deleted on build."""
         project_md = project_dir / ".kiro" / "steering" / "project.md"
         project_md.parent.mkdir(parents=True, exist_ok=True)
-        project_md.write_text("""---
-inclusion: always
----
-
-# test-project
-
-<!-- TODO: What is this project? One-two sentence description. -->
-
-## Stack
-
-<!-- TODO: Languages, frameworks, key dependencies -->
-
-## Layout
-
-<!-- TODO: Key directories and what they contain -->
-```
-```
-
-## Conventions
-
-<!-- TODO: Project-specific conventions that differ from defaults -->
-
-## DO NOT
-
-<!-- TODO: Project-specific safety constraints -->
-
-## Key References
-
-<!-- TODO: Important files agents should know about -->
-""")
+        project_md.write_text("legacy")
         _build_project(project_dir)
-        content = project_md.read_text()
-        assert "## Scope Of This File" in content
-        assert "## Runtime Boundary" in content
+        assert not project_md.exists()
+
+    def test_no_project_md_generated(self, project_dir):
+        """Builds no longer generate any `steering/project.md` file."""
+        _build_project(project_dir)
+        assert not (project_dir / ".kiro" / "steering" / "project.md").exists()
 
 class TestHierarchyEnforcement:
     """Test that hierarchy rules are enforced during build."""

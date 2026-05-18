@@ -13,7 +13,6 @@ Usage:
     uv run generate.py --all              # generate all projects
     uv run generate.py --sync-steering    # sync shared/steering/ to all projects
     uv run generate.py --sync-prompts     # sync shared/prompts/ to all projects
-    uv run generate.py --check-health     # validate allowedCommands vs project.md DO NOTs
 """
 
 import shutil
@@ -29,7 +28,6 @@ from _lib.build import generate
 from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
 from _lib.fleet import (
     build_single_project,
-    check_health,
     generate_all,
     load_fleet_config,
     resolve_project,
@@ -46,20 +44,16 @@ def main():
     all_flag = "--all" in sys.argv
     sync_steering_flag = "--sync-steering" in sys.argv
     sync_prompts_flag = "--sync-prompts" in sys.argv
-    check_health_flag = "--check-health" in sys.argv
     components_flag = "--components" in sys.argv
     args = [a for a in sys.argv[1:] if a not in (
         "--dry-run", "--append", "--all", "--sync-steering",
-        "--sync-prompts", "--check-health", "--components",
+        "--sync-prompts", "--components",
     )]
 
     if sync_steering_flag:
         return sync_steering()
     if sync_prompts_flag:
         return sync_prompts()
-    if check_health_flag:
-        return check_health()
-
     if components_flag:
         fleet = load_fleet_config()
         if not fleet:

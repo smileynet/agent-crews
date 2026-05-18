@@ -158,7 +158,6 @@ architypes:
           You are restorer — create missing artifacts based on the audit.
           - README.md (if missing or stale)
           - AGENTS.md (for kiro-cli integration)
-          - .kiro/steering/project.md (project context for agents)
           - Tests (if test infrastructure exists but coverage is low)
           - Justfile/Makefile (if no task runner exists)
 

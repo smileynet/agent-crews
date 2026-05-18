@@ -62,6 +62,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Removed (public-config refactor)
 - **BREAKING:** `theme:` is no longer a public-config field — `shared/themes/`, `_lib/theme.py`, `docs/themed-crews-guide.md`, and the themed-crew test suite are deleted; agent names are always the generic ones from `base/crews/*.yaml`
 
+### Added (legacy cleanup)
+- `docs/workspace.md` — user-facing reference for the workspace contract (defaults, override rules, build behavior, frontmatter convention); linked from AGENTS.md and `docs/fleet-configuration.md`
+
+### Removed (legacy cleanup)
+- **BREAKING:** `project.md` is no longer generated, scanned, or part of the runtime context model — `AGENTS.md` is the owner-managed surface; old `<project>/.kiro/steering/project.md` files are deleted on next build
+- `_lib/utils.py`: removed `_project_md_skeleton`, `_legacy_project_md_skeleton`, and `generate_project_md_skeleton` (replaced by `prune_legacy_project_md`)
+- `_lib/fleet.py`: removed the `check_health` function, the `_extract_donot_section` helper, the dead self-hosted-project build block, and the `--check-health` flag from `generate.py`
+- `hygiene/structure-checker` and `onboarding/restorer` no longer point agents at `.kiro/steering/project.md`; `shared/skills/diagnose-crew.md` updated accordingly
+
 ### Removed
 - `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context
 - `fleet.yaml` — replaced by per-project `.crews/crew.yaml`

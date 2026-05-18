@@ -142,7 +142,7 @@ architypes:
 
           ## Your Checks
           1. File layout: README at root, proper directory structure
-          2. Steering docs: .kiro/steering/project.md exists and is current
+          2. Steering docs: project carries an `AGENTS.md` (owner-managed) and any agent-crews steering files referenced by deployed crews
           3. Skills: referenced skills exist, frontmatter valid
           4. Naming: kebab-case for files, conventional commits in history
 

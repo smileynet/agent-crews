@@ -15,97 +15,19 @@ def has_custom_crews(kiro_dir: Path) -> bool:
     return (kiro_dir / "crews" / "intake-crew.yaml").exists() or (kiro_dir / ".custom-crews").exists()
 
 
-def _legacy_project_md_skeleton(name: str) -> str:
-    return f"""---
-inclusion: always
----
-
-# {name}
-
-<!-- TODO: What is this project? One-two sentence description. -->
-
-## Stack
-
-<!-- TODO: Languages, frameworks, key dependencies -->
-
-## Layout
-
-<!-- TODO: Key directories and what they contain -->
-```
-```
-
-## Conventions
-
-<!-- TODO: Project-specific conventions that differ from defaults -->
-
-## DO NOT
-
-<!-- TODO: Project-specific safety constraints -->
-
-## Key References
-
-<!-- TODO: Important files agents should know about -->
-"""
 
 
-def _project_md_skeleton(name: str) -> str:
-    return f"""---
-inclusion: always
----
+def prune_legacy_project_md(kiro_dir: Path):
+    """Delete the legacy `steering/project.md` file if it still exists.
 
-# {name} — Project Context
-
-## Scope Of This File
-
-- Keep this file short. Include only facts most deployed agents need on most turns.
-- Put project/runtime facts here. Put reusable crew behavior in source config, components, skills, or prompts instead.
-- If a detail matters only for one task, pass it in the task instead of growing this file.
-
-## Runtime Boundary
-
-- `.kiro/` is the deployed runtime surface for this project: generated agents, prompts, skills, and local steering.
-- `.crews/` is the project config surface that defines what gets deployed here.
-- If both exist, change `.crews/` or other source inputs, then rebuild. Do not hand-edit generated `.kiro/agents/*.json`.
-
-## What This Project Is
-
-<!-- TODO: What is this project? One-two sentence description. -->
-
-## Stack
-
-<!-- TODO: Languages, frameworks, key dependencies -->
-
-## Layout
-
-<!-- TODO: Key directories and what they contain -->
-```
-```
-
-## Conventions
-
-<!-- TODO: Project-specific conventions that differ from defaults -->
-
-## DO NOT
-
-<!-- TODO: Project-specific safety constraints -->
-
-## Key References
-
-<!-- TODO: Important files agents should know about -->
-"""
-
-
-def generate_project_md_skeleton(kiro_dir: Path):
-    """Create or upgrade the default project.md skeleton."""
-    project_md = kiro_dir / "steering" / "project.md"
-    project_md.parent.mkdir(parents=True, exist_ok=True)
-    name = kiro_dir.parent.name
-    content = _project_md_skeleton(name)
-    if project_md.exists():
-        existing = project_md.read_text(encoding="utf-8")
-        if existing != _legacy_project_md_skeleton(name):
-            return
-    project_md.write_text(content, encoding="utf-8")
+    `project.md` was the always-loaded project runtime context until it was retired in
+    favor of owner-managed `AGENTS.md`. This is one-shot transition cleanup so old
+    deployments converge on rebuild; it can be removed once no live projects carry the
+    file anymore.
+    """
+    legacy = kiro_dir / "steering" / "project.md"
+    if legacy.exists():
+        legacy.unlink()
 
 
 def build_sibling_map(crew_files: list[Path]) -> list[dict]:
