@@ -127,6 +127,30 @@ eval-dry *project:
       uv run scripts/eval-crew.py --fixture "$TARGET/.crews/evals.yaml" --dry-run
     fi
 
+# Run evals filtered by tag (faster feedback than the full suite)
+# Tags: routing, orchestration, scope, identity, execution, behavior
+eval-tag tag:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag {{tag}} --parallel 5
+
+# Convenience aliases for the canonical tag categories
+eval-routing:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag routing --parallel 5
+
+eval-orchestration:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag orchestration --parallel 5
+
+eval-scope:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag scope --parallel 5
+
+eval-identity:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag identity --parallel 5
+
+eval-execution:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag execution --parallel 5
+
+eval-behavior:
+    uv run scripts/eval-crew.py --fixture .crews/evals.yaml --tag behavior --parallel 5
+
 # ─── Analysis ───────────────────────────────────────────────────────────
 
 # Session summary for a project

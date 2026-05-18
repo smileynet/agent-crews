@@ -105,6 +105,7 @@ Dispatcher (depth 0) → Crew Lead (depth 1) → Worker (depth 2)
 | Crew health check | `just check <project>` |
 | Run evals | `just eval <project>` |
 | Eval dry run | `just eval-dry <project>` |
+| Eval by tag | `just eval-tag <tag>` or `just eval-routing` / `eval-orchestration` / `eval-scope` / `eval-identity` / `eval-execution` / `eval-behavior` |
 | Session summary | `just summary <project>` |
 | Cross-tool compare | `just compare <project>` |
 | Ingest sessions | `just ingest <project>` |
