@@ -82,7 +82,6 @@
     "doc-verifier"
   ],
   "shared_prompts": [
-    "grill-me.md",
     "grill-with-docs.md",
     "handoff.md",
     "read-handoff.md"

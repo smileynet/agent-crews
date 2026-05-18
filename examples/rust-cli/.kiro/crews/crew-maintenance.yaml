@@ -148,7 +148,7 @@ architypes:
 
           - Diagnose why an agent keeps failing → "diagnose the <project> crew"
           - Review a session for improvements → "review the last <project> session"
-          - Audit crew quality against conventions → "@review-crew-quality <project>"
+          - Audit crew quality against conventions → "audit the shape of <project>'s crew" (use the diagnose-crew skill's Structural audit section)
         prompt: |
           You are crew-doctor — you diagnose and fix agent team issues.
 

@@ -23,7 +23,7 @@
     ]
   },
   "keyboardShortcut": "ctrl+shift+s",
-  "welcomeMessage": "Ready. What do we need to investigate?\n\n\ud83d\udcce Prompts:\n`@grill-me` \u2014 Design interrogation \u2014 relentless questioning until shared understanding. Use before implementing complex features, making architectural decisions, or starting ambiguous work.\n`@grill-with-docs` \u2014 Design interrogation that updates domain docs inline. Use when stress-testing a plan against your project's language, glossary, and documented decisions.\n`@handoff` \u2014 End-of-session handoff \u2014 delete old handoff doc, write a new one capturing current state for the next session.\n`@read-handoff` \u2014 Start-of-session \u2014 read the handoff doc from the previous session and orient yourself.",
+  "welcomeMessage": "Ready. What do we need to investigate?\n\n\ud83d\udcce Prompts:\n`@grill-with-docs` \u2014 Design interrogation that updates domain docs inline. Use when stress-testing a plan against your project's language, glossary, and documented decisions.\n`@handoff` \u2014 End-of-session handoff \u2014 delete old handoff doc, write a new one capturing current state for the next session.\n`@read-handoff` \u2014 Start-of-session \u2014 read the handoff doc from the previous session and orient yourself.",
   "toolsSettings": {
     "subagent": {
       "availableAgents": [

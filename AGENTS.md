@@ -169,18 +169,19 @@ Best practice: work on crews from this repo (centralized improvements). Use the 
 
 | Prompt | Purpose |
 |--------|---------|
-| `@create-crew` | Guided project onboarding |
-| `@review-crew-quality` | Audit crew against conventions (context budget, skills, configs) |
-| `@review-session` | Analyze one session |
-| `@review-crew` | Cross-session performance review |
-| `@deploy-crew` | Regenerate and deploy |
 | `@tune-crew` | Full tuning loop: analyze sessions → diagnose → fix → validate |
-| `@release` | Cut a release — validate, curate changelog, bump version, tag |
-| `@crew-sheet` | Show all agents, prompts, and common tasks |
-| `@grill-me` | Design interrogation — relentless questioning until shared understanding |
-| `@grill-with-docs` | Design interrogation that updates CONTEXT.md and ADRs inline |
 | `@thunderdome` | Ruthless editing — every feature fights to earn its place |
+| `@release` | Cut a release — validate, curate changelog, bump version, tag |
+| `@grill-with-docs` | Design interrogation that updates CONTEXT.md and ADRs inline |
+| `@handoff` | End-of-session handoff to the standardized ephemeral artifact |
+| `@read-handoff` | Start-of-session orientation from the handoff |
+| `@crew-sheet` | Show all agents, prompts, and common tasks |
 
+**Prompt sources.** `@grill-with-docs`, `@handoff`, and `@read-handoff` live in
+`shared/prompts/` and sync to every deployed project. `@tune-crew`,
+`@thunderdome`, and `@release` are meta-crew workflows committed to
+`.kiro/prompts/` for this repo only — they would be noise in end-user projects.
+`@crew-sheet` is auto-generated per build.
 ## Doc index
 
 | Doc | What it covers |

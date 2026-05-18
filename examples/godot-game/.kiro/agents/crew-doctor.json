@@ -60,5 +60,5 @@
       }
     ]
   },
-  "welcomeMessage": "I want to...\n\n- Diagnose why an agent keeps failing \u2192 \"diagnose the <project> crew\"\n- Review a session for improvements \u2192 \"review the last <project> session\"\n- Audit crew quality against conventions \u2192 \"@review-crew-quality <project>\"\n"
+  "welcomeMessage": "I want to...\n\n- Diagnose why an agent keeps failing \u2192 \"diagnose the <project> crew\"\n- Review a session for improvements \u2192 \"review the last <project> session\"\n- Audit crew quality against conventions \u2192 \"audit the shape of <project>'s crew\" (use the diagnose-crew skill's Structural audit section)\n"
 }

@@ -63,3 +63,35 @@ Remind:
 2. `just link <project>` to redeploy
 3. Test with the original failing task
 4. Optionally: `just eval` to verify no regressions
+
+## Structural audit (when the user asks "is this crew well-built?")
+
+Some diagnoses are not about a failing behavior but about structural quality. When
+the user wants an audit of the *shape* of a deployed crew rather than a specific
+bug, walk these dimensions:
+
+1. **Context budget** — steering ≤150 lines total, skills ≤100 each, prompts ≤80
+   each. Inflated context burns tokens for no benefit.
+2. **Steering quality** — has build/test/lint commands, DO NOTs with alternatives,
+   no prose overviews disguised as steering.
+3. **Skill quality** — specific triggers, actionable steps, single concern, under
+   100 lines.
+4. **Agent config** — workflow prompts (not descriptions), tool permissions match
+   role, single responsibility per agent.
+5. **Multi-crew consistency** — shared protocols, scoped `availableAgents`, no
+   overlapping responsibility between crews.
+
+### Common anti-patterns
+
+- God agent (does everything)
+- Over-permissioned orchestrator (has shell/write)
+- Monolithic skills (>100 lines)
+- Prompt is description not workflow ("You are a researcher" vs "1. Search 2.
+  Analyze 3. Report")
+- Vague skill triggers ("help with code" vs "use when writing unit tests for React
+  components")
+
+### Report shape
+
+Classify each finding as **Must fix** / **Should fix** / **Looks good**. Quote
+the offending file/line; propose the specific edit.
