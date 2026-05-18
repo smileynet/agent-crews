@@ -1,5 +1,4 @@
 # agent-crews crew configuration (self-hosted)
-persona: personal
 crews: [crew-builder, crew-maintenance, crew-tooling]
 dispatcher:
   prompt_suffix: |

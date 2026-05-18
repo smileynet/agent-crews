@@ -24,7 +24,6 @@ Each project's config lives in `.crews/crew.yaml` — self-contained, no inherit
 
 ```yaml
 # ~/code/my-project/.crews/crew.yaml
-persona: personal
 crews: [general, research]
 behavior:
   verification:
@@ -44,7 +43,6 @@ workspace:
 
 | Field | Purpose |
 |-------|--------|
-| `persona` | personal or team identifier |
 | `crews` | Which base crews to include (literal list; required, non-empty) |
 | `behavior` | Behavioral configuration (verification, git, notifications, etc.) |
 | `workspace` | Optional `{ephemeral, durable}` root paths; both required when present (defaults: `.scratch`, `.memory`). See [docs/workspace.md](workspace.md) |

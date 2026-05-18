@@ -1,6 +1,5 @@
 # Example: Godot game project (pixel-dungeon)
 # Realistic crew composition for a small-team Godot game.
-persona: personal
 crews: [general, bug-fix, content]
 
 behavior:

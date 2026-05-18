@@ -42,7 +42,6 @@ class FleetProject(TypedDict, total=False):
     path: str
     crews: list[str]
     behavior: dict
-    persona: str
 
 
 class FleetConfig(TypedDict, total=False):

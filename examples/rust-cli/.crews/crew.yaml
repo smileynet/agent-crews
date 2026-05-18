@@ -1,6 +1,5 @@
 # Example: Rust CLI (ferris-tracker)
 # Realistic crew composition for a solo Rust project.
-persona: personal
 crews: [general, bug-fix, rust]
 
 behavior:

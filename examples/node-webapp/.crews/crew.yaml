@@ -1,6 +1,5 @@
 # Example: Node/TypeScript web app (taskflow-ui)
 # Realistic crew composition for a small-team web service.
-persona: sa
 crews: [general, bug-fix, infrastructure]
 
 behavior:

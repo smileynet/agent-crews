@@ -63,7 +63,7 @@ base/              Base templates
 shared/               Shared resources across all projects
   components/         Component system (15 behavioral concerns)
   skills/             Shared skills
-  steering/           Universal + persona-specific steering
+  steering/             Shared always-on steering
 .crews/               This repo's own crew config + evals
 fleet.local.yaml      Project registry (name→path, gitignored)
 generate.py           .crews/crew.yaml → .kiro/ output

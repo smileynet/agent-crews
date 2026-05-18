@@ -42,7 +42,6 @@ Your project's config lives in `.crews/crew.yaml` (self-contained, no inheritanc
 
 ```yaml
 # ~/code/my-project/.crews/crew.yaml
-persona: personal
 crews: [general, research]
 behavior:
   verification:

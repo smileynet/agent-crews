@@ -239,7 +239,7 @@ class TestWorkspace:
         proj = tmp_path / "no-crews"
         proj.mkdir()
         (proj / ".crews").mkdir()
-        (proj / ".crews" / "crew.yaml").write_text(yaml.dump({"persona": "personal"}))
+        (proj / ".crews" / "crew.yaml").write_text(yaml.dump({}))
         with pytest.raises(SystemExit):
             _build_project(proj)
 

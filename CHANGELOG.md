@@ -7,6 +7,9 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Removed
+- **Breaking:** `persona` field on project crew configs. `shared/steering/{personal,sa}/` collapsed; the universal steering set is now applied to every project. Project- or org-specific conventions (Slack notifications, cloud IAM rules, internal tooling) belong in the deploying repo's `AGENTS.md` per ADR-0011, not in a steering preset shipped by agent-crews. Existing projects: delete the `persona:` line from `.crews/crew.yaml`; rebuild.
+
 ## [0.3.0] - 2026-05-17
 
 ### Added

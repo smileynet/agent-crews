@@ -14,7 +14,6 @@ Canonical definitions for all terms used in the component system. Use these cons
 | **Skill** | A markdown file with name/description frontmatter. Loaded on-demand when the agent determines it's relevant. |
 | **Crew** | A named collection of agents (orchestrator + workers) with a declared scope. Defined in `base/crews/*.yaml`. |
 | **Fleet** | The inventory of all projects and their configurations. Defined in `fleet.yaml` (committed) + `fleet.local.yaml` (per-machine, gitignored). |
-| **Persona** | The context separation layer (personal vs sa). Determines which steering subdirectory is synced. |
 
 ## Agent Roles
 
@@ -88,7 +87,7 @@ Canonical definitions for all terms used in the component system. Use these cons
 | Term | Path | Purpose |
 |---|---|---|
 | **Components** | `shared/components/<name>/<variant>.yaml` | Component declarations |
-| **Steering** | `shared/steering/{universal,sa,personal}/*.md` | Persona-split behavioral rules |
+| **Steering** | `shared/steering/*.md` | Always-on behavioral rules shared across projects |
 | **Skills** | `shared/skills/<name>/SKILL.md` | On-demand knowledge |
 | **Crews** | `base/crews/*.yaml` | Base crew templates |
 | **Project config** | `<project>/.crews/crew.yaml` | Source inputs that define which crews/components get deployed |

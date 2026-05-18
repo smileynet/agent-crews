@@ -140,7 +140,7 @@ base/crews/           Crew definitions (source of truth)
 shared/components/    Behavioral concerns (steering templates)
 shared/themes/        Cosmetic overlays
 shared/skills/        On-demand knowledge
-shared/steering/      Always-on steering (universal + per-persona)
+shared/steering/      Always-on steering (shared across all projects)
 generate.py           Generator (crews + components → .kiro/)
 fleet.example.yaml    Reference config (committed)
 fleet.local.yaml      Your project registry (gitignored)

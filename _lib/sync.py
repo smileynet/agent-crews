@@ -6,51 +6,29 @@ import json
 import shutil
 from pathlib import Path
 
-import yaml
-
-
-def get_project_persona(kiro_dir: Path) -> str:
-    """Read persona field from project crew.yaml. Defaults to 'sa'."""
-    crew_file = kiro_dir / "crew.yaml"
-    if not crew_file.exists():
-        return "sa"
-    with open(crew_file, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    if not data:
-        return "sa"
-    return data.get("persona", "sa")
-
 
 def sync_steering_to_project(kiro_dir: Path, root: Path):
-    """Sync steering files to a project based on its persona."""
-    persona = get_project_persona(kiro_dir)
+    """Copy shared/steering/*.md into the project's .kiro/steering/ root.
+
+    Flat copy — every shared steering file applies to every project. Project-
+    or owner-specific conventions belong in the deploying repo's AGENTS.md
+    (see ADR-0011), not in a steering preset shipped by agent-crews.
+    """
     steering_root = root / "shared" / "steering"
+    if not steering_root.is_dir():
+        return
     dest_steering = kiro_dir / "steering"
     dest_steering.mkdir(parents=True, exist_ok=True)
 
-    expected_files = set()
+    expected = set()
+    for f in steering_root.glob("*.md"):
+        shutil.copy2(f, dest_steering / f.name)
+        expected.add(f.name)
 
-    universal_dir = steering_root / "universal"
-    if universal_dir.is_dir():
-        for f in universal_dir.glob("*.md"):
-            shutil.copy2(f, dest_steering / f.name)
-            expected_files.add(f.name)
-
-    persona_dir = steering_root / persona
-    if persona_dir.is_dir():
-        for f in persona_dir.glob("*.md"):
-            shutil.copy2(f, dest_steering / f.name)
-            expected_files.add(f.name)
-
-    # Remove stale files from previous persona sync
-    all_shared_files = set()
-    for subdir in steering_root.iterdir():
-        if subdir.is_dir():
-            for f in subdir.glob("*.md"):
-                all_shared_files.add(f.name)
-
+    # Drop previously-synced shared files no longer present at the source.
+    shared_names = {f.name for f in steering_root.glob("*.md")}
     for existing in dest_steering.glob("*.md"):
-        if existing.name in all_shared_files and existing.name not in expected_files:
+        if existing.name in shared_names and existing.name not in expected:
             existing.unlink()
 
 
