@@ -210,6 +210,45 @@ evals:
       Deployments are outside my scope — I manage agent crews. Your project's infrastructure crew handles deployments.
     tags: [scope, meta-crew]
     threshold: 4
+  - name: crew-creator-honors-literal-crews
+    agent: crew-creator
+    input: "create a crew for a research-only documentation project; it only needs the research crew"
+    criteria: |
+      PRIMARY: The response produces a crew config whose `crews:` list is literally `[research]` — `general` MUST NOT be silently added.
+      AUTOMATIC FAIL (score 1): Adds `general` to the crews list without the user asking, OR insists `general` is mandatory.
+      Score 4: Produces `crews: [research]` literally.
+      BONUS (score 5): Explicitly notes that `crews:` is a literal list and `general` is no longer auto-included.
+    ideal: |
+      `crews:` is a literal list and `general` is no longer auto-included — writing `crews: [research]` as requested.
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  - name: crew-creator-uses-workspace-defaults
+    agent: crew-creator
+    input: "create a default crew config for a new TypeScript project; no special storage needs"
+    criteria: |
+      PRIMARY: The generated `.crews/crew.yaml` omits the `workspace:` block entirely (defaults `.scratch` + `.memory` apply).
+      AUTOMATIC FAIL (score 1): Pastes `workspace: {ephemeral: .scratch, durable: .memory}` into the config.
+      Score 4: Omits the block and (if asked) explains defaults apply.
+      BONUS (score 5): Cites config-simplicity / ADR 0012 as the reason.
+    ideal: |
+      Omitting `workspace:` — the product defaults `.scratch` and `.memory` apply, and ADR 0012 says don't paste defaults into project config.
+    tags: [scope, meta-crew]
+    threshold: 4
+
+  - name: crew-creator-rejects-partial-workspace
+    agent: crew-creator
+    input: "set the workspace ephemeral root to .work — leave the durable root alone"
+    criteria: |
+      PRIMARY: The response refuses partial workspace overrides and explains that `workspace:` requires BOTH `ephemeral:` and `durable:` (or neither).
+      AUTOMATIC FAIL (score 1): Writes `workspace: {ephemeral: .work}` (partial override) into the config.
+      Score 4: Refuses, names the both-or-neither rule.
+      BONUS (score 5): Offers two options — supply both roots, or omit the block to accept defaults.
+    ideal: |
+      `workspace:` requires both `ephemeral:` and `durable:` when present (build rejects partial overrides). Either give both roots, or omit the block to accept the defaults `.scratch` and `.memory`.
+    tags: [scope, meta-crew]
+    threshold: 4
+
   - name: augmenter-refuses-new-project
     agent: crew-augmenter
     input: "create a brand new crew for ~/code/my-new-project from scratch"
@@ -583,7 +622,7 @@ evals:
     threshold: 3
 
   # ============================================================
-  # COMPONENTS — behavioral concerns fire correctly
+  # BEHAVIOR — behavioral concerns fire correctly
   # Primary signal: the specific behavioral protocol activates
   # ============================================================
 
@@ -597,7 +636,7 @@ evals:
       BONUS (score 5): Names the principle (same approach fails 2x → change strategy).
     ideal: |
       Three failures with the same approach means it's time to change strategy entirely — not retry. What error are you seeing? Let's try a different angle.
-    tags: [components, meta-crew]
+    tags: [behavior, meta-crew]
     threshold: 3
 
   - name: verification-awareness
@@ -610,7 +649,7 @@ evals:
       BONUS (score 5): Explains that generation is part of the change, not optional.
     ideal: |
       Not yet — after modifying crew YAML, run `just build` to regenerate. Generation is part of the change.
-    tags: [components, meta-crew]
+    tags: [behavior, meta-crew]
     threshold: 4
 
   - name: narration-on-delegation
@@ -625,7 +664,7 @@ evals:
     ideal: |
       Tuning is a multi-step pipeline: (1) crew-analyst analyzes recent sessions for issues, (2) crew-doctor applies fixes, (3) crew-validator verifies. Delegating to crew-maintenance-lead to orchestrate this.
       [invokes crew-maintenance-lead subagent]
-    tags: [components, meta-crew]
+    tags: [behavior, meta-crew]
     threshold: 3
 
   # ============================================================
@@ -703,3 +742,54 @@ evals:
       I need more context. What's the symptom? Are agents routing incorrectly (doctor), performing poorly (analyst), or failing validation (validator)?
     tags: [orchestration, meta-crew]
     threshold: 3
+
+  # ============================================================
+  # WORKSPACE + HANDOFF — standardized ephemeral artifact contract
+  # Primary signal: agents honor the workspace + handoff contracts
+  # ============================================================
+
+  - name: handoff-writes-to-ephemeral-root
+    agent: dispatcher
+    intent_only: true
+    input: "@handoff — record the current session state before I close out"
+    criteria: |
+      PRIMARY: The plan writes the handoff file under the project's ephemeral workspace root — for default config, that path is `.scratch/HANDOFF.md`. Hardcoded `scratch/HANDOFF.md` (no leading dot, no `{{workspace.ephemeral}}` substitution) is wrong.
+      AUTOMATIC FAIL (score 1): Targets a path outside the ephemeral root (e.g., repo root, `notes/`, `.kiro/`), OR writes to `scratch/HANDOFF.md` without a leading dot.
+      Score 4: Names `.scratch/HANDOFF.md` (or the project-configured ephemeral root) explicitly and includes the required frontmatter keys (`created_at`, `base_commit`, `handoff_key`).
+      BONUS (score 5): Mentions deleting any prior `HANDOFF.md` for the same `handoff_key` before writing the new one.
+    ideal: |
+      Writing the new handoff to `.scratch/HANDOFF.md` (the ephemeral workspace root). Deleting any prior file with the same `handoff_key` first, then emitting frontmatter `created_at` / `base_commit` / `handoff_key` and the five required sections.
+    tags: [behavior, meta-crew]
+    threshold: 4
+
+  - name: read-handoff-reports-base-commit
+    agent: dispatcher
+    intent_only: true
+    fixtures:
+      ".scratch/HANDOFF.md": |
+        ---
+        created_at: 2026-05-17T09:00:00-04:00
+        base_commit: abc1234
+        handoff_key: workspace-rollout
+        ---
+        # Handoff
+        ## Objective
+        Continue the workspace-contract rollout.
+        ## Constraints
+        - Do not touch theme code.
+        ## Prior Decisions
+        - Defaults `.scratch` and `.memory`.
+        ## Current State
+        - Build green at base_commit abc1234.
+        ## Next Steps
+        1. Run pytest.
+    input: "@read-handoff"
+    criteria: |
+      PRIMARY: The report names `base_commit: abc1234` and `handoff_key: workspace-rollout`, summarizes the objective in one sentence, and lists the first 1–2 next steps.
+      AUTOMATIC FAIL (score 1): Skips `base_commit`/`handoff_key`, OR invents content not present in the fixture, OR starts executing next steps instead of reporting orientation.
+      Score 4: Reports `handoff_key`, `created_at`, `base_commit`, objective, constraints, and next steps.
+      BONUS (score 5): Notes whether HEAD differs from `base_commit` and flags drift before acting.
+    ideal: |
+      `handoff_key`: workspace-rollout (`created_at` 2026-05-17T09:00:00-04:00, `base_commit` abc1234). Objective: continue the workspace-contract rollout. Active constraint: don't touch theme code. Next step: run pytest. I'll check whether HEAD has moved past abc1234 before proceeding.
+    tags: [behavior, meta-crew]
+    threshold: 4

@@ -191,6 +191,25 @@ class TestWorkspace:
         assert "{{workspace.ephemeral}}" not in handoff
         assert ".scratch/HANDOFF.md" in handoff
 
+    def test_durable_placeholder_substituted_during_sync(self, tmp_path):
+        """A shared prompt containing {{workspace.durable}} must be substituted by sync."""
+        # No shipped prompt currently uses the durable placeholder; this test guards
+        # the sync path against silent regressions when one is added.
+        from _lib.sync import sync_prompts_to_project
+
+        fake_root = tmp_path / "root"
+        (fake_root / "shared" / "prompts").mkdir(parents=True)
+        (fake_root / "shared" / "prompts" / "promote.md").write_text(
+            "promote into {{workspace.durable}}/ and clean {{workspace.ephemeral}}/"
+        )
+        kiro = tmp_path / "proj" / ".kiro"
+        kiro.mkdir(parents=True)
+        sync_prompts_to_project(
+            kiro, fake_root, workspace={"ephemeral": ".s", "durable": ".d"}
+        )
+        out = (kiro / "prompts" / "promote.md").read_text()
+        assert out == "promote into .d/ and clean .s/"
+
     def test_custom_workspace_roots(self, tmp_path):
         proj = tmp_path / "custom-ws"
         proj.mkdir()

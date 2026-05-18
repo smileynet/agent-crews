@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from _lib.validate import validate_hierarchy
+from _lib.validate import validate_changelog_prerequisites, validate_hierarchy
 
 
 def _crew(architypes):
@@ -86,3 +86,29 @@ class TestValidateHierarchy:
             _arch("worker", [_agent("w1", ["read", "write"])]),
         ]}
         validate_hierarchy(Path("test.yaml"), crew)
+
+
+class TestValidateChangelogPrerequisites:
+    """Asserts the public-config rename took effect: the legacy `components:` key
+    MUST NOT trigger the missing-CHANGELOG warning anymore (warnings come from
+    `behavior.changelog`).
+    """
+
+    def test_no_warn_when_legacy_components_key(self, capsys):
+        validate_changelog_prerequisites({
+            "projects": {"demo": {"components": {"changelog": "standard"}}},
+        })
+        assert "CHANGELOG.md" not in capsys.readouterr().err
+
+    def test_no_warn_when_behavior_changelog_absent(self, capsys):
+        validate_changelog_prerequisites({"projects": {"demo": {"behavior": {}}}})
+        assert "CHANGELOG.md" not in capsys.readouterr().err
+
+    def test_no_warn_for_self_hosted(self, capsys):
+        validate_changelog_prerequisites({
+            "projects": {"demo": {
+                "self_hosted": True,
+                "behavior": {"changelog": "standard"},
+            }},
+        })
+        assert "CHANGELOG.md" not in capsys.readouterr().err
