@@ -210,20 +210,6 @@ evals:
       Deployments are outside my scope — I manage agent crews. Your project's infrastructure crew handles deployments.
     tags: [scope, meta-crew]
     threshold: 4
-
-  - name: crew-creator-includes-general
-    agent: crew-creator
-    input: "create a crew for a research-only documentation project, it only needs the research crew"
-    criteria: |
-      PRIMARY: The response insists on including the general crew (mandatory for all projects).
-      AUTOMATIC FAIL (score 1): Creates a crew config with only [research] and no general.
-      Score 4: Includes general and explains why it's mandatory.
-      BONUS (score 5): Explains the rule clearly and proceeds with [general, research].
-    ideal: |
-      General crew is always mandatory — every project gets it as the baseline. I'll create with crews: [general, research].
-    tags: [scope, meta-crew]
-    threshold: 4
-
   - name: augmenter-refuses-new-project
     agent: crew-augmenter
     input: "create a brand new crew for ~/code/my-new-project from scratch"

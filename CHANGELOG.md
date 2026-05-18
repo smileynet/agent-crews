@@ -25,53 +25,42 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Before/after comparison shows whether crew tuning improved token efficiency
 - One-shot project analysis and session summary scripts give agents pre-digested data instead of raw parsing
 - Rust crew (`rust-lead`, `rust-linter`, `rust-builder`, `rust-tester`) for Rust-specific workflows
-- `@handoff` and `@read-handoff` prompts for session continuity across context windows
+- `@handoff` and `@read-handoff` prompts for session continuity across context windows, now backed by a standardized ephemeral handoff artifact with metadata (`created_at`, `base_commit`, `handoff_key`), required briefing sections, and evidence pointers
 - Skill manifest at `shared/skills/manifest.yaml` documents which skills auto-load by archetype, which are referenced per crew, and which are user-invoked only — build now refuses unclassified skills
+- `workspace:` is a first-class public-config field with `ephemeral:` + `durable:` roots; both required when present, otherwise the product defaults `.scratch` and `.memory` apply
+- Every deployed project ships a `workspace.md` universal steering file describing both roots, their lifecycle, and where the standardized handoff lives
+- Shared prompts substitute `{{workspace.ephemeral}}` / `{{workspace.durable}}` so the configured roots flow into `@handoff` / `@read-handoff` without per-prompt edits
+- `docs/workspace.md` user-facing reference for the workspace contract (defaults, override rules, build behavior, frontmatter convention); linked from AGENTS.md and `docs/fleet-configuration.md`
+- ADRs codifying the cleanup: 0011 (`AGENTS.md` is owner-managed), 0012 (config simplicity), 0013 (standardized ephemeral handoff artifact)
+
+### Changed
+- **BREAKING:** Meta crew split into three: crew-builder, crew-maintenance, crew-tooling — each follows the standard one-lead-per-file pattern. Leads renamed to crew-builder-lead, crew-maintenance-lead, crew-tooling-lead.
+- **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
+- **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
+- **BREAKING:** Public-config behavior key renamed from `components:` to `behavior:` (the internal `Component` terminology remains for contributors); update any project configs accordingly
+- **BREAKING:** `.crews/crew.yaml` no longer auto-includes `general` — `crews:` is a literal, required, non-empty list; missing or empty `crews:` now fails the build with a clear error
+- Orchestrators are pure routers — they delegate all work including file reading, using the injected worker table and delegation rules to decide who gets what
+- Dispatcher now delegates reliably — tool permissions enforce routing instead of relying on prompt suggestions alone. Simple file reads still work directly; everything else goes to the right specialist.
+- `.kiro/` is now purely kiro-native output (agents, prompts, steering) — no more agent-crews machinery mixed in
+- `just build <project>` generates directly in your project (no intermediate staging for normal workflow)
+- Evals live with the project at `.crews/evals.yaml` — portable and runnable without the agent-crews repo
+- Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
+- `@grill-with-docs` now asks only product-defining design questions, explores codebase-answerable details itself, and presents multiple plausible answers with rationale before recommending one
 
 ### Fixed
 - Component utility agents (verifier, editor) are now automatically available to all orchestrators — previously generated but not wired into dispatch lists
-- Projects with components in `.crews/crew.yaml` now get component generation even without a fleet.yaml file
+- Projects with behavior in `.crews/crew.yaml` now get component generation even without a fleet.yaml file
 - Orchestrators with explicit `availableAgents` no longer get overwritten by auto-scoping
 - Component `allowed_commands` (e.g. `git *`, `cargo check`) now reach worker `toolsSettings.execute_bash.allowedCommands` so kiro-cli can actually enforce them — previously declared but ignored
 - Skill references now consistently resolve under `.kiro/skills/` — agents no longer carry broken `skill://shared/skills/...` URIs that fail to load
 - Crew-builder's `create-crew` and crew-doctor's `diagnose-crew` skills now ship with deployments — previously referenced but only present in the agent-crews repo itself
 
-### Changed
-- **BREAKING:** Meta crew split into three: crew-builder, crew-maintenance, crew-tooling — each follows the standard one-lead-per-file pattern. Leads renamed to crew-builder-lead, crew-maintenance-lead, crew-tooling-lead.
-- Orchestrators are pure routers — they delegate all work including file reading, using the injected worker table and delegation rules to decide who gets what
-- Dispatcher now delegates reliably — tool permissions enforce routing instead of relying on prompt suggestions alone. Simple file reads still work directly; everything else goes to the right specialist.
-- **BREAKING:** No crew defines a dispatcher anymore — it's auto-generated from your project's crew composition
-- **BREAKING:** Crew config now lives in your project at `.crews/crew.yaml` instead of centralized in fleet.yaml — commit it, share it, anyone can regenerate from it
-- `.kiro/` is now purely kiro-native output (agents, prompts, steering) — no more agent-crews machinery mixed in
-- `just build <project>` generates directly in your project (no intermediate staging for normal workflow)
-- Evals live with the project at `.crews/evals.yaml` — portable and runnable without the agent-crews repo
-- Fleet registry simplified to a name→path mapping in fleet.local.yaml (auto-maintained by scanner)
-- Generated `project.md` context is now explicitly runtime-scoped — deployed `.kiro/` artifacts are distinguished from `.crews/` build config, and untouched legacy skeletons auto-upgrade on rebuild
- - `@grill-with-docs` now asks only product-defining design questions, explores codebase-answerable details itself, and presents multiple plausible answers with rationale before recommending one
- - `@handoff` and `@read-handoff` now use a standardized ephemeral handoff artifact with metadata (`created_at`, `base_commit`, `handoff_key`), required briefing sections, and evidence pointers instead of ad hoc summaries
-
-### Added (public-config refactor)
-- `workspace:` is a first-class public-config field with `ephemeral:` + `durable:` roots; both required when present, otherwise the product defaults `.scratch` and `.memory` apply
-- Every deployed project now ships a `workspace.md` universal steering file describing both roots, their lifecycle, and where the standardized handoff lives
-- Shared prompts substitute `{{workspace.ephemeral}}` / `{{workspace.durable}}` so the configured roots flow into `@handoff` / `@read-handoff` without per-prompt edits
-
-### Changed (public-config refactor)
-- **BREAKING:** `.crews/crew.yaml` no longer auto-includes `general` — `crews:` is a literal, required, non-empty list; missing or empty `crews:` now fails the build with a clear error
-- **BREAKING:** Public-config behavior key renamed from `components:` to `behavior:` (the internal `Component` terminology remains for contributors); update any project configs accordingly
-
-### Removed (public-config refactor)
-- **BREAKING:** `theme:` is no longer a public-config field — `shared/themes/`, `_lib/theme.py`, `docs/themed-crews-guide.md`, and the themed-crew test suite are deleted; agent names are always the generic ones from `base/crews/*.yaml`
-
-### Added (legacy cleanup)
-- `docs/workspace.md` — user-facing reference for the workspace contract (defaults, override rules, build behavior, frontmatter convention); linked from AGENTS.md and `docs/fleet-configuration.md`
-
-### Removed (legacy cleanup)
-- **BREAKING:** `project.md` is no longer generated, scanned, or part of the runtime context model — `AGENTS.md` is the owner-managed surface; old `<project>/.kiro/steering/project.md` files are deleted on next build
-- `_lib/utils.py`: removed `_project_md_skeleton`, `_legacy_project_md_skeleton`, and `generate_project_md_skeleton` (replaced by `prune_legacy_project_md`)
-- `_lib/fleet.py`: removed the `check_health` function, the `_extract_donot_section` helper, the dead self-hosted-project build block, and the `--check-health` flag from `generate.py`
-- `hygiene/structure-checker` and `onboarding/restorer` no longer point agents at `.kiro/steering/project.md`; `shared/skills/diagnose-crew.md` updated accordingly
-
 ### Removed
+- **BREAKING:** `theme:` is no longer a public-config field — `shared/themes/`, `_lib/theme.py`, `docs/themed-crews-guide.md`, and the themed-crew test suite are deleted; agent names are always the generic ones from `base/crews/*.yaml`
+- **BREAKING:** `project.md` is no longer generated, scanned, or part of the runtime context model — `AGENTS.md` is the owner-managed surface; old `<project>/.kiro/steering/project.md` files are deleted on next build
+- `_lib/utils.py`: removed `_project_md_skeleton`, `_legacy_project_md_skeleton`, and `generate_project_md_skeleton` (replaced by `prune_legacy_project_md` transitional cleanup)
+- `_lib/fleet.py`: removed the `check_health` function, the `_extract_donot_section`/`_collect_allowed` helpers, the dead self-hosted-project build block, and the `--check-health` flag from `generate.py`
+- `hygiene/structure-checker` and `onboarding/restorer` no longer point agents at `.kiro/steering/project.md`; `shared/skills/diagnose-crew.md` updated accordingly
 - `vocabulary.md` generation — routing data is now injected directly into agent prompts, eliminating redundant always-loaded context
 - `fleet.yaml` — replaced by per-project `.crews/crew.yaml`
 - Centralized eval files in `tests/` — each project owns its own evals now
