@@ -34,7 +34,7 @@ identify → run → read → verify → claim
 ## Project-Specific Commands
 - Build: `cargo check`
 - Test: `cargo test`
-- Lint: `cargo clippy`
+- Lint: `cargo clippy --all-targets -- -D warnings`
 
 ## Scope Check (always applies)
 Run `git diff` — changes must be limited to the current task.

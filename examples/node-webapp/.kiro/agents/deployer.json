@@ -21,7 +21,13 @@
       ]
     },
     "execute_bash": {
-      "autoAllowReadonly": true
+      "autoAllowReadonly": true,
+      "allowedCommands": [
+        "npm run build",
+        "npm test",
+        "npm run lint",
+        "git *"
+      ]
     }
   },
   "resources": [

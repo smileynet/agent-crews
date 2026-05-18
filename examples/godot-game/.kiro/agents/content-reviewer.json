@@ -31,7 +31,12 @@
       ]
     },
     "execute_bash": {
-      "autoAllowReadonly": true
+      "autoAllowReadonly": true,
+      "allowedCommands": [
+        "godot --headless --build-solutions --quit",
+        "godot --headless --run-tests",
+        "git *"
+      ]
     }
   },
   "resources": [

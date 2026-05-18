@@ -10,13 +10,6 @@ import yaml
 from _lib import get_architypes
 
 
-def has_custom_crews(kiro_dir: Path) -> bool:
-    """Check if a project has custom crews (should skip syncing)."""
-    return (kiro_dir / "crews" / "intake-crew.yaml").exists() or (kiro_dir / ".custom-crews").exists()
-
-
-
-
 def prune_legacy_project_md(kiro_dir: Path):
     """Delete the legacy `steering/project.md` file if it still exists.
 

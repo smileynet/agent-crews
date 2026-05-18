@@ -19,7 +19,13 @@
       ]
     },
     "execute_bash": {
-      "autoAllowReadonly": true
+      "autoAllowReadonly": true,
+      "allowedCommands": [
+        "cargo check",
+        "cargo test",
+        "cargo clippy --all-targets -- -D warnings",
+        "git *"
+      ]
     }
   },
   "resources": [

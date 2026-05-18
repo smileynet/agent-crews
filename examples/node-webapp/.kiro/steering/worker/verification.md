@@ -34,7 +34,7 @@ identify → run → read → verify → claim
 ## Project-Specific Commands
 - Build: `npm run build`
 - Test: `npm test`
-- Lint: `npx eslint .`
+- Lint: `npm run lint`
 
 ## Scope Check (always applies)
 Run `git diff` — changes must be limited to the current task.

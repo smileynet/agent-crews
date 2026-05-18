@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import shutil
 import sys
 from pathlib import Path
@@ -13,12 +12,11 @@ from _lib import deep_merge
 from _lib.build import generate
 from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
 from _lib.inject import synthesize_dispatcher
-from _lib.sync import get_project_persona, sync_prompts_to_project, sync_skills_to_project, sync_steering_to_project
+from _lib.sync import sync_prompts_to_project, sync_skills_to_project, sync_steering_to_project
 from _lib.utils import (
     build_sibling_map,
     collect_shared_agents,
     generate_crew_sheet,
-    has_custom_crews,
     prune_legacy_project_md,
 )
 from _lib.validate import validate_changelog_prerequisites, validate_coverage
@@ -102,145 +100,16 @@ def build_single_project(
     return agents
 
 
-def _read_project_crew_cfg(kiro_dir: Path) -> dict:
-    """Load crew config from .crews/crew.yaml (preferred) or legacy .kiro/crew.yaml."""
-    proj_dir = kiro_dir.parent
-    for candidate in (proj_dir / ".crews" / "crew.yaml", kiro_dir / "crew.yaml"):
-        if candidate.exists():
-            with open(candidate, encoding="utf-8") as fh:
-                return yaml.safe_load(fh) or {}
-    return {}
-
-
-def _sync_project_crews(kiro_dir: Path, fleet: dict, base_crews: Path, root: Path):
-    """Sync crew files and steering to a single project directory."""
-    proj = kiro_dir.parent.name
-    proj_dir = kiro_dir.parent
-    proj_crew_cfg = _read_project_crew_cfg(kiro_dir)
-    workspace = resolve_workspace(proj_crew_cfg, source=f"{proj_dir}/.kiro/crew.yaml")
-    if has_custom_crews(kiro_dir):
-        print(f"Syncing steering only -> {proj} (custom crews, skipping crew sync)")
-        stage_workspace(proj_dir, kiro_dir, workspace)
-        sync_steering_to_project(kiro_dir, root)
-        sync_skills_to_project(kiro_dir, root)
-        sync_prompts_to_project(kiro_dir, root, workspace=workspace)
-        prune_legacy_project_md(kiro_dir)
-        return
-
-    proj_cfg = fleet.get("projects", {}).get(proj, {}) if fleet else {}
-    proj_crews = proj_cfg.get("crews") or fleet.get("defaults", {}).get("crews", None)
-
-    print(f"Syncing crews+steering -> {proj}")
-    dest_crews = kiro_dir / "crews"
-    dest_crews.mkdir(parents=True, exist_ok=True)
-
-    if proj_crews:
-        all_base = {cf.stem for cf in base_crews.glob("*.yaml")}
-        for existing in dest_crews.glob("*.yaml"):
-            if existing.stem in all_base and existing.stem not in proj_crews:
-                with open(existing, encoding="utf-8") as fh:
-                    data = yaml.safe_load(fh)
-                if data and data.get("extends"):
-                    continue
-                existing.unlink()
-        for crew_name in proj_crews:
-            dest = dest_crews / f"{crew_name}.yaml"
-            if dest.exists():
-                with open(dest, encoding="utf-8") as fh:
-                    local_data = yaml.safe_load(fh)
-                if local_data and local_data.get("extends"):
-                    continue
-            src = base_crews / f"{crew_name}.yaml"
-            if src.exists():
-                shutil.copy2(src, dest)
-    else:
-        for cf in base_crews.glob("*.yaml"):
-            shutil.copy2(cf, dest_crews / cf.name)
-
-    stage_workspace(proj_dir, kiro_dir, workspace)
-    sync_steering_to_project(kiro_dir, root)
-    sync_skills_to_project(kiro_dir, root)
-    sync_prompts_to_project(kiro_dir, root, workspace=workspace)
-    prune_legacy_project_md(kiro_dir)
-
-
-def _generate_project_dir(crew_file: Path, fleet: dict, root: Path, dry_run: bool):
-    """Generate agents for a single project directory (projects/ or examples/)."""
-    kiro_dir = crew_file.parent
-    proj = kiro_dir.parent.name
-    crews_dir = kiro_dir / "crews"
-    full_mode = crews_dir.is_dir() and any(crews_dir.glob("*.yaml"))
-    output_dir = kiro_dir / "agents"
-
-    if not dry_run:
-        if output_dir.exists():
-            shutil.rmtree(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-    agents = []
-    if full_mode:
-        proj_crew_files = sorted(crews_dir.glob("*.yaml"))
-        proj_siblings = build_sibling_map(proj_crew_files)
-        for cf in proj_crew_files:
-            agents.extend(generate(cf, output_dir, dry_run, sibling_crews=proj_siblings))
-    else:
-        agents.extend(generate(crew_file, output_dir, dry_run))
-        for sibling in sorted(f for f in kiro_dir.glob("*.yaml") if f != crew_file and f.stem != "crew"):
-            agents.extend(generate(sibling, output_dir, dry_run))
-
-    print(f"  -> {len(agents)} agents")
-
-    # Crew sheet
-    if full_mode and not dry_run:
-        crew_sheet = generate_crew_sheet(crews_dir)
-        prompts_dir = kiro_dir / "prompts"
-        prompts_dir.mkdir(parents=True, exist_ok=True)
-        (prompts_dir / "crew-sheet.md").write_text(crew_sheet, encoding="utf-8")
-
-    # Dispatcher + shared agents
-    shared_names = []
-    if not dry_run:
-        crew_sources = sorted(crews_dir.glob("*.yaml")) if full_mode else [crew_file]
-        shared_names = collect_shared_agents(crew_sources)
-        synthesize_dispatcher(crew_sources, shared_names, kiro_dir, dry_run=dry_run)
-
-    # Components
-    if fleet and proj in fleet.get("projects", {}):
-        generate_components_for_project(proj, kiro_dir, fleet, dry_run)
-
-    if not dry_run and shared_names:
-        inject_subagents_into_orchestrators(shared_names, kiro_dir)
-
-    # Provenance
-    if not dry_run:
-        shared_prompts_dir = root / "shared" / "prompts"
-        meta = {
-            "source": "agent-crews",
-            "project": proj,
-            "agents": agents,
-            "shared_prompts": sorted(f.name for f in shared_prompts_dir.glob("*.md")) if shared_prompts_dir.is_dir() else [],
-        }
-        meta_path = kiro_dir / ".agent-crews-meta.json"
-        with open(meta_path, "w") as f:
-            json.dump(meta, f, indent=2)
-            f.write("\n")
-
 
 def generate_all(dry_run: bool = False):
-    """Sync crews+steering from base to all projects, then generate all."""
+    """Generate base crews, examples, and every fleet.local project."""
     root = Path(__file__).parent.parent
     base_crews = root / "base" / "crews"
-    examples = root / "projects"
     fleet = load_fleet_config()
 
-    # Sync crews to all project dirs
-    project_dirs = list(examples.glob("*/.kiro")) + list((root / "examples").glob("*/.kiro"))
-    for kiro_dir in sorted(project_dirs):
-        _sync_project_crews(kiro_dir, fleet, base_crews, root)
-
-    # Generate base crews
+    # Generate base crews (the source-of-truth catalog).
     base_output = root / "base" / "agents"
-    print("\nGenerating: base/crews/*.yaml")
+    print("Generating: base/crews/*.yaml")
     if not dry_run:
         if base_output.exists():
             shutil.rmtree(base_output)
@@ -252,32 +121,32 @@ def generate_all(dry_run: bool = False):
         agents.extend(generate(cf, base_output, dry_run, sibling_crews=base_siblings))
     print(f"  -> {len(agents)} agents")
 
-    # Generate each project dir
-    all_crew_files = sorted(
-        list(examples.glob("*/.kiro/crew.yaml")) + list((root / "examples").glob("*/.kiro/crew.yaml"))
-    )
-    for crew_file in all_crew_files:
-        print(f"\nGenerating: {crew_file}")
-        _generate_project_dir(crew_file, fleet, root, dry_run)
+    # Generate every example under examples/<name>/.crews/crew.yaml using the
+    # same code path as a real deployment.
+    for crews_config in sorted((root / "examples").glob("*/.crews/crew.yaml")):
+        proj_dir = crews_config.parent.parent
+        print(f"\nGenerating example: {proj_dir.name}")
+        with open(crews_config, encoding="utf-8") as f:
+            crew_cfg = yaml.safe_load(f) or {}
+        result = build_single_project(proj_dir, crew_cfg, fleet, dry_run)
+        print(f"  -> {len(result)} agents")
 
     if fleet:
         validate_coverage(fleet)
         validate_changelog_prerequisites(fleet)
 
-    # Fleet.local.yaml projects
+    # fleet.local.yaml projects (real deployments outside this repo).
     fleet_local = load_fleet_local()
     for proj_name, proj_path in fleet_local.items():
         proj_dir = Path(proj_path).expanduser()
         crews_config = proj_dir / ".crews" / "crew.yaml"
         if not crews_config.exists():
             continue
-        if (root / "projects" / proj_name / ".kiro").exists():
-            continue
         print(f"\nGenerating (in-place): {proj_name}")
         with open(crews_config, encoding="utf-8") as f:
             crew_cfg = yaml.safe_load(f) or {}
-        agents = build_single_project(proj_dir, crew_cfg, fleet, dry_run)
-        print(f"  -> {len(agents)} agents")
+        result = build_single_project(proj_dir, crew_cfg, fleet, dry_run)
+        print(f"  -> {len(result)} agents")
 
     print("\nDone.")
 
@@ -339,28 +208,4 @@ def resolve_project(name_or_path: str) -> Path:
             return resolved
     sys.exit(f"Project not found or missing .crews/crew.yaml: {name_or_path}")
 
-
-def sync_steering():
-    """Copy shared/steering/ to ALL projects based on persona."""
-    root = Path(__file__).parent.parent
-    examples = root / "projects"
-    print("Syncing steering to all projects (persona-aware)...")
-    for kiro_dir in sorted(examples.glob("*/.kiro")):
-        proj = kiro_dir.parent.name
-        persona = get_project_persona(kiro_dir)
-        sync_steering_to_project(kiro_dir, root)
-        print(f"  {proj}: persona={persona}")
-    print("Done.")
-
-
-def sync_prompts():
-    """Copy shared/prompts/ to ALL projects."""
-    root = Path(__file__).parent.parent
-    examples = root / "projects"
-    print("Syncing shared prompts to all projects...")
-    for kiro_dir in sorted(examples.glob("*/.kiro")):
-        proj = kiro_dir.parent.name
-        sync_prompts_to_project(kiro_dir, root)
-        print(f"  {proj}")
-    print("Done.")
 

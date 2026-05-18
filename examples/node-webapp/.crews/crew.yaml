@@ -1,0 +1,18 @@
+# Example: Node/TypeScript web app (taskflow-ui)
+# Realistic crew composition for a small-team web service.
+persona: sa
+crews: [general, bug-fix, infrastructure]
+
+behavior:
+  verification:
+    variant: gate
+    checks:
+      build: "npm run build"
+      test: "npm test"
+      lint: "npm run lint"
+  git:
+    variant: pr-based
+
+hooks:
+  agentSpawn:
+    - command: printf '\033]2;%s\033\\' "{{agent_name}}" && echo "🤖 {{agent_name}} ready" && git status --short 2>/dev/null || true

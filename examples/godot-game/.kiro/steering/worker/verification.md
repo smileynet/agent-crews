@@ -32,8 +32,8 @@ identify → run → read → verify → claim
 | security | threat-model, owasp, secrets, permissions |
 
 ## Project-Specific Commands
-- Build: ``
-- Test: ``
+- Build: `godot --headless --build-solutions --quit`
+- Test: `godot --headless --run-tests`
 - Lint: ``
 
 ## Scope Check (always applies)

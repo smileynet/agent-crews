@@ -10,9 +10,7 @@ Usage:
     uv run generate.py <project>          # build a named project or '.'
     uv run generate.py path/to/crew.yaml  # custom input
     uv run generate.py --dry-run          # print what would be written
-    uv run generate.py --all              # generate all projects
-    uv run generate.py --sync-steering    # sync shared/steering/ to all projects
-    uv run generate.py --sync-prompts     # sync shared/prompts/ to all projects
+    uv run generate.py --all              # generate base crews, examples, and every fleet.local project
 """
 
 import shutil
@@ -25,14 +23,12 @@ except ImportError:
     sys.exit("pyyaml required: pip install pyyaml")
 
 from _lib.build import generate
-from _lib.components import generate_components_for_project, inject_subagents_into_orchestrators
+from _lib.components import inject_subagents_into_orchestrators
 from _lib.fleet import (
     build_single_project,
     generate_all,
     load_fleet_config,
     resolve_project,
-    sync_prompts,
-    sync_steering,
 )
 from _lib.inject import synthesize_dispatcher
 from _lib.utils import collect_shared_agents
@@ -42,33 +38,9 @@ def main():
     dry_run = "--dry-run" in sys.argv
     append = "--append" in sys.argv
     all_flag = "--all" in sys.argv
-    sync_steering_flag = "--sync-steering" in sys.argv
-    sync_prompts_flag = "--sync-prompts" in sys.argv
-    components_flag = "--components" in sys.argv
     args = [a for a in sys.argv[1:] if a not in (
-        "--dry-run", "--append", "--all", "--sync-steering",
-        "--sync-prompts", "--components",
+        "--dry-run", "--append", "--all",
     )]
-
-    if sync_steering_flag:
-        return sync_steering()
-    if sync_prompts_flag:
-        return sync_prompts()
-    if components_flag:
-        fleet = load_fleet_config()
-        if not fleet:
-            sys.exit("No fleet.yaml found")
-        root = Path(__file__).parent
-        for proj_name, proj_cfg in fleet.get("projects", {}).items():
-            if proj_cfg.get("deploy") is False:
-                continue
-            kiro_dir = root / "projects" / proj_name / ".kiro"
-            if not kiro_dir.exists():
-                continue
-            print(f"Components: {proj_name}")
-            generate_components_for_project(proj_name, kiro_dir, fleet, dry_run)
-        print("Done.")
-        return
 
     if all_flag:
         return generate_all(dry_run)
