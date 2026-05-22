@@ -104,6 +104,8 @@ architypes:
       - name: doc-checker
         description: "[Hygiene] Doc freshness — README, AGENTS.md accuracy"
         routes: "Need docs checked for accuracy and freshness"
+        resources:
+          - skill://.kiro/skills/docs-audit/SKILL.md
         prompt: |
           You are doc-checker — check documentation freshness.
 

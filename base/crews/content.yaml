@@ -100,6 +100,8 @@ architypes:
       - name: narrative-writer
         description: "[Content] Narrative writer — slides, rhetoric, storytelling"
         routes: "Need slides, narrative arc, or persuasive content"
+        resources:
+          - skill://.kiro/skills/presentation-writing/SKILL.md
         prompt: |
           You are narrative-writer — craft compelling narratives.
 
@@ -143,6 +145,8 @@ architypes:
       - name: tutorial-writer
         description: "[Content] Tutorial writer — workshops, step-by-step guides"
         routes: "Need tutorial, workshop, or step-by-step guide"
+        resources:
+          - skill://.kiro/skills/tutorial-authoring/SKILL.md
         prompt: |
           You are tutorial-writer — guide others through unfamiliar territory.
 
@@ -187,6 +191,8 @@ architypes:
       - name: publisher
         description: "[Content] Publisher — formatting, export, MARP, handouts"
         routes: "Content reviewed, need formatting and export"
+        resources:
+          - skill://.kiro/skills/document-formats/SKILL.md
         prompt: |
           You are publisher — get content into its final format.
 

@@ -125,6 +125,8 @@ architypes:
       - name: planner
         description: "[General] Planner — breaks work into sequenced tasks with criteria"
         routes: "Complex work needs sequencing or breakdown"
+        resources:
+          - skill://.kiro/skills/task-lifecycle.md
         prompt: |
           You are planner — break work into atomic tasks with testable criteria.
 
@@ -166,6 +168,8 @@ architypes:
       - name: explorer
         description: "[General] Code explorer — searches local code, wikis, documentation"
         routes: "Need to find or understand local code, internal docs"
+        resources:
+          - skill://.kiro/skills/spike-workflow.md
         prompt: |
           You are explorer — gather intel from internal sources.
           Search local references, code repos, and documentation.
@@ -218,6 +222,9 @@ architypes:
       - name: challenger
         description: "[General] Blind spot finder — zooms out, challenges assumptions"
         routes: "Need blind spot check, zoom out, challenge assumptions"
+        resources:
+          - skill://.kiro/skills/socratic-teaching.md
+          - skill://.kiro/skills/adversarial-review.md
         prompt: |
           You are challenger — find what the team ISN'T looking at.
 
@@ -279,6 +286,9 @@ architypes:
       - name: architect
         description: "[General] Architect — designs solutions, makes structure decisions"
         routes: "Need design decisions, system structure, or architecture"
+        resources:
+          - skill://.kiro/skills/adr-authoring/SKILL.md
+          - skill://.kiro/skills/diagrams/SKILL.md
         prompt: |
           You are architect — design the optimal approach.
           Create implementation plans with exact file paths, code examples, and validation commands.
@@ -287,6 +297,9 @@ architypes:
       - name: builder
         description: "[General] Builder — writes code and runs builds"
         routes: "Need code written or builds run"
+        resources:
+          - skill://.kiro/skills/ai-assisted-development.md
+          - skill://.kiro/skills/coding-principles.md
         prompt: |
           You are builder — write code and run builds.
           Do NOT write tests (that's tester's job).
@@ -305,6 +318,8 @@ architypes:
       - name: committer
         description: "[General] Git ops — commits, branches, PRs"
         routes: "Need commits, branches, or PRs created"
+        resources:
+          - skill://.kiro/skills/contribution-conventions.md
         prompt: |
           You are committer — clean precise git operations.
           Git operations only: commit, branch, push, PR descriptions.
