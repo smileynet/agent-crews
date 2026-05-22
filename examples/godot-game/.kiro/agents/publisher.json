@@ -42,6 +42,7 @@
   "resources": [
     "file://.kiro/steering/**/*.md",
     "file://CONTEXT.md",
+    "skill://.kiro/skills/document-formats/SKILL.md",
     "skill://.kiro/skills/verification-protocol/SKILL.md",
     "skill://.kiro/skills/git-protocol/SKILL.md",
     "skill://.kiro/skills/troubleshooting-protocol/SKILL.md"
